@@ -1,0 +1,10 @@
+{% load static %}
+<div class = "dock">
+    <div class = "dock-inner">
+        {% for app in apps %}
+            <a href = "{% url app.url %}" class = "dock-item" data-bs-toggle = "tooltip" data-bs-placement = "top" title = "{{ app.name }}" aria-label = "{{ app.name }}">
+                <img src = "{% static app.icon %}" alt = "{{ app.name }} icon" class = "dock-icon">
+            </a>
+        {% endfor %}
+    </div>
+</div>

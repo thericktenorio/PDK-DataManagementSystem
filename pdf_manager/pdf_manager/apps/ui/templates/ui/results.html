@@ -1,0 +1,23 @@
+{% extends "ui/base.html" %}{% load static %}
+<!-- blocks -->
+{% block title %}Results{%endblock %} {% block content %}
+<h2>Results</h2>
+<div id="status"></div>
+
+<h3>Extracted Fields</h3>
+<pre class="mono" id="fields">{}</pre>
+
+<h3>Generated Message</h3>
+<textarea id="message" rows="6"></textarea>
+<button id="copyBtn">Copy</button>
+
+<h3>Pages & Tags (preview)</h3>
+<div id="pages"></div>
+
+<p><a id="downloadLink" href="#" role="button">Download</a></p>
+
+<script>
+  window.__JOB_ID__ = "{{ job_id }}";
+</script>
+<script src="{% static 'ui/results.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class = "container mt-5 pt-5">
+    <div class = "row justify-content-center">
+        {% for app in apps %}
+        <div class = "col-6 col-md-3 text-center mb-4">
+            <a href = "{% url app.url %}" class = "text-decoration-none text-light">
+                <div class = "icon-container">
+                    <img src = "{% static app.icon %}" alt = "{{ app.name }} Icon" class = "img-fluid rounded-circle shadow" style = "width: 80px; height: 80px; background-color: #2b2b2b; padding: 20px;">
+                    <div class = "mt-2">{{ app.name }}</div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

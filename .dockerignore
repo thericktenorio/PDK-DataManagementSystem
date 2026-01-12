@@ -1,0 +1,24 @@
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/*.pytest_cache/
+**/*.mypy_cache/
+**/*.ruff_cache/
+**/*.DS_Store
+
+
+.env
+.env.*
+*.sqlite3
+
+.git/
+.gitignore
+
+node_modules/
+dist/
+build/
+
+# keep staticfiles/media out of the image layer if generated locally
+pdk_crm/staticfiles/
+pdk_crm/media/

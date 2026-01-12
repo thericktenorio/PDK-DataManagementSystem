@@ -1,0 +1,1459 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Clearing - {{ page_title|default:"Module" }}{% endblock %}
+
+
+{% block content %}
+{% if user.is_authenticated %}
+
+<!-- ========== CLEARING PAGE STYLING ========== -->
+
+<!-- Intake Page Styling -->
+<style>
+    .button-container {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 20px;
+    }
+
+    .button-container button {
+        margin-inline: 10px;
+    }
+
+    .table-container {
+        display: block;
+        border: 3px solid gray;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .table-header {
+        flex-shrink: 0;
+        background-color: dark;
+        color: dark;
+    }
+
+    .table-scroll {
+        max-height: 800px;
+        overflow: auto;
+    }
+
+    .table-scroll thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background-color: #212529 !important;
+    }
+
+    .table-body {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+
+    .clearing-table {
+        table-layout: fixed;
+        width: max-content;
+        min-width: 100%;
+        margin: 0;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        text-align: center;
+        padding: 8px;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .actions-cell {
+        min-width: 84px;
+    }
+
+    .completion-status-cell {
+        min-width: 56px;
+    }
+
+    .search-wrapper {
+        position: relative;
+    }
+
+    #searchResults {
+        max-width: 500px;
+        width: 100%;
+        margin: 0 auto;
+        top: 100%;
+        left: 0;
+        right: 0;
+        border: 1px solid dark;
+        border-radius: 8px;
+        padding: 8px;
+        background-color: #fff;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        position: absolute;
+        z-index: 1000;
+        display: none;
+
+        white-space: normal;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+
+    #searchResults.show {
+        display: block; /* only show when there are results */
+    }
+
+    #searchResults .list-group-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        margin-bottom: 6px;
+        border: 1px solid #e1e1e1;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+    }
+
+    #searchResults .list-group-item:hover {
+        background-color: #e9ecef; /* previously backbround-color: dark;*/
+    }
+
+    #searchResults .client-info {
+        font-weight: 500;
+        color: #333;
+        
+        flex: 1;
+        margin-right: 10px;
+    }
+
+    #searchResults .btn {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+
+        flex-shrink: 0;
+    }
+
+
+    /* ========================================== */
+    /* ======= Styling for Review Section ======= */
+    /* ========================================== */
+    
+    /* ======= PMT Status Column ======= */
+    .pmt-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.78rem;
+        line-height: 1.1;
+
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        box-shadow: 
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),    /* top sheen */
+            0 2px 10px rgba(0, 0, 0, 0.25);            /* lift */
+        text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .pmt-paid {
+        color: #0b2e13;
+        background: linear-gradient(180deg, #62f0a2 0%, #21c36a 55%, #169b52 100%);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.45),
+            0 0 0 1px rgba(33,195,106,0.25),
+            0 6px 14px rgba(33,195,106,0.25);
+    }
+
+    .pmt-pending {
+        color: #3a2a00;
+        background: linear-gradient(180deg, #ffe27a 0%, #ffc83a 55%, #f2a800 100%);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.55),
+            0 0 0 1px rgba(255,200,58,0.25),
+            0 6px 14px rgba(255,200,58,0.22);
+    }
+
+    .pmt-tbd {
+        color: #e8e8e8;
+        background: linear-gradient(180deg, #6b6b6b 0%, #4e4e4e 100%);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,0.18),
+            0 2px 10px rgba(0,0,0,0.28);
+    }
+
+    /* ================================ */
+    /* ======= Dense Table Mode ======= */
+    /* ================================ */
+    .clearing-table {
+    font-size: 0.70rem;         /* smaller text */
+    line-height: 1;
+    }
+
+    .clearing-table th,
+    .clearing-table td {
+        padding: 4px 6px;           /* tighter cells */
+    }
+
+    .clearing-table .form-select,
+    .clearing-table .form-control {
+        font-size: 0.78rem;
+        padding: 2px 6px;
+        height: 28px;               /* keep rows compact */
+    }
+
+    .clearing-table .btn {
+        padding: 2px 6px;           /* tighter action buttons */
+    }
+
+    /* keep headers readable & sticky */
+    .table-scroll thead th {
+        font-weight: 600;
+        letter-spacing: 0.2px;
+    }
+
+    /* allow more content before ellipsis */
+    th, td {
+        max-width: 160px;           /* adjust if you want */
+    }
+
+
+</style>
+
+
+<!-- ========== HEADER ========== -->
+<h1 class = "text-center text-light">Clearing</h1>
+
+
+<!-- ========== SEARCH BAR & BUTTONS ==========-->
+<!-- ⚙️ New wrapper to align input and results correctly --> 
+<div class="search-wrapper" style="position: relative; display: flex; justify-content: center; margin-bottom: 20px;">
+    <input type="text" id="searchInput" class="form-control bg-dark text-light border-3" placeholder="Search Existing Clients" style="width: 250px;">
+
+    
+    
+    <!-- ⚙️ Search dropdown now *inside* search-wrapper but *outside* flex-flow -->
+    <div id="searchResults" class="list-group search-dropdown"></div>
+</div>
+
+
+<!-- ========== CLEARING TABLE ========== -->
+<!-- Clearing table container -->
+<div class = "container-fluid mt-3 mb-3">
+    <div class = "table-container">
+        <div class = "table-scroll">
+            <table class = "table table-dark table-striped table-hover text-center align-middle clearing-table">
+                
+                <!-- column widths -->
+                <colgroup>
+                    <!-- Normal Clearing Columns -->
+                    <col style = "width: 5%;"> <!-- ID -->
+                    <col style = "width: 6%;"> <!-- TIN -->
+                    <col style = "width: 10%;"> <!-- name -->
+                    <col style = "width: 9%;"> <!-- filing type-->
+                    <col style = "width: 5%;"> <!-- tax year -->
+                    <col style = "width: 12%;"> <!-- product -->
+                    <col style = "width: 8%;"> <!-- appointment type-->
+                    <col style = "width: 8%;"> <!-- payment method-->
+                    <col style = "width: 7%;"> <!-- fee -->
+                    <col style = "width: 8%;"> <!-- preparer -->
+                    <col style = "width: 6%;"> <!-- completed -->
+                    <col style = "width: 10%;"> <!-- actions -->
+                    
+                    <!-- Review Columns in Clearing Table -->
+                    <col style = "width: 10%;"> <!-- PMT Status -->
+                    <col style = "width: 10%;"> <!-- Review Status -->
+                    <col style = "width: 10%;"> <!-- Fed Status -->
+                    <col style = "width: 10%;"> <!-- State Status -->
+                    <col style = "width: 10%;"> <!-- Fed Date -->
+                    <col style = "width: 10%;"> <!-- State Date -->
+                    <col style = "width: 10%;"> <!-- Preparer Compensation Date -->
+                </colgroup>
+                
+                <!-- table hearders -->
+                <thead>
+                    <tr>
+                        <!-- client data -->
+                        <th scope = "col" class = "text-center align-middle">ID</th>
+                        <th scope = "col" class = "text-center align-middle">TIN</th>
+                        <th scope = "col" class = "text-center align-middle">Name</th>
+
+                        <!-- product assignment data -->
+                        <th scope = "col" class = "text-center align-middle">Filing Type</th>
+                        <th scope = "col" class = "text-center align-middle">Tax Year</th>
+                        <th scope = "col" class = "text-center align-middle">Product</th>
+
+                        <!-- appointment type data -->
+                        <th scope = "col" class = "text-center align-middle">Appt Type</th>
+
+                        <!-- billing & compensation data -->
+                        <th scope = "col" class = "text-center align-middle">Pmt Method</th>
+                        <th scope = "col" class = "text-center align-middle">Fee</th>
+                        <th scope = "col" class = "text-center align-middle">Preparer</th>
+                        <th scope = "col" class = "text-center align-middle">Completed</th>
+
+                        <!-- actions buttons -->
+                        <th scope = "col" class = "text-center align-middle">Actions</th>
+
+                        <!--- Review Columns in Clearing Table -->
+                        <th scope = "col" class = "text-center align-middle">Pmt Status</th>
+                        <th scope = "col" class = "text-center align-middle">Rev Status</th>
+                        <th scope = "col" class = "text-center align-middle">Fed Status</th>
+                        <th scope = "col" class = "text-center align-middle">St Status</th>
+                        <th scope = "col" class = "text-center align-middle">Fed Dt</th>
+                        <th scope = "col" class = "text-center align-middle">St Dt</th>
+                        <th scope = "col" class = "text-center align-middle">TP Comp Dt</th>
+                    </tr>
+                </thead>
+
+                <!-- table body -->
+                <tbody>
+                    {% if clearing_clients %}
+                        {% for client in clearing_clients %}
+                            {% for product_assignment in client.product_assignments_list %}
+                                <tr class = "{% if forloop.first %}main-row{% else %}sub-row{% endif %}"
+                                    data-client-id = "{{ client.id }}"
+                                    data-product-assignment-id = "{{ product_assignment.id }}"
+                                    data-completion-state="{{ product_assignment.completion_state }}"
+                                    data-parser-status="{{ product_assignment.parser_status}}"
+                                    data-expected-ack-count="{{ product_assignment.expected_ack_count|default:'' }}"
+                                    {% if not forloop.first %} style = "display: none;"{% endif %}>
+
+                                    <!-- ========== ID, TIN & NAME FOR MAIN ROW ========== -->
+                                    {% if forloop.first %}
+                                        <!-- ID -->
+                                        <td>{{ client.id }}</td>
+                                        <!-- TIN -->
+                                        <td contenteditable = "true" class = "editable" data-field = "TIN">{{ client.TIN }}</td>
+                                        <!-- Name -->
+                                        <td contenteditable = "true" class = "editable" data-field = "name">{{ client.name }}</td>
+                                    {% else %}
+                                        <!-- spaces to correctly allign product assignment fields of subrows -->
+                                        <td colspan = "3"></td>
+                                    {% endif %}
+
+                                    <!-- ========== Filing Type ========== -->
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "filing_type">    
+                                            {% for option in filing_type_options %}
+                                                <option value = "{{ option.id }}" {% if product_assignment.filing_type and product_assignment.filing_type.id == option.id %}selected{% endif %}>
+                                                    {{ option.filing_type }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- ========== Tax Year ========== -->
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "tax_year">
+                                            {% for y in valid_tax_years %}
+                                                <option value = "{{ y }}" {% if product_assignment.tax_year and product_assignment.tax_year.year == y %}selected{% endif %}>
+                                                    {{ y }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+
+                                    <!-- ========== Product ============ -->
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "product" data-product-assignment-id = "{{ product_assignment.id }}">
+                                            {% for product in product_assignment.valid_products %}
+                                                <option value = "__{{ product.product_type }}__" {% if product.product_type == product_assignment.product.product_type %}selected{% endif %}>
+                                                    {{ product.product_type }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- ========== Appointment Type ========== -->
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "appointment" data-field = "appointment_type" data-appointment-id = "{{ product_assignment.appointment.id }}">
+                                            {% for value, label in appointment_type_options %}
+                                                <option value = "{{ value }}" {% if product_assignment.appointment and product_assignment.appointment.appointment_type == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+
+                                    <!-- ========== PAYMENT METHOD ========== -->
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "payment_method">
+                                            {% for value, label in payment_method_options %}
+                                                <option value = "{{ value }}" {% if product_assignment.payment_method == value %}selected{% endif %}>
+                                                    {{ label }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+
+                                    <!-- ========== FEE ========== -->
+                                    <td>
+                                        <input type = "number" class = "form-control form-control-sm editable" data-model = "product_assignment" data-field = "fee" value = "{{ product_assignment.fee }}">
+                                    </td>
+                                    
+                                    <!-- ========== PREPARER ========== -->
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "appointment" data-field = "preparer" data-appointment-id = "{{ product_assignment.appointment.id }}">
+                                            {% for preparer in preparer_options %}
+                                                <option value = "{{ preparer.id }}" {% if product_assignment.appointment and product_assignment.appointment.preparer and product_assignment.appointment.preparer.id == preparer.id %}selected{% endif %}>
+                                                    {{ preparer.first_name }} {{ preparer.last_name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </td>
+                                    
+                                    <!-- ========== COMPLETION STATUS TOGGLE ========== -->
+                                    <td class = "completion-status-cell">
+                                        {% if forloop.first %}
+                                            <button class = "btn btn-dark toggle-completion-status-btn">
+                                                <!-- status incomplete -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-incomplete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:none;{% else %}display:inline;{% endif %}">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                    <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
+                                                </svg>
+
+                                                <!-- status complete -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-complete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:inline;{% else %}display:none;{% endif %}">
+                                                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                                                </svg>
+                                            </button>
+                                        {% else %}
+                                            <button class = "btn btn-dark toggle-completion-status-btn">
+                                                <!-- status incomplete -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-incomplete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:none;{% else %}display:inline;{% endif %}">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                    <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
+                                                </svg>
+
+                                                <!-- status complete -->
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-complete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:inline;{% else %}display:none;{% endif %}">
+                                                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                                                </svg>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+
+
+                                    <!-- =========== Actions =========== -->
+                                    <td class = "actions-cell">
+
+                                        {% if forloop.first %}
+
+                                            <!-- Toggle Subrows -->
+                                            <button class = "btn btn-dark toggle-row-btn">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16">
+                                                    <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
+                                                </svg>
+
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style = "display: none;">
+                                                    <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                                </svg>
+                                            </button>
+
+                                            
+                                            <!-- Add Product Assignment Row Button -->
+                                            <button class = "btn btn-dark addProductAssignmentButton">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                                                </svg>
+                                            </button>
+
+                                            <!-- Remove Client from Intake Table Button -->
+                                            <button type="button" class="btn btn-dark removeClientBtn" onclick="removeClientFromClearing({{ client.id }})">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
+                                                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                                                </svg>
+                                            </button>
+
+                                        {% else %}
+
+                                            <!-- Remove Product Assingment Row Button -->
+                                            <button class = "btn btn-dark removeProductAssignmentButton">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                    <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+                                                </svg>
+                                            </button>
+
+                                        {% endif %}
+
+                                    </td>
+                                    
+
+                                    <!-- ======= PMT Status ======= -->
+                                    {# data not directly editable #}
+                                    <td>
+                                        {% with s=product_assignment.payment_status %}
+                                            {% if s == "Paid" %}
+                                                <span class = "pmt-badge pmt-paid">Paid</span>
+                                            {% elif s == "Pending" %}
+                                                <span class = "pmt-badge pmt-pending">Pending</span>
+                                            {% elif s == "TBD" %}
+                                                <span class = "pmt-badge pmt-tbd">TBD</span>
+                                            {% else %}
+                                                {# empty #}
+                                            {% endif %}
+                                        {% endwith %}    
+                                    </td>
+
+                                </tr>
+                            {% endfor %}
+                        {% endfor %}
+
+                        <!-- Toast host -->
+                        <div id="toastHost" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;"></div>
+                    {% endif %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<h1>Login</h1>
+<form method="POST" action="{% url 'home' %}">
+    {% csrf_token %}
+    <div class="form-group"><input type="text" class="form-control" name="username" placeholder="username" required></div>
+    <div class="form-group"><input type="password" class="form-control" name="password" placeholder="password" required></div>
+    <button type="submit" class="btn btn-primary mt-3">Login</button>
+</form>
+
+{% endif %}
+{% endblock %}
+
+<!-- ========== JS FUNCTIONALITY ========== -->
+{% block extra_js %}
+    <!--- ========== AUTOSAVE URLS ========== -->
+    <script>
+        const URL_AUTO_SAVE = "{% url 'core:auto_save' %}";
+        {# const URL_AUTO_SAVE_TAX_YEAR = "{% url 'core:auto_save_tax_year' %}"; #}
+        {# const URL_AUTO_SAVE_PRODUCT = "{% url 'core:auto_save_product' %}"; #}
+        const URL_AUTO_SAVE_PRODUCT_ASSIGNMENT = "{% url 'core:auto_save_product_assignment' %}";
+
+        const URL_START_COMPLETION_TEMPLATE = "{% url 'core:start_completion' 0 %}";
+        const URL_SKIP_PARSER_TEMPLATE = "{% url 'core:skip_parser' 0 %}";
+        const URL_BEGIN_ACK_COUNT_TEMPLATE = "{% url 'core:begin_ack_count' 0 %}";
+        const URL_SET_EXPECTED_ACK_COUNT_TEMPLATE = "{% url 'core:set_expected_ack_count' 0 %}";
+        const URL_FINALIZE_COMPLETION_TEMPLATE = "{% url 'core:finalize_completion' 0 %}";
+        const URL_CANCEL_COMPLETION_TEMPLATE = "{% url 'core:cancel_completion' 0 %}";
+
+        function urlForPa(templateUrl, paId) {return templateUrl.replace(/\/0\//, `/${paId}/`);}
+    </script>
+
+    <!-- ========== HELPER FUNCTIONS FOR CLEARING PAGE ========== -->
+    <script>
+        // ========== CSRF Token RETRIEVAL HELPER ========== //
+        function getCookie(name) {
+            let cookieValue = null;
+            if(document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                    const trimmed = cookie.trim();
+                    if (trimmed.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // ========== AUTOSAVE EDITED TABLE CONTENT ========== //
+        function bindAutosaveHandlers(container = document) {
+            container.querySelectorAll(".editable").forEach((el) => {
+                if (el.dataset.autosaveBound === "true") return;
+                el.dataset.autosaveBound = "true";
+
+                // initialize last-saved value from the DOM as rendered
+                snapshotLastSaved(el);
+
+                // capture "before edit" value so we can revert
+                el.addEventListener("focus", () => snapshotLastSaved(el));
+
+                const isContentEditable = el.hasAttribute("contenteditable");
+                const triggerEvent = isContentEditable ? "blur" : "change";
+
+                el.addEventListener(triggerEvent, async function () {
+                    const row = el.closest("tr");
+                    if (!row) return;
+
+                    const field = el.getAttribute("data-field");
+                    const model = el.getAttribute("data-model") || "client";
+                    const value = getElValue(el);
+
+                    // Skip autosave if empty
+                    if (!value || value.trim() === "") return;
+
+                    // extract correct object ID based on model
+                    let objectId;
+                    if (model === "product_assignment") {
+                        objectId = el.dataset.productAssignmentId || row.dataset.productAssignmentId;
+                    } else if (model === "client") {
+                        objectId = row.dataset.clientId;
+                    } else if (model === "product") {
+                        objectId = row.dataset.productId;
+                    } else if (model === "appointment") {
+                        objectId = el.dataset.appointmentId || row.dataset.appointmentId;
+                    } else {
+                        console.warn(`Unsupported model type: ${model}`);
+                        return;
+                    }
+
+                    if (!objectId) {
+                        console.error("Missing object ID for autosave.");
+                        return;
+                    }
+
+                    const url = (model === "product_assignment") ? URL_AUTO_SAVE_PRODUCT_ASSIGNMENT : URL_AUTO_SAVE;
+
+                    const payload = { id: objectId, field, value, model };
+
+                    // tax_year special: pass current product_type so backend can keep product aligned
+                    if (model === "product_assignment" && field === "tax_year") {
+                        const productSelect = row.querySelector('[data-field="product"]');
+                        if (productSelect) {
+                            const selectedProductType = productSelect.options[productSelect.selectedIndex]?.textContent?.trim();
+                            if (selectedProductType) payload.product_type = selectedProductType;
+                        }
+                    }
+
+                    try {
+                        const resp = await axios.post(url, payload, {
+                            headers: { "X-CSRFToken": getCookie("csrftoken") },
+                        });
+
+                        // If backend says success, commit "last saved value"
+                        if (resp?.data?.status === "success") {
+                            snapshotLastSaved(el);
+
+                            // If tax_year update returns valid_products, you can refresh the product dropdown here if desired
+                            // (optional) resp.data.valid_products
+                        } else {
+                            // backend returned non-success but not as an error
+                            console.warn("Auto-save warning:", resp?.data?.message);
+                        }
+
+                    } catch (error) {
+                        const status = error?.response?.status;
+                        const data = error?.response?.data || {};
+                        const code = data?.code;
+
+                        if (status === 409 && code === "PA_FROZEN") {
+                            // revert the UI so it doesn't look like it "took"
+                            revertToLastSaved(el);
+
+                            // message can be string OR dict; normalize
+                            const msg =
+                                (typeof data.message === "string" && data.message) ||
+                                "Edits are not permitted after a row is marked as completed.";
+
+                            showToast(msg, "Edit blocked");
+                            return;
+                        }
+
+                        // Other 409s: show message but do not necessarily revert
+                        if (status === 409) {
+                            const msg =
+                                (typeof data.message === "string" && data.message) ||
+                                "Update conflict.";
+                            showToast(msg, "Update blocked");
+                            return;
+                        }
+
+                        console.error("Auto-save error:", error);
+                        showToast("Auto-save failed. See console for details.", "Error");
+                    }
+                });
+            });
+        }
+        // Deprecate if the above bindAutosaveHandler() works
+        function __z__bindAutosaveHandlers(container = document) {
+            container.querySelectorAll('.editable').forEach(el => {
+                const isContentEditable = el.hasAttribute('contenteditable');
+
+                const handler = function () {
+                    const row = el.closest('tr');
+                    const field = el.getAttribute('data-field');
+                    const isContentEditable = el.hasAttribute('contenteditable');
+                    const value = isContentEditable ? el.textContent.trim() : el.value;
+                    const model = el.getAttribute('data-model') || 'client'; // Default to 'client'
+
+                    // Skip autosave if no value
+                    if (!value || value.trim() === "") {
+                        console.warn('Skipped autosave for empty value.');
+                        return;
+                    }
+
+                    // extract correct object ID based on model
+                    let objectId;
+                    if (model === 'product_assignment') {
+                        objectId = el.dataset.productAssignmentId || row.dataset.productAssignmentId;
+                    } else if (model === 'client') {
+                        objectId = row.dataset.clientId;
+                    } else if (model === 'product') {
+                        objectId = row.dataset.productId;
+                    } else if (model === 'appointment') {
+                        objectId = el.dataset.appointmentId || row.dataset.appointmentId;
+                    } else {
+                        console.warn(`Unsupported model type: ${model}`);
+                        return;
+                    }
+
+                    if (!objectId) {
+                        console.error('Missing object ID for autosave.');
+                        return;
+                    }
+
+                    // Determine URL based on field
+                    let url;
+                    if (model === 'product_assignment') {
+                        url = URL_AUTO_SAVE_PRODUCT_ASSIGNMENT;
+                    } else {
+                        url = URL_AUTO_SAVE;
+                    }
+
+                    const payload = {
+                        id: objectId,
+                        field: field,
+                        value: value,
+                        model: model,
+                    };
+
+                    // If product assignment tax year is updated
+                    // then current product type is passed to backend for automatic instantiation
+                    if (model === 'product_assignment' && field === 'tax_year') {
+                        const productSelect = row.querySelector('[data-field = "product"]');
+                        if (productSelect) {
+                            const selectedProductType = productSelect.options[productSelect.selectedIndex]?.textContent?.trim();
+                            if (selectedProductType) {
+                                payload.product_type = selectedProductType;
+                            }
+                        }
+                    }
+
+                    console.log(`Auto-saving [${model}.${field}] with value "${value}" to URL:`, url);
+                    console.log("Payload being sent to backend:", payload);
+                    console.log("Dropdown value being sent:", value, typeof value);
+
+                    axios.post(url, payload, {
+                        headers: { "X-CSRFToken": getCookie('csrftoken')}
+                    })
+                    .then(response => {
+                        if (response.data.status !== 'success') {
+                            console.warn('Auto-save warning:', response.data.message);
+                        }
+                    })
+                    .catch(error => {
+                        if (error?.response?.status === 409) {
+                            const msg = error.response.data?.message || "Edits are not allowed after a row has been marked as completed.";
+                            
+                            alert(typeof msg === "string" ? msg : "Edits are not allowed after a row has been marked as complete.");
+
+                            return;
+                        }
+
+                        console.error("Auto-save error:", error);
+                    });
+                };
+
+                // Remove previous event listener before binding (in case of rebinding)
+                el.removeEventListener('blur', handler);
+                el.removeEventListener('change', handler);
+
+                if (isContentEditable) {
+                    el.addEventListener('blur', handler); // Fires when user exits the cell
+                } else {
+                    el.addEventListener('change', handler); // Standard for <select>
+                }
+            });
+        }
+
+
+
+        // ========== TOGGLE EXPAND & COLLAPSE BUTTONS ========== //
+        function bindExpandCollapseButtons(container = document) {
+            console.log("Binding toggle-row-btns");
+
+            container.querySelectorAll('.toggle-row-btn').forEach(button => {    
+                button.addEventListener('click', () => {
+
+                    const row = button.closest('tr');
+                    if (!row) return;
+
+                    const clientId = row.getAttribute('data-client-id');
+                    console.log("Toggle button clicked for client ID:", clientId);
+
+                    const subRows = container.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+
+                    subRows.forEach(sub => {
+                        sub.style.display = (sub.style.display === 'none') ? 'table-row' : 'none';
+                    });
+
+                    // Toggle expandable row svg icon
+                    const iconLeft = button.querySelector('.toggle-icon-left');
+                    const iconDown = button.querySelector('.toggle-icon-down');
+
+                    if(iconLeft && iconDown) {
+                        const isExpanding = subRows.length > 0 && subRows[0].style.display === 'table-row';
+                        iconLeft.style.display = isExpanding ? 'none' : 'inline';
+                        iconDown.style.display = isExpanding ? 'inline' : 'none';
+                    }
+                });
+            });
+        }
+
+
+        // ========== COMPLETION WORKFLOW LAUNCHER ========== //
+        function bindCompletionToggleButtons(container = document) {
+            console.log("Binding completion workflow buttons");
+            const buttons = container.querySelectorAll(".toggle-completion-status-btn");
+
+            buttons.forEach((button) => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
+
+                button.addEventListener("click", async function () {
+                    const row = this.closest("tr");
+                    if (!row) return;
+
+                    const paId = row.dataset.productAssignmentId;
+                    if (!paId) {
+                        console.warn("Missing data-product-assignment-id on row");
+                        return;
+                    }
+
+                    // Always treat this as a WORKFLOW button, not a toggle.
+                    // State lives on the row and is updated after each command call.
+                    const getState = () => (row.dataset.completionState || "OPEN").trim();
+                    const setState = (newState) => {
+                        row.dataset.completionState = newState;
+                        // update icons based on state
+                        updateCompletionIcons(row, newState);
+                    };
+
+                    // disable button while running
+                    button.disabled = true;
+
+                    try {
+                        const state = getState();
+
+                        if (state === "COMPLETED") {
+                            // Already complete; do nothing
+                            return;
+                        }
+
+                        // Ensure completion has started
+                        if (state === "OPEN") {
+                            const res = await axios.post(
+                                urlForPa(URL_START_COMPLETION_TEMPLATE, paId),
+                                {},
+                                { headers: { "X-CSRFToken": getCookie("csrftoken") } }
+                            );
+                            setState(res.data.state || "PENDING_PARSER");
+                        }
+
+                        // Resume based on latest state
+                        await runCompletionFlow(row, paId, setState);
+
+                    } catch (err) {
+                        console.error("Completion workflow error:", err);
+
+                        // Surface backend reason if present
+                        const msg = 
+                            err?.response?.data?.message ||
+                            err?.response?.data?.error ||
+                            err?.message ||
+                            "Completion workflow failed.";
+                        
+                        alert(typeof msg === "string" ? msg : JSON.stringify(msg));
+
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+        }
+
+        /**
+         * Orchestrates the workflow using simple prompts/confirm.
+         * Replace prompts with Bootstrap modals later
+         */
+         async function runCompletionFlow(row, paId, setState) {
+            const csrf = { headers: { "X-CSRFToken": getCookie("csrftoken") } };
+
+            const state = () => (row.dataset.completionState || "OPEN").trim();
+
+            // ---------- Modal 1: Dummy Parser Step ---------- //
+            // States that should land on parser step:
+            // - PENDING_PARSER (normal start)
+            // - OPEN handled earlier (later)
+            if (state() === "PENDING_PARSER") {
+                // as of 12.27.2025 a dummy parser modal UX:
+                // You want upload UI later; for :
+                // - "Skip" -> cmd_skip_parser, then begin_ack_count
+                // - "Cancel" -> cancel_completion (reset OPEN)
+                const choice = confirm ("Parser step (dummy)\n\nOK = Skip Parser\nCancel = Cancel completion");
+
+                if (!choice) {
+                    const res = await axios.post(urlForPa(URL_CANCEL_COMPLETION_TEMPLATE, paId), {}, csrf);
+                    setState(res.data.state || "OPEN");
+                    return;     // cancel-to-reset
+                }
+
+                // skip parser
+                {
+                    const res = await axios.post(urlForPa(URL_SKIP_PARSER_TEMPLATE, paId), {}, csrf);
+                    setState(res.data.state || "PARSER_SKIPPED");
+                }
+
+                // move into ack-count step when parser Skipped
+                {
+                    const res = await axios.post(urlForPa(URL_BEGIN_ACK_COUNT_TEMPLATE, paId), {}, csrf);
+                    setState(res.data.state || "PENDING_ACK_COUNT");
+                }
+            }
+
+            // ---------- Modal 2: Expected Ack Count ---------- //
+            // If UI resumes mid-flow, state might already be PARSER_SKIPPED or PENDING_ACK_COUNT
+            if (state() === "PARSER_SKIPPED") {
+                // Ensure we enter ack-count step
+                const res = await axios.post(urlForPa(URL_BEGIN_ACK_COUNT_TEMPLATE, paId), {}, csrf);
+                setState(res.data.state || "PENDING_ACK_COUNT");
+            }
+
+            if (state() === "PENDING_ACK_COUNT") {
+                // cancel-to-reset must be supported here taxYearOptions
+                // minimum expected ack count is 0 for paper filings
+                const input = prompt(
+                    "Expected acknowledgment count (min = 0).\n\nLeave blank to cancel completion.",
+                    row.dataset.expectedAckCount || "0"
+                );
+
+                if (input === null || String(input).trim() === "") {
+                    const res = await axios.post(urlForPa(URL_CANCEL_COMPLETION_TEMPLATE, paId), {}, csrf);
+                    setState(res.data.state || "OPEN");
+                    return;
+                }
+
+                const n = Number(String(input).trim());
+                if (!Number.isInteger(n) || n < 0) {
+                    alert("Ack count must be an integer >= 0.");
+                    return;
+                }
+
+                // set expected ack count -> READY_TO_COMPLETE
+                {
+                    const res = await axios.post(urlForPa(URL_SET_EXPECTED_ACK_COUNT_TEMPLATE, paId), { expected_ack_count: n }, csrf);
+                    row.dataset.expectedAckCount = String(n);
+                    setState(res.data.state || "READY_TO_COMPLETE");
+                }
+            }
+
+            // ---------- Finalization ---------- //
+            if (state() === "READY_TO_COMPLETE") {
+                // Industry standard: either auto finalize after ack count,
+                // used here: confirm to reduce accidental completion
+                const ok = confirm("Finalize completion for this service?");
+                if (!ok) {
+                    const res = await axios.post(urlForPa(URL_CANCEL_COMPLETION_TEMPLATE, paId), {}, csrf);
+                    setState(res.data.state || "OPEN");
+                    return;
+                }
+
+                const res = await axios.post(urlForPa(URL_FINALIZE_COMPLETION_TEMPLATE, paId), {}, csrf);
+                setState(res.data.state || "COMPLETED");
+
+                // lock UI controls for this row
+                lockRowAfterCompletion(row);
+            }
+        }  
+
+        /**
+        * Optional visual behavior: show the "complete" icon only when COMPLETED
+        * every other step within completion workflow shows the 'incomplete' icon
+        */
+        function updateCompletionIcons(row, completionState) {
+            const btn = row.querySelector(".toggle-completion-status-btn");
+            if (!btn) return;
+
+            const iconComplete = btn.querySelector(".toggle-status-complete");
+            const iconIncomplete = btn.querySelector(".toggle-status-incomplete");
+            if (!iconComplete || !iconIncomplete) return;
+
+            const isDone = completionState === "COMPLETED";
+            iconComplete.style.display = isDone ? "inline" : "none";
+            iconIncomplete.style.display = isDone ? "none" : "inline";
+        }
+
+        /**
+        * Optional: disable edits once completed
+        * can expand this to reflect "frozen" states later
+        **/
+        function lockRowAfterCompletion(row) {
+            row.querySelectorAll(".editable").forEach((e1) => {
+                // keep actions usable if you want
+                if (e1.classList.contains("toggle-completion-status-btn")) return;
+
+                // disable inputs/selects
+                if (e1.tagName === "SELECT" || e1.tagName === "INPUT" || e1.tagName === "TEXTAREA") {
+                    e1.disabled = true;
+                }
+
+                // disable contenteditable cells
+                if (e1.hasAttribute("contenteditable")) {
+                    e1.setAttribute("contenteditable", "false");
+                    e1.classList.add("text-muted");
+                }
+            });
+        }
+
+
+        // ========== TOGGLE COMPLETION STATUS BUTTONS ========== //
+        // POSSIBLY DEPRICATE IF COMPLETION WORKFLOW LAUNCHER SECTION ABOVE
+        function __z__bindCompletionToggleButtons(container = document) {
+            console.log("Binding toggle-completion-status-btns");
+            const buttons = container.querySelectorAll(".toggle-completion-status-btn");
+
+            buttons.forEach(button => {
+                button.addEventListener("click", function () {
+                    const row = this.closest("tr");
+                    const productAssignmentId = row.dataset.productAssignmentId;
+
+                    const iconComplete = this.querySelector(".toggle-status-complete");
+                    const iconIncomplete = this.querySelector(".toggle-status-incomplete");
+
+                    const isCurrentlyComplete = getComputedStyle(iconComplete).display !== "none";
+
+                    // warn user if attempting to toggle from complete TO incomplete
+                    if (isCurrentlyComplete) {
+                        const confirmRevert = confirm("You are attempting to revert this 'completed' product to 'incomplete'. Doing so may cause billing issues. Are you sure you want to proceed?");
+                        
+                        if (!confirmRevert) {
+                            // cancel the request to revert completion status to incomplete
+                            iconComplete.style.display = "inline";
+                            iconIncomplete.style.display = "none";
+                            return;
+                        }
+                    }
+
+                    // toggle visual state
+                    if(isCurrentlyComplete) {
+                        iconComplete.style.display = "none";
+                        iconIncomplete.style.display = "inline";
+                    } else {
+                        iconComplete.style.display = "inline";
+                        iconIncomplete.style.display = "none";
+                    }
+
+                    // payload for backend logic
+                    // may deprecate if axios.post(url,{},{...}) works
+                    const payload = {
+                        id: productAssignmentId,
+                        field: "is_complete",
+                        value: !isCurrentlyComplete,
+                        model: "product_assignment",
+                    };
+
+                    // send update to backend
+                    const url = urlForPa(URL_START_COMPLETION_TEMPLATE, productAssignmentId);
+                    axios.post(url, {}, {
+                        headers: { "X-CSRFToken": getCookie('csrftoken') }
+                    })
+                    .then(response => {
+                        if (response.data.status !== 'success') {
+                            console.warn("Completion status update warning:", response.data.message);
+                        } else {
+                            console.log("Completion status upadted.");
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error updating completion status:", error);
+                        // revert toggle in UI to initial state
+                        if (isCurrentlyComplete) {
+                            iconComplete.style.display = "inline";
+                            iconIncomplete.style.display = "none";
+                        } else {
+                            iconComplete.style.display = "none";
+                            iconIncomplete.style.display = "inline";
+                        }
+                    });
+                });
+            });
+        }
+
+        // ========== CREATE DROPDOWN FOR TAX YEARS ========== //
+        function generateTaxYearDropdown(selectedYear) {
+            const currentYear = new Date().getFullYear();
+            const currentTaxYear = currentYear - 1;
+            const earliest = currentTaxYear - 7;
+
+            let options = '<option value = ""></option>';
+            for (let y = currentTaxYear; y >= earliest; y--) {
+                options += `<option value = "${y}" ${y === selectedYear ? "selected" : ""}>${y}</option>`;
+            }
+            return options;
+        }
+
+        // ========== CREATE DROPDOWN FOR FILING TYPE ========== //
+        function generateFilingTypeDropdown(options, selectedId) {
+            let html = `<option value = ""></option>`;
+            options.forEach(opt => {
+                const selected = opt.id === selectedId ? "selected" : "";
+                html += `<option value = "${opt.id}" ${selected}>${opt.filing_type}</option>`;
+            });
+            return html;
+        }
+
+        // ========== CREATE DROPDOWN FOR PRODUCT TYPE ========== //
+        function generateDynamicProductDropdown(productOptions, selectedIdOrType) {
+            return (productOptions || []).map(opt => {
+                const isSelected = String(opt.id) === String(selectedIdOrType) || String(opt.product_type) === String(selectedIdOrType);
+
+                const selectedAttr = isSelected ? 'selected' : '';
+                return `<option value="__${opt.product_type}__" ${selectedAttr}>${opt.product_type}</option>`;
+            }).join('');
+        }
+        
+        
+        
+        //function generateDynamicProductDropdown(productOptions, selectedIdOrType) {
+        //    return productOptions.map(opt => {
+        //        const selected = (opt.product_type === selectedProductType) ? 'selected' : '';
+        //        return `<option value = "__${opt.product_type}__" ${selected}>${opt.product_type}</option>`;
+        //    }).join('');
+        //}
+
+
+        // ========== HIGHLIGHT CLIENT ROW WHEN SEARCHED ========== //
+        function highlightClientRow(clientId) {
+            const row = document.querySelector(`.main-row[data-client-id="${clientId}"]`);
+            if (row) {
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                row.style.backgroundColor = "#007bff";  // Bootstrap blue
+                row.style.color = "#fff";
+                setTimeout(() => {
+                    row.style.backgroundColor = "";
+                    row.style.color = "";
+                }, 2500);
+            }
+        }
+
+        // ========== SEARCH FUNCTIONALITY ========== //
+        document.getElementById("searchInput").addEventListener("input", (event) => {
+            const query = event.target.value.trim();
+            const resultsDiv = document.getElementById("searchResults");
+
+            if (query.length === 0) {
+                resultsDiv.classList.remove("show"); // hide dropdown
+                resultsDiv.innerHTML = "";
+                return;
+            }
+
+            // Axios function
+            axios.get("{% url 'clearing:search_clients' %}?q=" + query)
+                .then(response => {
+                    const results = response.data;
+
+                    if (results.length > 0) {
+                        resultsDiv.classList.add("show"); // show dropdown
+                        resultsDiv.innerHTML = results.map(client => `
+                            <div class="list-group-item" data-client-id="${client.id}">
+                                <div class="client-info" onclick="highlightClientRow(${client.id})">
+                                    ${client.name} (${client.TIN})
+                                </div>
+                                <div class="client-actions">
+                                    ${client.in_daily_clearing
+                                        ? `<button class="btn btn-sm btn-primary" onclick="removeClientFromClearing(${client.id})">Remove</button>`
+                                        : `<button class="btn btn-sm btn-primary" onclick="handleAddClient(${client.id}, ${client.in_intake})">Add</button>`
+                                    }
+                                    <button class="btn btn-sm btn-dark infoBtn">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join("");
+                    } else {
+                        resultsDiv.classList.remove("show");
+                        resultsDiv.innerHTML = `<div class="text-center text-muted">No matches found.</div>`;
+                    }
+                })
+                .catch(error => {
+                    resultsDiv.classList.remove("show");
+                    console.error("Error searching clients:", error);
+                });
+        });
+
+
+
+        // ========== ADD CLIENT TO CLEARING ========== //
+        function addClientToClearing(clientId) {
+            axios.post(`/clearing/add_client_to_clearing/${clientId}/`, {}, {
+                headers: { "X-CSRFToken": getCookie("csrftoken")}
+            }).then(() => {
+                location.reload();
+            }).catch(error => {
+                console.error("Error adding client:", error);
+            });
+        }
+
+        // ========== HELPER FUNCTION TO ADD CLIENT TO CLEARING ========== //
+        function handleAddClient(clientId, inIntake) {
+            if (!inIntake) {
+                // ask user to confirm their choice to add client to intake AND clearing
+                const shouldAdd = confirm("This client has not been added to the intake table. \nWould you like to add this client to both the intake and clearing tables?");
+                
+                // if user does not confirm return, cancel the add client to clearing request
+                if (!shouldAdd) return;
+            }
+
+            addClientToClearing(clientId);
+        }
+
+        // ========== REMOVE CLIENT FROM CLEARING ========== //
+        function removeClientFromClearing(clientId) {
+            axios.post(`/clearing/remove_client_from_clearing/${clientId}/`, {}, {
+                headers: { "X-CSRFToken": getCookie("csrftoken")}
+            }).then(() => {
+                location.reload();
+            }).catch(error => {
+                console.error("Error removing client:", error);
+            });
+        }
+
+        // ========== ADD NEW ROW FOR PRODUCT ASSIGNMENT ========== //
+            // Helper functions for add product assignment
+            function getMainRowOptionsHTML(clientId, selector) {
+                const main = document.querySelector(`tr.main-row[data-client-id="${clientId}"] ${selector}`);
+                return main ? main.innerHTML : '<option value=""></option';
+            }
+
+            function generateAppointmentSelectHTML(clientId, appointmentId) {
+                const options = getMainRowOptionsHTML(clientId, 'select[data-model="appointment"][data-field="appointment_type"]');
+                return `<select class="form-select form-select-sm editable" data-model="appointment" data-field="appointment_type" data-appointment-id="${appointmentId || ''}">${options}</select>`;
+            }
+
+            function generatePaymentMethodsSelectHTML(clientId) {
+                const options = getMainRowOptionsHTML(clientId, 'select[data-model="product_assignment"][data-field="payment_method"]');
+                return `<select class="form-select form-select-sm editable" data-model="product_assignment" data-field="payment_method">${options}</select>`;
+            }
+
+            function generatePreparerSelectHTML(clientId, appointmentId) {
+                const options = getMainRowOptionsHTML(clientId, 'select[data-model="appointment"][data-field="preparer"]');
+                return `<select class="form-select form-select-sm editable" data-model="appointment" data-field="preparer" data-appointment-id="${appointmentId || ''}">${options}</select>`;
+            }
+
+        function bindAddProductAssignmentButtons(container = document) {
+            container.querySelectorAll('.addProductAssignmentButton').forEach(button => {
+                if (button.dataset.bound !== "true") {
+                    button.dataset.bound = "true";    // mark this button as already bound
+
+                    button.addEventListener('click', () => {
+                        const row = button.closest('tr');
+                        const clientId = row.dataset.clientId;
+
+                        axios.post("{% url 'clearing:add_product_assignment' %}", {client_id : clientId }, {
+                            headers: { "X-CSRFToken": getCookie("csrftoken")}
+                        }).then(response => {
+                            if (response.data.status === 'success') {
+                                const tbody = document.querySelector(".table-scroll tbody");
+                                const assignment = response.data.product_assignment;
+
+                                const filingTypeOptions = generateFilingTypeDropdown(response.data.filing_type_options, assignment.filing_type.id);
+                                const taxYearOptions = generateTaxYearDropdown(assignment.tax_year);
+                                const productOptions = generateDynamicProductDropdown(response.data.product_options, assignment.product_type);
+                                
+                                const apptId = assignment.appointment_id;
+
+                                const newSubRow = document.createElement('tr');
+
+                                newSubRow.classList.add('sub-row');
+                                newSubRow.setAttribute('data-client-id', clientId);
+                                newSubRow.setAttribute('data-product-assignment-id', assignment.id);
+                                newSubRow.style.display = 'table-row';    // show immediately
+
+                                newSubRow.innerHTML = `
+                                    <td colspan = "3"></td>
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "filing_type">
+                                            ${filingTypeOptions}
+                                        </select>
+                                    </td>
+
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "tax_year">
+                                            ${taxYearOptions}
+                                        </select>
+                                    </td>
+
+                                    <td>
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "product">
+                                            ${productOptions}
+                                        </select>
+                                    </td>
+
+                                    <td>
+                                        ${generateAppointmentSelectHTML(clientId, apptId)}
+                                    </td>
+
+                                    <td>
+                                        ${generatePaymentMethodsSelectHTML(clientId)}
+                                    </td>
+
+                                    <td>
+                                        <input class = "form-control form-control-sm editable" data-model="product_assignment" data-field = "fee" value = "">
+                                    </td>
+
+                                    <td>
+                                        ${generatePreparerSelectHTML(clientId, apptId)}
+                                    </td>
+
+                                    <td class="completion-status-cell">
+                                        <button class = "btn btn-dark toggle-completion-status-btn">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-incomplete" viewBox="0 0 16 16" style = "display:inline;">
+                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
+                                            </svg>
+
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-complete" viewBox="0 0 16 16" style = "display:none;">
+                                                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+                                            </svg>
+                                        </button>
+                                    </td>
+
+                                    <td class = "actions-cell text-center align-middle">
+                                        <button type = "button" class = "btn btn-dark removeProductAssignmentButton">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
+                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+                                            </svg>
+                                        </button>
+                                    </td>
+                                `;
+
+                                // Insert newly created subrow to the bottom of the Client's associated row section
+                                let lastRow = null;
+                                document.querySelectorAll(`tr[data-client-id = "${clientId}"]`).forEach(r => lastRow = r);
+                                if (lastRow) {
+                                    lastRow.after(newSubRow);
+                                    bindAutosaveHandlers(newSubRow);
+                                    bindRemoveProductAssignmentButtons(newSubRow);
+                                    bindCompletionToggleButtons(newSubRow);
+                                }
+                            } else {
+                                alert(response.data.message);
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Error adding product assignment:", err);
+                            alert("Failed to add product assignment.");
+                        });
+                    })
+                }
+            })
+        }
+
+        // ========== REMOVE PRODUCT ASSIGNMENT SUBROW ========= //
+        function bindRemoveProductAssignmentButtons(container = document) {
+            container.querySelectorAll('.removeProductAssignmentButton').forEach(button => {
+                if (button.dataset.bound !== "true") {
+                    button.dataset.bound = "true";    // mark this button as already bound
+
+                    button.addEventListener('click', function () {
+                        const row = this.closest('tr');
+                        const productAssignmentId = row.getAttribute('data-product-assignment-id');
+
+                        if (confirm("Are you sure you want to remove this product assignment?")) {
+                            axios.post("{% url 'clearing:remove_product_assignment' %}", {product_assignment_id : productAssignmentId}, {
+                                headers: { "X-CSRFToken": getCookie("csrftoken")}
+                            })
+                            .then(response => {
+                                if (response.data.status === 'success') {
+                                    row.remove()    // remove subrow from DOM
+                                } else {
+                                    alert("Error removing product assignment: " + response.data.message);
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Error:", error);
+                                alert("An error ocurred while removing the product assignment.");
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // ============== HELPER FUNCTIONS FOR TESTING CLEARING ============== //
+        function showToast(message, title = "Notice") {
+            const host = document.getElementById("toastHost");
+            if (!host || typeof bootstrap === "undefined") {
+                // fallback if Bootstrap JS isn't available
+                alert(message);
+                return;
+            }
+
+            const id = "t_" + Math.random().toString(16).slice(2);
+            const html = `
+                <div id="${id}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">${title}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">${String(message)}</div>
+                </div>
+            `;
+            host.insertAdjacentHTML("beforeend", html);
+            const el = document.getElementById(id);
+            const t = new bootstrap.Toast(el, { delay: 3500 });
+            e1.addEventListener("hidden.bs.toast", () => el.remove());
+            t.show();
+        }
+
+        // --- last-saved value helpers ---
+        function getElValue(el) {
+            if (el.hasAttribute("contenteditable")) return (el.textContent || "").trim();
+            return (el.value ?? "").toString();
+        }
+
+        function setElValue(el, v) {
+            if (el.hasAttribute("contenteditable")) {
+                el.textContent = v ?? "";
+                return;
+            }
+            el.value = v ?? "";
+        }
+
+        function snapshotLastSaved(el) {
+            // store it on the element, not globally
+            el.dataset.lastSavedValue = getElValue(el);
+        }
+
+        function revertToLastSaved(el) {
+            if (el.dataset.lastSavedValue !== undefined) {
+                setElValue(el, el.dataset.lastSavedValue);
+            }
+        }
+    </script>
+
+    <!-- ========== DOM CONTENT LOADED FUNCTIONS ========== -->
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            bindAutosaveHandlers();        // autosave table updates
+            bindExpandCollapseButtons();   // toggle expand/collpse buttons
+            bindCompletionToggleButtons();  // toggle completion status buttons
+            bindAddProductAssignmentButtons(); // create new product assignment subrow
+            bindRemoveProductAssignmentButtons(); // function to remove subrow
+        })
+    </script>
+{% endblock %}

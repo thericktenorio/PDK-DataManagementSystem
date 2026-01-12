@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}PDK ENTRUST{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load static %}
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        html, body {
+            background-color: #121212;
+            color: #ffffff;
+            margin: 0;
+            height: 100%;
+        }
+
+        .navbar-brand {
+            font-weight: bold;
+        }
+
+        .form-control,
+        .form-select {
+            background-color: #2b2b2b;
+            color: #ffffff;
+            border-color: #444;
+        }
+
+        .form-control::placeholder {
+            color: #aaa;
+        }
+
+        .alert {
+            color: #fff;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            border: 1px solid #333;
+        }
+
+        .icon-container:hover {
+            transform: scale(1.05);
+            transition: transform 0.2s ease-in-out;
+        }
+
+
+        .main {
+            padding-bottom: 88px;
+        }
+
+        .dock {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 18px;
+            z-index: 1030;
+            display: flex;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .dock-inner {
+            background: rgba(30, 30, 30, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 16px;
+            padding: 10px 12px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            pointer-events: auto;
+            box-shadow: 0 12px 24px rgba(0,0,0,.35)
+            max-widthH mi(92vw, 1100px);
+        }
+
+        .dock-item {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 58px;
+            height: 58px;
+            border-radius: 14px;
+            transition: transform 120ms ease, box-shadow 120ms ease;
+            text-decoration: none !important;
+            outline: none;
+        }
+
+        .dock-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background-color: #2b2b2b;
+            padding: 10px;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset;
+        }
+
+        .dock-item:hover,
+        .dock-item:focus-visible {
+            transform: scale(1.15);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.35);
+        }
+
+        /* Slight neighbor magnification (classic dock vibe) */
+        .dock-item:hover ~ .dock-item { transform: scale(1.05); }
+        .dock-item:has(+ .dock-item:hover) { transform: scale(1.05); } /* :has falls back gracefully */
+
+        /* On small screens, keep it compact */
+        @media (max-width: 576px) {
+            .dock-inner { gap: 10px; padding: 8px 10px; }
+            .dock-item { width: 50px; height: 50px; }
+            .dock-icon { width: 38px; height: 38px; padding: 8px; }
+            main { padding-bottom: 76px; }
+        }
+    </style>
+</head>
+
+
+
+<script>
+    // Enable bootstrap tooltips for hover labels
+    document.addEventListener("DOMContentLoaded", function () {
+        const tooltipTriggerList = [].slice.call(
+            document.querySelectorAll('[data-bs-toggle = "tooltip"]')
+        );
+        tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+    });
+</script>
+
+<body class="bg-dark text-light">
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'core:home' %}">PDK ENTRUST</a>
+            {% if user.is_authenticated %}
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <form method="post" action="{% url 'accounts:logout' %}" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-link nav-link" style="padding: 0; color: inherit; text-decoration: none;">Logout</button>
+                        </form>
+                    </li>
+                </ul>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="mt-5">
+        {% if messages %}
+            <div class="container">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if request.resolver_match and request.resolver_match.view_name != 'core:home' and request.resolver_match.view_name != 'accounts:login' %}
+        {% include "partials/dock.html" %}
+    {% endif %}
+
+
+    <!-- Bootstrap JS bundle (includes Popper.js) -->
+     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    <!-- Axios: Required for all client_portfolio Axios requests -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    
+    <!-- IMPORTANT: THIS EXTRA_JS BLOCK IS NEEDED FOR BUTTON FUNCTIONALITY THROUGHOUT -->
+    {% block extra_js %}{% endblock %}
+
+</body>
+</html>

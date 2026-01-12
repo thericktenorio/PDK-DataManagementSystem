@@ -1,0 +1,31 @@
+# SUPERUSER
+name : 
+email : 
+pwd : 
+
+
+# COMMON COMMANDS
+// Activate virtual env
+cd into pdk_crm_postgresql
+source env/bin/activate
+
+// Update tree.txt
+from pdk_crm_postgresql
+tree -a -I "env|*.pyc" > tree.txt
+
+// Push to local GitHub Desktop Repository
+git branch : to check branch
+git status : to check files that have changed
+git add .   : to add to Repository
+git commit -m "..." : to push the code base to the repo with a dedicated descriptive note
+
+
+// Create new passwords
+python3 - <<'EOF'
+import secrets
+import string
+
+alphabet = string.ascii_letters + string.digits + "!@#$%^&*()-_=+"
+password = ''.join(secrets.choice(alphabet) for _ in range(32))
+print(password)
+EOF

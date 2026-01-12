@@ -1,0 +1,29 @@
+# Don't send secrects into build context
+.env
+.env.*
+
+# Don't send local DB / data
+db.sqlite3
+data/
+
+# Git metadata
+.git
+.gitignore
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Django collected static (can be re-generated)
+staticfiles/
+
+# Virtualenvs (defensive)
+venv/
+.env/
+
+# OS / editor files
+.DS_Store
+.vscode/

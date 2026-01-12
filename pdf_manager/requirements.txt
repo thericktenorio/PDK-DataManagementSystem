@@ -1,0 +1,18 @@
+# Runtime
+Django==5.2.1
+psycopg[binary]==3.2.3
+gunicorn==22.0.0
+django-environ==0.12.0
+Jinja2==3.1.6
+whitenoise==6.11.0
+
+# Dev / Quality
+pytest==8.3.3
+pytest-django==4.9.0
+ruff==0.6.9
+mypy==1.11.2
+pre-commit==4.0.1
+PyPDF2==3.0.1
+PyMuPDF==1.26.6
+Pillow
+pytesseract

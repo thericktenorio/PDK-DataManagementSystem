@@ -1,0 +1,87 @@
+services:
+  crm_db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - crm_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  crm_web:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    ports:
+      - "8000:8000"
+    env_file:
+      - pdk_crm/.env.docker
+    depends_on:
+      crm_db:
+        condition: service_healthy
+    volumes:
+      - crm_media:/app/media
+      - crm_static:/app/staticfiles
+  
+  # --------------------------
+  # PDF MANAGER DB (DEDICATED)
+  # --------------------------
+  pdf_db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: pdf_manager
+      POSTGRES_USER: pdfmgr
+      POSTGRES_PASSWORD: pdfmgrpw
+    volumes:
+      - pdf_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdfmgr -d pdf_manager"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---------------
+  # PDF MANAGER WEB
+  # ---------------
+  pdf_web:
+    build:
+      context: ./pdf_manager
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8001:8000"
+    depends_on:
+      pdf_db:
+        condition: service_healthy
+    user: "0:0"
+    environment:
+      # Django
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: "localhost, 127.0.0.1"
+      DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost:8001,http://127.0.0.1:8001"
+      
+      # IMPORTANT: force Postgres for pdf_manager in the unified stack
+      USE_SQLITE: "0"
+
+      # Postgres connection for pdf_manager
+      POSTGRES_DB: "pdf_manager"
+      POSTGRES_USER: "pdfmgr"
+      POSTGRES_PASSWORD: "pdfmgrpw"
+      POSTGRES_HOST: pdf_db
+      POSTGRES_PORT: "5432"
+      
+      # data root inside container
+      DATA_ROOT: "/home/app/data"
+    volumes:
+      - pdf_data:/home/app/data
+    
+volumes:
+  crm_pgdata:
+  crm_media:
+  crm_static:
+  pdf_data:
+  pdf_pgdata:

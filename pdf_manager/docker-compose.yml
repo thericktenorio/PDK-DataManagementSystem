@@ -1,0 +1,50 @@
+#version: "3.9"
+services:
+  db:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pdfmgr}
+      POSTGRES_USER: ${POSTGRES_USER:-pdfmgr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pdfmgrpw}
+    ports:
+      # Expose for local psql/admin tools; remove if you don't need host access.
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-pdfmgr} -d ${POSTGRES_DB:-pdfmgr}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      USE_SQLITE: "0"
+      POSTGRES_DB: ${POSTGRES_DB:-pdfmgr}
+      POSTGRES_USER: ${POSTGRES_USER:-pdfmgr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pdfmgrpw}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      # Keep your hot-reload dev mounts
+      - .:/app:delegated  # <-- mount whole repo; guarantees / app/pdf_manager/manage.py exists
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
+  

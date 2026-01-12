@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.11.2
+    hooks:
+      - id: mypy
+        pass_filenames: false
+        # Only run mypy on project package, not whole repo.
+        # Point to config that lives inside the inner pdf_manager folder.
+        args: [--config-file=pdf_manager/mypy.ini, pdf_manager/pdf_manager]
+        # Keep this, add stubs here later as needed (ie type-requests)
+        additional_dependencies: []
+        # Limit which files the hook considers (belt & suspenders approach)
+        files: ^pdf_manager/pdf_manager/

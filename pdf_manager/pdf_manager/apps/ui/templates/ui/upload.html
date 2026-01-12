@@ -1,0 +1,48 @@
+{# pdf_manager/apps/ui/templates/ui/upload.html #} {% extends "ui/base.html" %}
+{% load static %} {% block title %} Upload {%endblock %} {% block content %}
+<h2>Upload PDF</h2>
+<p>Max PDF size 25 MB.</p>
+
+<div
+  id="dropzone"
+  class="dropzone"
+  role="button"
+  tabindex="0"
+  aria-label="Upload PDF by dropping here or press Enter/Space to choose a file"
+  data-max-mb="{{ maxMb }}"
+  style="
+    border: 2px dashed #999;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    border-radius: 8px;
+  "
+>
+  Drop PDF or click to choose
+</div>
+
+<div id="status" style="margin-top: 8px; color: #555"></div>
+
+<progress
+  id="progress"
+  value="0"
+  max="100"
+  style="width: 100%; display: none; margin-top: 8px"
+></progress>
+
+{# Hidden file input via click-to-select #}
+<input
+  id="filePicker"
+  type="file"
+  accept="application/pdf"
+  style="display: none"
+/>
+
+{# Force CSRF cookie to be set (even if no form submit); harmless in page #}
+<form style="display: none">{% csrf_token %}</form>
+
+{# Axios serving from your own static to avoid CSP hassles #}
+<script src="{% static 'vendor/axios/axios.min.js' %}"></script>
+
+<script src="{% static 'ui/upload.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Acknowledgments - {{ page_title|default:"Module" }}{% endblock %}
+
+{% block content %}
+    {% if user.is_authenticated %}
+
+        <style>
+            .ack-page-title {
+                text-align: center;
+                margin-top: 10px;
+                margin-bottom: 20px;
+            }
+
+            .ack-input-card {
+                max-width: 900px;
+                margin: 0 auto 30px auto;
+            }
+
+            .ack-input-card textarea {
+                min-height: 150px;
+                resize: vertical;
+            }
+
+            .ack-input-hint {
+                font-size: 0.85rem;
+                color: #bbbbbb;
+            }
+
+            .ack-wrapper {
+                padding-bottom: 140px;
+                background-color: #212529;
+            }
+
+            .table-container {
+                display: block;
+                border: 3px solid gray;
+                border-radius: 20px;
+                overflow: hidden;
+                margin-bottom: 24px;
+            }
+
+            .table-scroll {
+                max-height: 500px;
+                overflow: auto;
+            }
+
+            .table-scroll thead th {
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                background-color: #212529 !important;
+            }
+
+            th, td {
+                text-align: center;
+                padding: 8px;
+                vertical-align: middle;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .ack-section-title {
+                margin-top: 10px;
+                margin-bottom: 6px;
+            }
+        </style>
+
+        <div class = "ack-wrapper">
+            
+            <h1 class="ack-page-title text-light">Acknowledgments</h1>
+
+            <!-- ============== Ingestion / Parser Input ============== -->
+            <div class="container">
+                <div class="card ack-input-card bg-dark text-light">
+                    <div class="card-body">
+                        <h5 class="card-title mb-3">Import Acknowledgments</h5>
+
+                        <p class="ack-input-hint mb-3">
+                            Upload acknowledgments file <strong>(.xls, .xlsx, .csv)</strong> or
+                            paste the raw data.
+                        </p>
+
+                        <!-- File upload -->
+                        <div class="mb-3">
+                            <label for="ackFileInput" class="form-label">Upload</label>
+                            <input type="file"
+                                id="ackFileInput"
+                                class="form-control"
+                                accept=".xls,.xlsx,.xlsm,.csv">
+                        </div>
+
+                        <!-- Paste area -->
+                        <div class="mb-3">
+                            <label for="ackPasteInput" class="form-label">Paste</label>
+                            <textarea id="ackPasteInput"
+                                    class="form-control"
+                                    placeholder="Paste entire acknowledgment spreadsheet here"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button"
+                                    id="ackClearBtn"
+                                    class="btn btn-outline-secondary btn-sm">
+                                Clear
+                            </button>
+                            <button type="button"
+                                    id="ackPostBtn"
+                                    class="btn btn-primary">
+                                Post
+                            </button>
+                        </div>
+
+                        <div id="ackParserStatus" class="mt-3 ack-input-hint"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================== Acknowledgement Tables ================== -->
+            <div class="container-fluid mt-3 mb-4">
+
+                <!-- Current Year -->
+                <h4 class="ack-section-title text-light">{{ current_tax_year }} Acknowledgments</h4>
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table class="table table-dark table-striped table-hover text-center align-middle"
+                            style="table-layout: fixed; width: 100%; margin: 0;">
+                            <colgroup>
+                                <col style="width: 20%;"> <!-- Ack Date -->
+                                <col style="width: 20%;"> <!-- TIN -->
+                                <col style="width: 20%;"> <!-- Client Name -->
+                                <col style="width: 20%;"> <!-- Ack Type -->
+                                <col style="width: 20%;"> <!-- Status -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ack Date</th>
+                                    <th scope="col">TIN</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ackCurrentBody">
+                                {% if current_tax_year_acknowledgments %}
+                                    {% for ack in current_tax_year_acknowledgments %}
+                                        <tr>
+                                            <td>
+                                                {% if ack.date %}
+                                                    {{ ack.date|date:"Y-m-d" }}
+                                                {% else %}
+                                                    {{ ack.created_at|date:"Y-m-d" }}
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ ack.client_tin }}</td>
+                                            <td>{{ ack.client_name }}</td>
+                                            <td>{{ ack.type }}</td>
+                                            <td>{{ ack.status }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-muted">No acknowledgments found for the current year.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Prior Year (Y-1) -->
+                <h4 class="ack-section-title text-light">{{ prior_tax_year }} Acknowledgments</h4>
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table class="table table-dark table-striped table-hover text-center align-middle"
+                            style="table-layout: fixed; width: 100%; margin: 0;">
+                            <colgroup>
+                                <col style="width: 20%;"> <!-- Ack Date -->
+                                <col style="width: 20%;"> <!-- TIN -->
+                                <col style="width: 20%;"> <!-- Client Name -->
+                                <col style="width: 20%;"> <!-- Ack Type -->
+                                <col style="width: 20%;"> <!-- Status -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ack Date</th>
+                                    <th scope="col">TIN</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ackPriorBody">
+                                {% if prior_tax_year_acknowledgments %}
+                                    {% for ack in prior_tax_year_acknowledgments %}
+                                        <tr>
+                                            <td>
+                                                {% if ack.date %}
+                                                    {{ ack.date|date:"Y-m-d" }}
+                                                {% else %}
+                                                    {{ ack.created_at|date:"Y-m-d" }}
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ ack.client_tin }}</td>
+                                            <td>{{ ack.client_name }}</td>
+                                            <td>{{ ack.type }}</td>
+                                            <td>{{ ack.status }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-muted">No acknowledgments found for the prior year.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Prior Prior Year (Y-2) -->
+                <h4 class="ack-section-title text-light">{{ prior_prior_tax_year }} Acknowledgments</h4>
+                <div class="table-container">
+                    <div class="table-scroll">
+                        <table class="table table-dark table-striped table-hover text-center align-middle"
+                            style="table-layout: fixed; width: 100%; margin: 0;">
+                            <colgroup>
+                                <col style="width: 20%;"> <!-- Ack Date -->
+                                <col style="width: 20%;"> <!-- TIN -->
+                                <col style="width: 20%;"> <!-- Client Name -->
+                                <col style="width: 20%;"> <!-- Ack Type -->
+                                <col style="width: 20%;"> <!-- Status -->
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th scope="col">Ack Date</th>
+                                    <th scope="col">TIN</th>
+                                    <th scope="col">Name</th>
+                                    <th scope="col">Type</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ackPriorPriorBody">
+                                {% if prior_prior_tax_year_acknowledgments %}
+                                    {% for ack in prior_prior_tax_year_acknowledgments %}
+                                        <tr>
+                                            <td>
+                                                {% if ack.date %}
+                                                    {{ ack.date|date:"Y-m-d" }}
+                                                {% else %}
+                                                    {{ ack.created_at|date:"Y-m-d" }}
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ ack.client_tin }}</td>
+                                            <td>{{ ack.client_name }}</td>
+                                            <td>{{ ack.type }}</td>
+                                            <td>{{ ack.status }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-muted">No acknowledgments found for the prior-prior year.</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        
+        </div>
+
+        <div class="modal fade" id="ackResolveModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content bg-dark text-light">
+                <div class="modal-header">
+                    <h5 class="modal-title">Unmatched Acknowledgments</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="ackResolveSummary" class="mb-3"></p>
+                    <div class="table-responsive">
+                    <table class="table table-dark table-striped mb-0">
+                        <thead>
+                        <tr>
+                            <th>Year</th>
+                            <th>TIN</th>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody id="ackResolveRows"></tbody>
+                    </table>
+                    </div>
+                    <p class="text-muted mt-3 mb-0">
+                    Click <strong>Yes</strong> to automatically create a default ProductAssignment (TBD) and attach these acknowledgments.
+                    Click <strong>No</strong> to mark them as unmatched.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" id="ackResolveNoBtn">No</button>
+                    <button type="button" class="btn btn-primary" id="ackResolveYesBtn">Yes</button>
+                </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="ackCreateClientModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content bg-dark text-light">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Create Client</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="hidden" id="ackCreateClientStagingId" />
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <label class="form-label">TIN</label>
+                                <input class="form-control" id="ackCreateClientTin" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Name</label>
+                                <input class="form-control" id="ackCreateClientName" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input class="form-control" id="ackCreateClientEmail" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone</label>
+                                <input class="form-control" id="ackCreateClientPhone" />
+                            </div>
+                        </div>
+
+                        <div id="ackCreateClientError" class="text-danger mt-3" style="display:none;"></div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="ackCreateClientSubmitBtn">Create & Resolve</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        {% else %}
+        <h1>Login</h1>
+        <form method="POST" action="{% url 'home' %}">
+            {% csrf_token %}
+            <div class="form-group"><input type="text" class="form-control" name="username" placeholder="username" required></div>
+            <div class="form-group"><input type="password" class="form-control" name="password" placeholder="password" required></div>
+            <button type="submit" class="btn btn-primary mt-3">Login</button>
+        </form>
+
+
+    {% endif %}
+{% endblock %}
+
+
+
+
+{% block extra_js %}
+    <script>
+        // TODO: wire this to your actual parser endpoint once we design it.
+        const ackStatusEl = document.getElementById('ackParserStatus');
+        const ackFileInput = document.getElementById('ackFileInput');
+        const ackPasteInput = document.getElementById('ackPasteInput');
+        const ackPostBtn = document.getElementById('ackPostBtn');
+        const ackClearBtn = document.getElementById('ackClearBtn');
+
+        
+        const ACK_POST_URL = "{% url 'acknowledgments:post' %}";
+        const ACK_RESOLVE_URL = "{% url 'acknowledgments:resolve' %}";
+        let lastUnmatchedIds = [];
+        let lastUnmatchedRows = [];
+        
+        function setAckStatus(msg, isError = false) {
+            if (ackStatusEl) {
+                ackStatusEl.textContent = msg || "";
+                ackStatusEl.style.color = isError ? '#ff6b6b' : '#bbbbbb'
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                    const trimmed = cookie.trim();
+                    if (trimmed.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        if (ackClearBtn) {
+            ackClearBtn.addEventListener('click', () => {
+                if (ackFileInput) ackFileInput.value = "";
+                if (ackPasteInput) ackPasteInput.value = "";
+                setAckStatus("");
+            });
+        }
+
+        if (ackPostBtn) {
+            ackPostBtn.addEventListener('click', () => {
+                const file = (ackFileInput && ackFileInput.files && ackFileInput.files.length > 0)
+                    ? ackFileInput.files[0]
+                    : null;
+                const pasted = (ackPasteInput && ackPasteInput.value)
+                    ? ackPasteInput.value.trim()
+                    : "";
+
+                if (!file && !pasted) {
+                    setAckStatus("Please upload a spreadsheet or paste its contents before processing.");
+                    return;
+                }
+
+                const formData = new FormData();
+                if (file) {
+                    formData.append("file", file);
+                }
+                if (pasted) {
+                    formData.append("pasted_data", pasted);
+                }
+
+                setAckStatus("Posting acknowledgments...");
+
+                axios.post(ACK_POST_URL, formData, {
+                    headers: {
+                        "X-CSRFToken": getCookie('csrftoken'),
+                        // let browser set Content-Type for multipart
+                    }
+                })
+                .then(response => {
+                    const data = response.data || {};
+                    console.log("ACK POST response:", data);
+                    if (data.status !== "success") {
+                        setAckStatus(data.message || "Unexpected response from server.", true);
+                        return;
+                    }
+
+                    const unmatched = (data.unmatched || []);
+                    const needsFiling = (data.needs_filing_type || []);
+                    const ambiguous = (data.ambiguous || []);
+                    const clientNotFound = (data.client_not_found || []);
+                    const clientNotFoundIds = new Set(clientNotFound.map(x => x.id));
+
+                    const totalProblem = unmatched.length + needsFiling.length + ambiguous.length + clientNotFound.length;
+
+                    // If nothing to resolve, we can just reload (normal success)
+                    if (totalProblem === 0) {
+                        setAckStatus(data.message || "Posted.");
+                        window.location.reload();
+                        return;
+                    }
+
+                    // Build modal rows
+                    const modalEl = document.getElementById("ackResolveModal");
+                    const tbody = document.getElementById("ackResolveRows");
+                    const summary = document.getElementById("ackResolveSummary");
+
+                    // collect IDs we allow auto-create for:
+                    // - UNMATCHED
+                    // - NEEDS_FILING_TYPE (still allow create default TBD PA)
+                    // We will NOT auto-resolve ambiguous in this pass.
+                    const displayRows = [...unmatched, ...needsFiling, ...ambiguous, ...clientNotFound];
+                    const resolvableRows = [...unmatched, ...needsFiling];
+                    lastUnmatchedIds = resolvableRows.map(x => x.id);
+                    lastUnmatchedRows = resolvableRows;
+
+                    if (!modalEl || !tbody || !summary) {
+                        console.error("Resolve modal elements not found.", {modalEl: modalEl, tbody: tbody, summary: summary });
+                        setAckStatus("Unmatched acknowledgments detected, but the resolve modal is missing in the template.", true);
+                    }
+
+                    tbody.innerHTML = "";
+                    for (const r of displayRows) {
+                        const isClientNotFound = clientNotFoundIds.has(r.id);
+                        
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td>${(r.year !== undefined && r.year !== null) ? r.year : ""}</td>
+                            <td>${(r.tin !== undefined && r.tin !== null && r.tin !== "") ? r.tin : (r.client_tin !== undefined && r.client_tin !== null ? r.client_tin : "")}</td>
+                            <td>${(r.name !== undefined && r.name !== null) ? r.name : ""}</td>
+                            <td>${(r.type !== undefined && r.type !== null) ? r.type :  ""}</td>
+                            <td>${(r.status !== undefined && r.status !== null) ? r.status : ""}</td>
+                            <td>${(r.reason !== undefined && r.reason !== null) ? r.reason : ""}</td>
+                            <td>${isClientNotFound ?
+                                `
+                                <div class = "mt-2">
+                                    <button type = "button" class = "btn btn-sm btn-outline-info ack-create-client-btn">
+                                        Create Client
+                                    </button>
+                                </div>
+                                ` : ""}
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+
+                        if (isClientNotFound) {
+                            tr.querySelector(".ack-create-client-btn").addEventListener("click", () => showCreateClientModal(r));
+                        }
+                    }
+
+                    summary.textContent = `Found ${totalProblem} acknowledgments that could not be matched. Auto-create ProductAssignments for ${lastUnmatchedIds.length} of them? (Ambiguous items will require manual review.)`;
+
+                    setAckStatus(data.message || "Posted. Some items need review.");
+
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                })
+                .catch(error => {
+                    console.error("Error posting acknowledgments:", error);
+                    let msg = "An error occurred while posting acknowledgments.";
+                    if (error.response && error.response.data && error.response.data.message) {
+                        msg = error.response.data.message;
+                    }
+                    setAckStatus(msg, true);
+                });
+            });
+        }
+
+        //Handlers for Yes / No functionality when prompted to create new PA based on unmatched Ack
+        async function resolveStaging(action) {
+            if (!lastUnmatchedIds.length) {
+                window.location.reload();
+                return;
+            }
+
+            setAckStatus(action === "create" ? "Creating ProductAssignments..." : "Marking as unmatched...");
+
+            try {
+                const resp = await axios.post(ACK_RESOLVE_URL, {
+                    ids: lastUnmatchedIds,
+                    action: action
+                }, {
+                    headers: {
+                        "X-CSRFToken": getCookie('csrftoken'),
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                const data = resp.data || {};
+                if (data.status !== "success") {
+                    setAckStatus(data.message || "Resolve failed.", true);
+                    return;
+                }
+
+                setAckStatus(data.message || "Resolved.");
+                window.location.reload();
+            } catch (err) {
+                console.error("Resolve error:", err);
+                setAckStatus("An error occurred while resolving acknowledgments.", true);
+            }
+        }
+        
+        const ACK_CREATE_CLIENT_URL = "{% url 'core:create_client_from_ack' %}";
+
+        function showCreateClientModal(row) {
+            document.getElementById("ackCreateClientStagingId").value = row.id;
+            document.getElementById("ackCreateClientTin").value = row.tin || row.client_tin || "";
+            document.getElementById("ackCreateClientName").value = row.name || "";
+            document.getElementById("ackCreateClientEmail").value = "";
+            document.getElementById("ackCreateClientPhone").value = "";
+
+            const err = document.getElementById("ackCreateClientError");
+            err.style.display = "none";
+            err.textContent = "";
+
+            const modalEl = document.getElementById("ackCreateClientModal");
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+
+
+
+
+        const yesBtn = document.getElementById("ackResolveYesBtn");
+        if (yesBtn) yesBtn.addEventListener("click", () => resolveStaging("create"));
+
+        const noBtn = document.getElementById("ackResolveNoBtn");
+        if (noBtn) noBtn.addEventListener("click", () => resolveStaging("decline"));
+
+        const createClientBtn = document.getElementById("ackCreateClientSubmitBtn");
+
+        if (createClientBtn) {
+            let isSubmitting = false;
+
+            createClientBtn.addEventListener("click", async () => {
+                if (isSubmitting) return;
+                isSubmitting = true;
+
+                const stagingEl = document.getElementById("ackCreateClientStagingId");
+                const tinEl = document.getElementById("ackCreateClientTin");
+                const nameEl = document.getElementById("ackCreateClientName");
+                const emailEl = document.getElementById("ackCreateClientEmail");
+                const phoneEl = document.getElementById("ackCreateClientPhone");
+                const errEl = document.getElementById("ackCreateClientError");
+
+                // Hard guard: if modal markup is missing, fail gracefully (no JS crash)
+                if (!stagingEl || !tinEl || !nameEl || !emailEl || !phoneEl || !errEl) {
+                    console.error("Create Client modal elements missing.", {
+                        stagingEl, tinEl, nameEl, emailEl, phoneEl, errEl,
+                    });
+                    setAckStatus("Create Client modal is missing required fields in the template.", true);
+                    isSubmitting = false;
+                    return;
+                }
+
+                const staging_id = parseInt(stagingEl.value, 10);
+                const tin = (tinEl.value || "").trim();
+                const name = (nameEl.value || "").trim();
+                const email = (emailEl.value || "").trim();
+                const phone = (phoneEl.value || "").trim();
+
+                errEl.style.display = "none";
+                errEl.textContent = "";
+
+                try {
+                    const resp = await axios.post(
+                        ACK_CREATE_CLIENT_URL,
+                        { staging_id, tin, name, email, phone },
+                        {
+                            headers: {
+                                "X-CSRFToken": getCookie("csrftoken"),
+                                "Content-Type": "application/json",
+                            },
+                        }
+                    );
+
+                    const data = resp.data || {};
+                    if (data.status !== "success") {
+                        errEl.style.display = "block";
+                        errEl.textContent = data.message || "Failed to create client.";
+                        isSubmitting = false;
+                        return;
+                    }
+
+                    window.location.reload();
+                } catch (e) {
+                    errEl.style.display = "block";
+                    errEl.textContent = (e?.response?.data?.message) || "Server error while creating client.";
+                    isSubmitting = false;
+                }
+            });
+        }
+
+    </script>
+{% endblock %}

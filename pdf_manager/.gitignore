@@ -1,0 +1,20 @@
+# Environment / secrets
+.env
+
+# Local DB
+db.sqlite3
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.mypy_cache/
+.pytest_cache/
+
+# Django static files
+staticfiles/
+
+# OS/editor noise
+.DS_Store
+.vscode/

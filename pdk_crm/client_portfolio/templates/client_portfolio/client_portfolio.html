@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Client Portfolio - {{ page_title|default:"Module" }}{% endblock %}
+
+{% block content %}
+    {% if user.is_authenticated %}
+    <!-- Table Styling -->
+        <style>
+            .button-container {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 20px;
+            }
+
+            .button-container button {
+                margin-inline: 10px;
+            }
+
+            .actions-cell {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                gap: 3px;
+                padding: 0;
+                margin: 0;
+                height: 100%;
+                width: 100%;
+                line-height: 1;
+                background-color: transparent;
+            
+                vertical-align: middle;
+
+                flex-wrap: nowrap;        /* prevent wrapping unless absolutely necessary */              
+            }
+
+            .actions-cell .btn {
+                padding: 2px 6px;
+                font-size: 0.75rem;
+                line-height: 1;
+                height: 28px;          /* tightly constrain to line height */
+                display: flex;
+                align-items: center;
+                justify-content: center;
+
+                white-space: nowrap;      /* prevent button text wrapping */
+            }
+
+            .table-container{
+                display: flex;
+                flex-direction: column;
+                max-height: 800px;  /* adjust table height here */
+                border: 3px solid gray;
+                border-radius: 20px;
+                overflow: hidden;
+            }
+
+            .table-header {
+                flex-shrink: 0; /* keeps header fixed */
+                background-color: dark;
+                color: dark;
+            }
+
+            .table-body {
+                flex-grow: 1; /* allows body to scroll */
+                overflow-y: auto;
+            }
+
+            .table-body table {
+                margin: 0;
+                border-collapse: collapse;
+            }
+
+            th, td {
+                text-align: center;
+                padding: 8px;
+                vertical-align: middle;
+            }
+
+            select.editable {
+                height: 30px;
+                padding-top: 0;
+                padding-bottom: 0;
+                margin-top: 0;
+                margin-bottom: 0;
+                font-size: 0.85rem;
+                line-height: 1.2;
+            }
+        </style>
+    <!-- Table -->
+        <h2 class = "text-center">Client Portfolio</h2>
+        
+        <div class = "button-container">
+            <button type = "button" class = "btn btn-primary" id = "addClientBtn">Add Client</button>
+            <button type = "button" class = "btn btn-primary" id = "importClientsBtn">Import Clients</button>
+            <input type = "file" id = "clientFileInput" accept = ".xls, .xlsx, .xlsm, .csv" style = "display: none;">
+        </div>
+
+        <div class = "container mt-3 mb-3">
+            <div class = "table-container">
+
+                <div class = "table-header">
+                    <table class = "table table-dark table-striped text-center align-middle" style = "table-layout: fixed; width: 100%;" >
+                        <thead>
+                            <tr>
+                                <th scope = "col" class = "text-center align-middle">ID</th>
+                                <th scope = "col" class = "text-center align-middle">TIN</th>
+                                <th scope = "col" class = "text-center align-middle">Name</th>
+                                <th scope = "col" class = "text-center align-middle">Email</th>
+                                <th scope = "col" class = "text-center align-middle">Phone</th>
+                                <th scope = "col" class = "text-center align-middle">Prior Filing Type</th>
+                                <th scope = "col" class = "text-center align-middle">Actions</th>
+                            </tr>
+                        </thead>
+
+                    </table>
+                </div>
+
+                <div class = "table-body">
+                    <table class = "table table-dark table-striped table-hover text-center align-middle" style = "table-layout: fixed; width: 100%;">
+                        <tbody class = "table-group-divider">
+                            {% if clients %}
+                                {% for client in clients %}
+                                    <tr data-client-id = "{{ client.id }}">
+                                        <td data-field = "id" class = "text-center align-middle">{{ client.id }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "TIN">{{ client.TIN }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "name">{{ client.name }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "email">{{ client.email }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "phone">{{ client.phone }}</td>
+                                        <td class = "text-center align-middle">
+                                            <select class = "form-select form-select-sm editable" data-field = "prior_filing_type">
+                                                <option value = '' {% if client.prior_filing_type == '' %} selected {% endif %}></option>
+                                                <option value = "Simple" {% if client.prior_filing_type == 'Simple' %} selected {% endif %}>Simple</option>
+                                                <option value = "Credits" {% if client.prior_filing_type == 'Credits' %} selected {% endif %}>Credits</option>
+                                                <option value = "Itemizing" {% if client.prior_filing_type == 'Itemizing' %} selected {% endif %}>Itemizing</option>
+                                                <option value = "Sole Proprietor" {% if client.prior_filing_type == 'Sole Proprietor' %} selected {% endif %}>Sole Proprietor</option>
+                                                <option value = "Corporation" {% if client.prior_filing_type == 'Corporation' %} selected {% endif %}>Corporation</option>
+                                            </select>
+                                        </td>
+                                        <td class = "actions-cell text-center align-middle">
+                                            <button type = "button" class = "btn btn-dark infoBtn">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
+                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                                                </svg>
+                                            </button>
+                                            <button type = "button" class = "btn btn-dark saveClientBtn">Save</button>
+                                            <button type = "button" class = "btn btn-dark deleteClientBtn">Delete</button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    
+    // ========== ADD CLIENT BUTTON ==========
+    document.addEventListener("DOMContentLoaded", function () {
+            
+        document.getElementById("addClientBtn").addEventListener("click", () => {
+            const modalHtml = `
+                <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content bg-dark text-light">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="addClientModalLabel">Add New Client</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="addClientForm">
+                        <div class="mb-3">
+                            <label for="clientName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="clientName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientTIN" class="form-label">TIN</label>
+                            <input type="text" class="form-control" id="clientTIN" maxlength="9" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientEmail" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="clientEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="clientPhone" class="form-label">Phone</label>
+                            <input type="text" class="form-control" id="clientPhone" maxlength="10">
+                        </div>
+                        <div class="mb-3">
+                            <label for="priorFilingType" class="form-label">Prior Filing Type</label>
+                            <select class="form-select" id="priorFilingType">
+                            <option value=""></option>
+                            <option value="Simple">Simple</option>
+                            <option value="Credits">Credits</option>
+                            <option value="Itemizing">Itemizing</option>
+                            <option value="Sole Proprietor">Sole Proprietor</option>
+                            <option value="Corporation">Corporation</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Submit</button>
+                        </form>
+                    </div>
+                    </div>
+                </div>
+                </div>`;
+
+            document.body.insertAdjacentHTML("beforeend", modalHtml);
+            const modal = new bootstrap.Modal(document.getElementById("addClientModal"));
+            modal.show();
+
+            document.getElementById("addClientForm").addEventListener("submit", function (e) {
+                e.preventDefault();
+                const payload = {
+                    name: document.getElementById("clientName").value.trim(),
+                    TIN: document.getElementById("clientTIN").value.trim(),
+                    email: document.getElementById("clientEmail").value.trim(),
+                    phone: document.getElementById("clientPhone").value.trim(),
+                    prior_filing_type: document.getElementById("priorFilingType").value
+                };
+
+                axios.post("{% url 'client_portfolio:save_client' %}", payload, {
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                        "Content-Type": "application/json"
+                    }
+                })
+                .then(response => {
+                    if (response.data.status === "success") {
+                        alert("Client added successfully.");
+                        location.reload();
+                    } else {
+                        alert("Error: " + JSON.stringify(response.data.message));
+                    }
+                })
+                .catch(error => {
+                    console.error("Add client error:", error);
+                    alert("Failed to add client.");
+                });
+            });
+
+            document.getElementById("addClientModal").addEventListener("hidden.bs.modal", () => {
+                document.getElementById("addClientModal").remove();
+            });
+        });
+
+    })
+
+
+    // ========== DELETE CLIENT BUTTON ==========
+    document.addEventListener("DOMContentLoaded", function () {
+
+        function deleteClient(event) {
+            const button = event.target;
+            const row = button.closest('tr');
+            const clientId = row.getAttribute('data-client-id');
+            const clientName = row.querySelector('[data-field="name"]').textContent.trim();
+
+            if (!clientId) return;
+
+            if (confirm(`Are you sure you want to delete ${clientName} (ID: ${clientId})?`)) {
+                axios.delete(`client_portfolio:delete_client/${clientId}/`, {
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                    }
+                })
+                .then(response => {
+                    if (response.data.status === "success") {
+                        row.remove();
+                        alert(response.data.message);
+                    } else {
+                        alert(`Error: ${response.data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error:", error);
+                    alert("An error occurred while deleting the client.");
+                });
+            }
+        }
+
+        document.addEventListener('click', event => {
+            if (event.target.classList.contains('deleteClientBtn')) {
+                deleteClient(event);
+            }
+        });
+
+    })
+    
+    // ========== SAVE CLIENT BUTTON ==========
+    document.addEventListener("DOMContentLoaded", function () {
+
+        function saveClient(event) {
+            const button = event.target;
+            const row = button.closest('tr');
+            const clientId = row.getAttribute('data-client-id');
+            const editableFields = row.querySelectorAll('.editable');
+            const clientData = { client_id: clientId };
+
+            editableFields.forEach(field => {
+                const fieldName = field.getAttribute('data-field');
+                const fieldValue = field.tagName === 'SELECT' ? field.value : field.textContent.trim();
+                clientData[fieldName] = fieldValue;
+            });
+
+            axios.post("{% url 'client_portfolio:save_client' %}", clientData, {
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                }
+            })
+            .then(response => {
+                if (response.data.status === "success") {
+                    // Optional success handling
+                } else {
+                    alert(`Error: ${response.data.message}`);
+                }
+            })
+            .catch(error => {
+                console.error("Save client error:", error);
+                alert("An error occurred while saving the client.");
+            });
+        }
+
+        document.addEventListener('click', event => {
+            if (event.target.classList.contains('saveClientBtn')) {
+                saveClient(event);
+            }
+        });
+
+    })
+    
+    // ========== IMPORT CLIENTS BUTTON ==========
+    document.addEventListener("DOMContentLoaded", function () {
+
+        document.getElementById("clientFileInput").addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                alert("No file selected.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append("client_file", file);
+
+            axios.post("{% url 'client_portfolio:import_clients' %}", formData, {
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "multipart/form-data",
+                },
+            })
+            .then((response) => {
+                if (response.data.status === "success") {
+                    alert("Clients imported successfully.");
+                    location.reload();
+                } else {
+                    alert(`Error: ${response.data.message}`);
+                }
+            })
+            .catch((error) => {
+                console.error("Import error:", error);
+                alert("An error occurred while importing clients.");
+            });
+        });
+
+        document.getElementById("importClientsBtn").addEventListener("click", () => {
+            document.getElementById("clientFileInput").click();
+        });
+
+    })
+
+</script>
+
+
+{% endblock %}

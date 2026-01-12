@@ -1,0 +1,14 @@
+Hi {{ taxpayer_first_name }},
+
+Thank you for submitting your tax documents. Please see your {{ tax_year }} tax figures below.
+
+FED: ${{ federal_amount }}
+{% for s in states -%}
+{{ s.state }}: ${{ s.amount }}
+{% endfor %}
+
+If approved, please e-sign the tax documents located in the DOCS section of your account.{{ tax_prep_fee_statement }}{{ refund_statement }}{{ due_tax_statement }} Please feel free to reach out with any questions.
+
+Thank you for choosing PDK Entrust,
+
+PDK Entrust Team

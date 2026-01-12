@@ -1,0 +1,28 @@
+# virtualenvs
+env/
+venv/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+__pycache__/
+*.pyc
+
+# django
+*.log
+db.sqlite3
+
+# OS/IDE
+.DS_Store
+.vscode/
+.idea/
+
+# PDF manager runtime data (DON'T COMMIT)
+pdf_manager/data/*
+!pdf_manager/data/**/.gitkeep
+pdk_crm/media/
+cookies.txt
+cookies.txt

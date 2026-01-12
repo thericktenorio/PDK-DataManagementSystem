@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>{% block title %}PDF Manager{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {% load static %}
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    />
+    <style>
+      .dropzone {
+        border: 2px dashed #aaa;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+      }
+      .thumb {
+        width: 96px;
+        height: 128px;
+        background: #f7f7f7;
+        border: 1px solid #ddd;
+        display: inline-block;
+        margin: 4px;
+      }
+      .tags {
+        font-size: 0.8rem;
+        color: #555;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="container">
+      <ul>
+        <li>
+          <strong><a href="{% url 'ui:upload' %}">PDF Manager</a></strong>
+        </li>
+      </ul>
+      <ul>
+        <li><a href="{% url 'ui:history' %}">History</a></li>
+      </ul>
+    </nav>
+    <main class="container">{% block content %}{% endblock %}</main>
+  </body>
+</html>
