@@ -14,5 +14,6 @@ mypy==1.11.2
 pre-commit==4.0.1
 PyPDF2==3.0.1
 PyMuPDF==1.26.6
+PyYAML==6.0.2
 Pillow
 pytesseract

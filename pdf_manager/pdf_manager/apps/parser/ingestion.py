@@ -18,7 +18,7 @@ def _sha256_file(path: Path, chunk_size: int = 65536) -> str:
     return h.hexdigest()
 
 
-def _enforece_size(path: Path) -> None:
+def _enforce_size(path: Path) -> None:
     max_bytes = int(settings.MAX_UPLOAD_SIZE_MB) * 1024 * 1024
     size = path.stat().st_size
     if size > max_bytes:
@@ -51,7 +51,7 @@ def ingest_local_file(input_path: Path, template_key: str | None = None) -> Pars
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
     _enforce_extension(input_path)
-    _enforece_size(input_path)
+    _enforce_size(input_path)
     _virus_scan_stub(input_path)
 
     # Copy to incoming with a stable, collision-free name: {uuid}.pdf

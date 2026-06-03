@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  crm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pdk_crm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pdk_crm/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Django check
+        env:
+          SECRET_KEY: ci-test-secret-key
+          FEATURE_QBO: "false"
+          USE_SQLITE: "true"
+          DJANGO_ENV: development
+        run: python manage.py check
+      - name: CRM tests
+        env:
+          SECRET_KEY: ci-test-secret-key
+          FEATURE_QBO: "false"
+          USE_SQLITE: "true"
+          DJANGO_ENV: development
+        run: python manage.py test
+      - name: Analytics ETL tests
+        env:
+          SECRET_KEY: ci-test-secret-key
+          FEATURE_QBO: "false"
+          USE_SQLITE: "true"
+          DJANGO_ENV: development
+          DJANGO_TEST_DUAL_ANALYTICS: "true"
+        run: python manage.py test analytics.tests
+
+  pdf_manager:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pdf_manager
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: pdf_manager/requirements.txt
+      - run: pip install -r requirements.txt -c constraints.txt
+      - name: pytest
+        env:
+          DJANGO_SECRET_KEY: ci-test-secret-key
+          USE_SQLITE: "true"
+        run: pytest

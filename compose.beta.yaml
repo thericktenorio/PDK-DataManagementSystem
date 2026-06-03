@@ -1,0 +1,17 @@
+# Phase 10.Beta overlay — use on VPS with root compose.yaml:
+#   docker compose -f compose.yaml -f compose.beta.yaml up --build -d
+#
+# Hides analytics + parser host ports (LAN/internal only). CRM stays on 127.0.0.1:8000 for cloudflared.
+
+services:
+  analytics_db:
+    ports: !reset []
+
+  pdf_web:
+    ports: !reset []
+
+  crm_web:
+    environment:
+      DEBUG: "False"
+      SEED_MVP_DEMO: "true"
+      MVP_DEMO_PASSWORD: "${MVP_DEMO_PASSWORD:-demo-mvp}"

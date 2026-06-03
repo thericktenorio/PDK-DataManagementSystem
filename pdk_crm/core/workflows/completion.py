@@ -1,3 +1,8 @@
+"""
+Deprecated: legacy completion wizard (parser → ack count → COMPLETED).
+
+New workflow: core/workflows/lifecycle.py. UI still calls these endpoints until Phase 3.
+"""
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.db import transaction, IntegrityError
@@ -66,14 +71,9 @@ class FreezeDecision:
 
 
 def can_autosave_pa_field(pa: ProductAssignment, field: str) -> FreezeDecision:
-    if field in WORKFLOW_OWNED_FIELDS:
-        return FreezeDecision(False, f"Field '{field}' is controlled by completion workflow.")
+    from core.workflows.lifecycle import can_autosave_pa_field as lifecycle_can_autosave
 
-    completion_started = (pa.completion_state != CompletionState.OPEN)
-    if completion_started and field in FROZEN_FIELDS_ON_COMPLETION_START:
-        return FreezeDecision(False, f"{field} is frozen after completion has started.")
-    
-    return FreezeDecision(True, "")
+    return lifecycle_can_autosave(pa, field)
 
 
 # helper function to ensure: 
@@ -103,7 +103,8 @@ def transition_pa(pa: ProductAssignment, *, to_state: str, parser_status: str | 
     if to_state == CompletionState.COMPLETED:
         pa.completed_at = pa.completed_at or timezone.now()
         pa.completed_by = pa.completed_by or completed_by
-    
+        pa.is_complete = True
+
     pa.full_clean()
     pa.save()
 
@@ -260,6 +261,7 @@ def cmd_cancel_completion(*, pa_id: int) -> ProductAssignment:
         pa.completed_at = None
         pa.completed_by = None
         pa.closing_message_text = None
+        pa.is_complete = False
 
         pa.full_clean()
         pa.save()

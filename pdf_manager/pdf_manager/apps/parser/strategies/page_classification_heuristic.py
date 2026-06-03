@@ -184,7 +184,7 @@ class HeuristicClassifier(PageClassificationStrategy):
                 tags.append(PageTag(label="NOTES", score=0.8))
 
             """
-            TODO: Rick, consider adding in tags for certain financial documents in the future.
+            # Future: additional tags for financial documents (Drake outline classifier preferred).
             This could be used to pull essential data for analytics and future AI features.
             """
 

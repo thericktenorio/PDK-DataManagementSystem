@@ -10,10 +10,16 @@ import time
 
 AUTH_URL = "https://appcenter.intuit.com/connect/oauth2"
 TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
-API_BASE = "https://sandbox-quickbooks.api.intuit.com/v3/company"
 SCOPES = "com.intuit.quickbooks.accounting com.intuit.quickbooks.payment"
 
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
+def qbo_api_base() -> str:
+    env = getattr(settings, "INTUIT_ENV", "sandbox").strip().lower()
+    if env == "production":
+        return "https://quickbooks.api.intuit.com/v3/company"
+    return "https://sandbox-quickbooks.api.intuit.com/v3/company"
 
 
 def _basic_auth_header():
@@ -96,7 +102,7 @@ class QboApi:
     
     def _url(self, path: str) -> str:
         sep = "&" if "?" in path else "?"
-        return f"{API_BASE}/{self.conn.realm_id}/{path}{sep}minorversion={settings.QBO_MINOR_VERSION}"
+        return f"{qbo_api_base()}/{self.conn.realm_id}/{path}{sep}minorversion={settings.QBO_MINOR_VERSION}"
     
     def _ensure_fresh(self):
         from django.utils import timezone

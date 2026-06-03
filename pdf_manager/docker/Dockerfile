@@ -54,8 +54,8 @@ COPY --from=builder /opt/venv /opt/venv
 COPY . /app/
 
 # Create data dirs inside image (helps even without volume)
-RUN mkdir -p /home/app/data/incoming /home/app/data/outputs && \
-    chown -R app:app /home/app && \
+RUN mkdir -p /home/app/data/incoming /home/app/data/outputs /home/app/data/reports && \
+    chown -R app:app /home/app /app && \
     chmod +x /app/docker/entrypoint.sh
 
 ENTRYPOINT ["/app/docker/entrypoint.sh"]

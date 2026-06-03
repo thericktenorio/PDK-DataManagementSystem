@@ -9,4 +9,9 @@ urlpatterns = [
     path('', views.acknowledgments, name = 'acknowledgments'),
     path('post/', views.post_acknowledgments, name='post'),
     path("resolve/", views.resolve_ack_staging, name = "resolve"),
+    path(
+        "pa/<int:pa_id>/expected-count/",
+        views.set_pa_expected_ack_count,
+        name="set_expected_count",
+    ),
 ]

@@ -43,9 +43,15 @@ def home_view(request): # order of dictionary determines order in which icon but
         {"name": "Billing", "icon": "icons/billing.svg", "url": "billing:billing"},
         {"name": "Review", "icon": "icons/review.svg", "url": "review:review"},
         {"name": "Acknowledgments", "icon": "icons/acknowledgments.svg", "url": "acknowledgments:acknowledgments"},
-        {"name": "Analytics", "icon": "icons/analytics.svg", "url": "analytics:analytics"},
         {"name": "Client Portfolio", "icon": "icons/client_portfolio.svg", "url": "client_portfolio:client_portfolio"},
     ]
+    from analytics.permissions import user_can_access_analytics
+
+    if user_can_access_analytics(request.user):
+        apps.insert(
+            -1,
+            {"name": "Analytics", "icon": "icons/analytics.svg", "url": "analytics:analytics"},
+        )
     return render(request, "core/home.html", {"apps": apps})
 
 
@@ -391,6 +397,33 @@ def auto_save_product_assignment(request):
                     "message": "payment_method_updated.",
                     "updated": {"payment_method": pm}
                 })
+
+            elif field == "preparer":
+                try:
+                    preparer_id = int(value)
+                    preparer = InternalUser.objects.get(id=preparer_id)
+                except (TypeError, ValueError, InternalUser.DoesNotExist):
+                    return JsonResponse({"status": "error", "message": "Invalid preparer ID."}, status=400)
+
+                product_assignment.preparer = preparer
+                product_assignment.full_clean()
+                product_assignment.save()
+
+                return JsonResponse({
+                    "status": "success",
+                    "message": "preparer updated.",
+                    "updated": {"preparer_id": preparer.id},
+                })
+
+            elif field == "closing_message_text":
+                product_assignment.closing_message_text = str(value) if value is not None else ""
+                product_assignment.full_clean()
+                product_assignment.save()
+
+                return JsonResponse({
+                    "status": "success",
+                    "message": "closing_message_text updated.",
+                })
             
             
             else:
@@ -671,6 +704,10 @@ def _resolve_single_ack_staging_row(*, st: AckStaging, client: Client):
         clearing.is_active = True
         clearing.save(update_fields=["is_active"])
 
+    from core.workflows.lifecycle import cmd_enter_clearing
+
+    cmd_enter_clearing(pa_id=pa.id)
+
     # Create / update acknowledgment tied to PA
     ack_obj, ack_created = Acknowledgment.objects.update_or_create(
         product_assignment=pa,
@@ -816,3 +853,7 @@ def cancel_completion(request, pa_id):
         return JsonResponse({"status": "ok", "state": pa.completion_state})
     except ValidationError as ve:
         return JsonResponse({"status": "error", "message": ve.message_dict}, status = 409)
+
+
+def health(request):
+    return JsonResponse({"status": "ok"})

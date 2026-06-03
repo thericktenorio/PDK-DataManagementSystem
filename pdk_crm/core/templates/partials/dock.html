@@ -2,8 +2,13 @@
 <div class = "dock">
     <div class = "dock-inner">
         {% for app in apps %}
-            <a href = "{% url app.url %}" class = "dock-item" data-bs-toggle = "tooltip" data-bs-placement = "top" title = "{{ app.name }}" aria-label = "{{ app.name }}">
+            <a href = "{% url app.url %}" class = "dock-item position-relative" data-bs-toggle = "tooltip" data-bs-placement = "top" title = "{{ app.name }}" aria-label = "{{ app.name }}">
                 <img src = "{% static app.icon %}" alt = "{{ app.name }} icon" class = "dock-icon">
+                {% if app.badge_key == "review" and review_queue_count %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="font-size: 0.65rem;">
+                        {{ review_queue_count }}
+                    </span>
+                {% endif %}
             </a>
         {% endfor %}
     </div>

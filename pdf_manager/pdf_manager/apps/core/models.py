@@ -82,6 +82,13 @@ class ExtractedField(TimeStampedModel):
     document = models.ForeignKey(
         Document, on_delete=models.CASCADE, related_name="extracted_fields"
     )
+    parse_job = models.ForeignKey(
+        "ParseJob",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="extracted_fields",
+    )
     template = models.ForeignKey(
         Template, on_delete=models.SET_NULL, null=True, blank=True, related_name="fields"
     )
@@ -93,11 +100,18 @@ class ExtractedField(TimeStampedModel):
         default=1.000,
         validators=[MinValueValidator(0.0), MaxValueValidator(1.0)],
     )
+    extraction_method = models.CharField(
+        max_length=16,
+        blank=True,
+        help_text="pymupdf, ocr, or outline",
+    )
+    source_page_index = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         db_table = "doc_extracted_field"
         indexes = [
             models.Index(fields=["document"], name="ef_document_idx"),
+            models.Index(fields=["parse_job"], name="ef_parse_job_idx"),
             models.Index(fields=["template"], name="ef_template_idx"),
             models.Index(fields=["created_at"], name="ef_created_idx"),
         ]

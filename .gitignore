@@ -23,6 +23,10 @@ db.sqlite3
 # PDF manager runtime data (DON'T COMMIT)
 pdf_manager/data/*
 !pdf_manager/data/**/.gitkeep
+
+# Drake sample PDFs (local only — may contain client PII)
+pdf_manager/fixtures/drake_samples/*.pdf
+pdf_manager/fixtures/drake_samples_reports/
 pdk_crm/media/
 cookies.txt
 cookies.txt

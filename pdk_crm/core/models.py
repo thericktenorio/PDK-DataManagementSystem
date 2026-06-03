@@ -336,22 +336,28 @@ class ProductAssignmentManager(models.Manager):
                 product_type = Product.PRODUCT_TYPE_DEFAULT, 
                 defaults = {'is_product_active': False})
         
+        create_defaults = {
+            'is_active': is_active,
+            'completion_state': CompletionState.OPEN,
+            'parser_status': ParserStatus.NOT_STARTED,
+            'is_complete': False,
+            'is_archived': False,
+            'payment_method': ProductAssignment.PAYMENT_METHOD_DEFAULT,
+            'preparer': preparer,
+        }
+        if 'fee' not in overrides and product is not None:
+            from decimal import Decimal
+            create_defaults['fee'] = Decimal(str(product.default_price))
+        create_defaults.update(overrides)
+
         product_assignment, created = self.get_or_create(
             client = client, 
             product = product, 
             filing_type = filing_type, 
             tax_year = tax_year, 
             intake = intake, 
-            defaults = {
-                'is_active': is_active,
-                'completion_state': CompletionState.OPEN,
-                'parser_status': ParserStatus.NOT_STARTED,
-                'is_complete': False,
-                'is_archived': False,
-                'payment_method': ProductAssignment.PAYMENT_METHOD_DEFAULT,
-                'preparer': preparer,
-                **overrides,
-            })
+            defaults = create_defaults,
+        )
 
         # activate PA if using existing one
         if not created and is_active and not product_assignment.is_active:
@@ -361,9 +367,22 @@ class ProductAssignmentManager(models.Manager):
         return product_assignment, created
     
 
+class LifecycleState(models.TextChoices):
+    IN_CLEARING = "IN_CLEARING", "In Clearing"
+    CLEARING_COMPLETE = "CLEARING_COMPLETE", "Clearing Complete"
+    AWAITING_PAYMENT = "AWAITING_PAYMENT", "Awaiting Payment"
+    READY_FOR_REVIEW = "READY_FOR_REVIEW", "Ready for Review"
+    IN_REVIEW = "IN_REVIEW", "In Review"
+    FILED = "FILED", "Filed"
+    ACK_RECONCILING = "ACK_RECONCILING", "Ack Reconciling"
+    CLOSED = "CLOSED", "Closed"
+    PENDING_REJECT_CORRECTION = "PENDING_REJECT_CORRECTION", "Pending Reject Correction"
+
+
 # PA Helper model
 # When PA is marked as 'complete' by user, then completion workflow is initiated
 # Completion workflow is essential to ensure that acknowledgments may be appropriately matched to a PA
+# Deprecated: use LifecycleState + core/workflows/lifecycle.py for new work.
 class CompletionState(models.TextChoices):
     OPEN = "OPEN", "Open"
     PENDING_PARSER = "PENDING_PARSER", "Pending Parser"
@@ -405,7 +424,10 @@ class ProductAssignment(models.Model):
 
 
     is_active = models.BooleanField(default = False)
-    is_complete = models.BooleanField(default = False)
+    is_complete = models.BooleanField(
+        default = False,
+        help_text = "Legacy billing/clearing flag. Do not set from lifecycle commands; Phase 6 moves billing to lifecycle_state.",
+    )
     is_archived = models.BooleanField(default = False, help_text = "True if assignment belongs to an archived tax season.")
 
     preparer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete = models.SET_NULL, null = True, blank = True, limit_choices_to = {'role': 'tax_preparer'}, related_name = 'assigned_product_assignments' )
@@ -420,13 +442,35 @@ class ProductAssignment(models.Model):
     fee = models.DecimalField(max_digits = 10, decimal_places = 2, null = True, blank = True, validators = [MinValueValidator(0)])
     discount = models.DecimalField(max_digits = 10, decimal_places = 2, null = True, blank = True, validators = [MinValueValidator(0)])
     
-    # attributes which are relevant to a PA's completion workflow
+    lifecycle_state = models.CharField(
+        max_length = 32,
+        choices = LifecycleState.choices,
+        null = True,
+        blank = True,
+        help_text = "Authoritative workflow state. Set to IN_CLEARING when client enters daily clearing.",
+    )
+
+    # Deprecated: legacy completion wizard (parser → ack count → COMPLETED).
     completion_state = models.CharField(max_length = 30, choices = CompletionState.choices, default = CompletionState.OPEN, null = True, blank = True)
     parser_status = models.CharField(max_length = 20, choices = ParserStatus.choices, default = ParserStatus.NOT_STARTED, null = True, blank = True)
-    expected_ack_count = models.PositiveSmallIntegerField(null = True, blank = True)
+    expected_ack_count = models.PositiveSmallIntegerField(
+        null = True,
+        blank = True,
+        help_text = "Staff-set count of expected Drake acks (federal + state forms). Required before CLOSED.",
+    )
     completed_at = models.DateTimeField(null = True, blank = True)
     completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete = models.SET_NULL, null = True, blank = True, related_name = "completed_product_assignments") # TODO: make sure this points to my InternalUser model in Accounts module
     closing_message_text = models.TextField(null = True, blank = True)
+
+    # Parser linkage (CRM snapshots only; full jobs live in pdf_manager DB — Phase 4).
+    parse_job_uuid = models.UUIDField(null = True, blank = True, db_index = True)
+    parse_result_json = models.JSONField(null = True, blank = True)
+    parsed_at = models.DateTimeField(null = True, blank = True)
+    parser_output_refs = models.JSONField(
+        null = True,
+        blank = True,
+        help_text='List of {"kind": "main_packet"|..., "path": "..."} references to parser output files.',
+    )
 
     # for product assignment manager
     objects = ProductAssignmentManager()
@@ -435,22 +479,14 @@ class ProductAssignment(models.Model):
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields", None)
 
-        # ==== derive is_complete from completion_state ==== #
-        should_be_complete = (self.completion_state == CompletionState.COMPLETED)
-        if self.is_complete != should_be_complete:
-            self.is_complete = should_be_complete
-            if update_fields is not None:
-                uf = set(update_fields)
-                uf.add("is_complete")
-                kwargs["update_fields"] = list(uf)
-
         # ==== auto calculate discount ==== #
         new_discount = None
 
             # determine if discount based on fee conditions
         if self.fee is not None:
-            default_price = self.product.default_price or Decimal("0")
-            new_discount = (default_price - self.fee) if self.fee < default_price else None
+            default_price = Decimal(str(self.product.default_price or 0))
+            fee = Decimal(str(self.fee))
+            new_discount = (default_price - fee) if fee < default_price else None
 
             # if discount changed, include in update_fields
         if new_discount != self.discount:
@@ -619,10 +655,45 @@ class AckStaging(models.Model):
 
 
 # Model used to ensure that PA finalization (invoicing etc etc) is idempotent
+class LifecycleTransition(models.Model):
+    """Append-only audit log for lifecycle_state changes (analytics / troubleshooting)."""
+
+    product_assignment = models.ForeignKey(
+        "ProductAssignment",
+        on_delete = models.CASCADE,
+        related_name = "lifecycle_transitions",
+    )
+    from_state = models.CharField(max_length = 32, blank = True, default = "")
+    to_state = models.CharField(max_length = 32, choices = LifecycleState.choices)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null = True,
+        blank = True,
+        on_delete = models.SET_NULL,
+        related_name = "lifecycle_transitions",
+    )
+    created_at = models.DateTimeField(default = timezone.now, db_index = True)
+    note = models.TextField(blank = True, default = "")
+    payload = models.JSONField(null = True, blank = True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        indexes = [
+            models.Index(fields = ["product_assignment", "created_at"], name = "core_lifecy_product_6e8f0d_idx"),
+            models.Index(fields = ["to_state", "created_at"], name = "core_lifecy_to_stat_8a1b2c_idx"),
+        ]
+
+    def __str__(self):
+        return f"PA {self.product_assignment_id}: {self.from_state or '(none)'} → {self.to_state}"
+
+
 class ProductAssignmentEvent(models.Model):
     class EventType(models.TextChoices):
         PA_COMPLETED = "PA_COMPLETED", "PA_COMPLETED"
-        # future: PARSER_STARTED, PARSER_DONE, INVOICE_DRAFTED, etc.
+        CLEARING_COMPLETED = "CLEARING_COMPLETED", "CLEARING_COMPLETED"
+        READY_FOR_REVIEW = "READY_FOR_REVIEW", "READY_FOR_REVIEW"
+        FILED = "FILED", "FILED"
+        CLOSED = "CLOSED", "CLOSED"
 
     product_assignment = models.ForeignKey(
         "ProductAssignment",

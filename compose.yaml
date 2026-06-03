@@ -1,3 +1,5 @@
+# Full stack: CRM + parser + analytics (dev / MacBook MVP trial).
+# Office prod: image-based deploy, prod overlay, no analytics host port — see docs/DEPLOYMENT.md, docs/MVP_TRIAL.md.
 services:
   crm_db:
     image: postgres:16
@@ -13,6 +15,23 @@ services:
       timeout: 5s
       retries: 10
 
+  analytics_db:
+    image: postgres:16
+    ports:
+      # Host port for Power BI Desktop / external BI (local dev only; do not expose in prod)
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: analytics
+      POSTGRES_PASSWORD: analyticspw
+    volumes:
+      - analytics_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U analytics -d analytics"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   crm_web:
     build:
       context: .
@@ -21,12 +40,123 @@ services:
       - "8000:8000"
     env_file:
       - pdk_crm/.env.docker
+    environment:
+      # Local Compose stack: QBO off unless .env.docker overrides (see docs/LOCAL_DEV.md)
+      FEATURE_QBO: "false"
+      BILLING_PROVIDER: "fake"
+      FEATURE_AUTO_SEND_INVOICES: "false"
+      ANALYTICS_ENABLED: "true"
+      ANALYTICS_DB_NAME: analytics
+      ANALYTICS_DB_USER: analytics
+      ANALYTICS_DB_PASSWORD: analyticspw
+      ANALYTICS_DB_HOST: analytics_db
+      ANALYTICS_DB_PORT: "5432"
+      ANALYTICS_ETL_INTERVAL_SECONDS: "1800"
+      # Parser path A: CRM container reaches pdf_web on the Compose network (not localhost:8001)
+      PDF_MANAGER_BASE_URL: "http://pdf_web:8000"
+      # Phase 10.MVP: auto-seed demo org/users on first boot (see docs/MVP_TRIAL.md)
+      SEED_MVP_DEMO: "true"
+      MVP_DEMO_PASSWORD: "demo-mvp"
     depends_on:
       crm_db:
         condition: service_healthy
+      analytics_db:
+        condition: service_healthy
+      pdf_web:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     volumes:
       - crm_media:/app/media
       - crm_static:/app/staticfiles
+
+  billing_process_qbo_events:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    env_file:
+      - pdk_crm/.env.docker
+    environment:
+      FEATURE_QBO: "false"
+      BILLING_PROVIDER: "fake"
+    depends_on:
+      crm_db:
+        condition: service_healthy
+      crm_web:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          python manage.py process_qbo_events || true
+          sleep 120
+        done
+    volumes:
+      - crm_media:/app/media
+
+  billing_auto_send_invoices:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    env_file:
+      - pdk_crm/.env.docker
+    environment:
+      FEATURE_QBO: "false"
+      BILLING_PROVIDER: "fake"
+      FEATURE_AUTO_SEND_INVOICES: "false"
+    depends_on:
+      crm_db:
+        condition: service_healthy
+      crm_web:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          python manage.py auto_send_invoices || true
+          sleep 300
+        done
+    volumes:
+      - crm_media:/app/media
+
+  analytics_etl:
+    build:
+      context: .
+      dockerfile: Dockerfile.crm
+    env_file:
+      - pdk_crm/.env.docker
+    environment:
+      FEATURE_QBO: "false"
+      BILLING_PROVIDER: "fake"
+      ANALYTICS_ENABLED: "true"
+      ANALYTICS_DB_NAME: analytics
+      ANALYTICS_DB_USER: analytics
+      ANALYTICS_DB_PASSWORD: analyticspw
+      ANALYTICS_DB_HOST: analytics_db
+      ANALYTICS_DB_PORT: "5432"
+      ANALYTICS_ETL_INTERVAL_SECONDS: "1800"
+    depends_on:
+      crm_db:
+        condition: service_healthy
+      analytics_db:
+        condition: service_healthy
+      crm_web:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        sleep 15
+        python manage.py sync_analytics_warehouse --full || true
+        while true; do
+          python manage.py sync_analytics_warehouse || true
+          sleep ${ANALYTICS_ETL_INTERVAL_SECONDS:-1800}
+        done
+    volumes:
+      - crm_media:/app/media
   
   # --------------------------
   # PDF MANAGER DB (DEDICATED)
@@ -57,6 +187,12 @@ services:
     depends_on:
       pdf_db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     user: "0:0"
     environment:
       # Django
@@ -76,11 +212,17 @@ services:
       
       # data root inside container
       DATA_ROOT: "/home/app/data"
+
+      # OCR: 150 DPI balances Client Letter extraction vs speed (Phase 5 target <5s)
+      OCR_DPI: "150"
+      # BILL OCR off by default; fee uses CRM product default / staff edit (see docs/PARSER_EXTRACTION.md)
+      OCR_EXTRACT_BILL: "0"
     volumes:
       - pdf_data:/home/app/data
     
 volumes:
   crm_pgdata:
+  analytics_pgdata:
   crm_media:
   crm_static:
   pdf_data:

@@ -21,8 +21,10 @@ from django.contrib.auth.views import (
     PasswordResetView, PasswordResetConfirmView,
     PasswordResetDoneView, PasswordResetCompleteView,
 )
+from core.views import health
 
 urlpatterns = [
+    path('health/', health, name='health'),
     path('admin/', admin.site.urls),
     path('', include(('core.urls', 'core'), namespace = 'core')),
     path('accounts/', include(('accounts.urls', 'accounts'), namespace = 'accounts')),

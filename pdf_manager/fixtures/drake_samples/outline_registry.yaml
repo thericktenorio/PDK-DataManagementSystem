@@ -1,0 +1,358 @@
+# Drake PDF outline registry (schema v1)
+#
+# Derived from corpus audit of 8 complete samples (166 unique outline titles).
+# Source report: fixtures/drake_samples_reports/corpus_audit.json (local, gitignored)
+#
+# Usage in parser:
+#   1. Build page index map from PyMuPDF doc.get_toc() (preferred) or PDF bookmarks.
+#   2. Match each page's outline title(s) against rules below (first match wins unless priority set).
+#   3. Apply role actions for packet building, field extraction, and OCR targeting.
+#
+# Title matching: case-insensitive substring unless match: exact | prefix | regex
+
+schema_version: 1
+corpus:
+  sample_count: 8
+  unique_outline_titles: 166
+  audit_command: audit_drake_corpus
+
+# ---------------------------------------------------------------------------
+# Roles
+# ---------------------------------------------------------------------------
+roles:
+  extract_client_letter:
+    description: Client summary letter — refund/balance, states, mailing address, direct deposit
+    ocr_policy: required_if_no_text
+    extract_fields:
+      - taxpayer_first_name
+      - tax_year
+      - federal_amount
+      - states
+      - last_4_of_account
+      - mailing_address
+    pages_for_extraction: first_page_only
+
+  extract_bill:
+    description: Drake BILL_01 — tax preparation fee
+    ocr_policy: required_if_no_text
+    extract_fields:
+      - tax_prep_fee
+      - has_tpg_pages
+    pages_for_extraction: first_page_only
+
+  cover:
+    description: Front matter kept in main client packet (folder, filing instructions cover)
+    packet: main
+
+  signature:
+    description: Pages requiring taxpayer/spouse signature or authorization
+    packet: signature
+
+  payment_voucher:
+    description: Federal or state balance-due payment slips
+    packet: payment_voucher
+
+  remove:
+    description: Internal / preparer / e-file diagnostics — exclude from client packet
+    packet: exclude
+
+  form_federal:
+    description: IRS forms and schedules (1040, 1120-S, attachments)
+    packet: main
+
+  form_state:
+    description: State income tax forms and state-specific pages
+    packet: main
+
+  form_k1:
+    description: Schedule K-1 and related shareholder statements
+    packet: main
+
+  form_worksheet:
+    description: Drake worksheets and federal/state workpapers
+    packet: main
+
+  form_w2:
+    description: W-2 and wage statements
+    packet: main
+
+  form_statement:
+    description: Overflow and support statements
+    packet: main
+
+  form_other:
+    description: Unclassified forms — include in main packet unless overridden
+    packet: main
+
+# ---------------------------------------------------------------------------
+# OCR policy notes (from corpus text-layer audit)
+# ---------------------------------------------------------------------------
+ocr:
+  default_engine: tesseract
+  pymupdf_first: true
+  corpus_finding: >
+    Client Letter and BILL_01 pages are image-only (0 PyMuPDF text, 6–27 images/page)
+    across all 8 samples. OCR on first page of each extract role is required for
+    clearing field extraction. Form pages (1040, EF Messages, etc.) have embedded text.
+  target_pages:
+    - role: extract_client_letter
+      pages: first_only
+    - role: extract_bill
+      pages: first_only
+  do_not_ocr:
+    - form_federal
+    - form_state
+    - form_worksheet
+    - remove
+
+# ---------------------------------------------------------------------------
+# Match rules (ordered by priority — higher priority evaluated first)
+# ---------------------------------------------------------------------------
+rules:
+  # --- Extraction (highest priority) ---
+  - role: extract_client_letter
+    priority: 100
+    match: exact_or_page_variant
+    patterns:
+      - Client Letter
+      - Client Letter page 2
+
+  - role: extract_bill
+    priority: 99
+    match: prefix
+    patterns:
+      - BILL_01
+
+  # --- Payment vouchers ---
+  - role: payment_voucher
+    priority: 90
+    match: substring
+    patterns:
+      - Payment Voucher
+      - 1040V
+      - 3582-V
+      - "201V"
+      - IN116V
+
+  - role: payment_voucher
+    priority: 89
+    match: regex
+    patterns:
+      - "^[A-Za-z0-9 -]+V$"
+
+  # --- Signature / authorization ---
+  - role: signature
+    priority: 82
+    match: exact_or_page_variant
+    patterns:
+      - 8879CORP
+      - California 8453C
+
+  - role: signature
+    priority: 80
+    match: substring
+    patterns:
+      - "8879"
+      - "8453"
+      - Engagement Letter
+      - ACH Payment
+      - Account Transaction Summary
+      - DD_PMT
+      - TR579
+      - TPG_APPL
+      - TPG7216D
+      - TPG_RT
+      - TPG_INFO
+
+  # --- S-corp K-1 (must beat 1120S federal prefix on titles like 1120SK_1) ---
+  - role: form_k1
+    priority: 55
+    match: substring
+    patterns:
+      - 1120SK_1
+      - 1120SK
+      - K_1 Statement
+      - 100SK1
+      - K1_QBIS
+
+  # --- Remove from client packet ---
+  - role: remove
+    priority: 70
+    match: substring
+    patterns:
+      - EF Messages
+      - EF Status
+      - ETD_MSG
+      - Diagnostic Summary
+      - Comparison
+      - TAX_COMP
+      - QBI_EXPL
+      - Notes
+      - " INST"
+
+  # --- Cover (keep in main packet) ---
+  - role: cover
+    priority: 60
+    match: exact
+    patterns:
+      - Folder Page
+      - FILEINST
+      - Privacy Policy Letter
+
+  # --- Federal forms (common outline roots) ---
+  - role: form_federal
+    priority: 50
+    match: prefix
+    patterns:
+      - "1040"
+      - "1120S"
+      - "4562"
+      - "8812"
+      - "8867"
+      - "8995"
+      - "9325"
+      - FED~DEPR
+      - ST~DEPR
+
+  - role: form_federal
+    priority: 50
+    match: exact_or_page_variant
+    patterns:
+      - 1120SEF
+
+  # --- State forms (S-corp CA 100S series) ---
+  - role: form_state
+    priority: 45
+    match: prefix
+    patterns:
+      - California 100S
+      - California 100SK1
+      - California SBSATT
+      - California S_SCHQ
+      - California _SCHE
+
+  # --- State forms (general) ---
+  - role: form_state
+    priority: 40
+    match: prefix
+    patterns:
+      - California
+      - New York
+      - Vermont
+
+  # --- Worksheets & schedules ---
+  - role: form_worksheet
+    priority: 30
+    match: substring
+    patterns:
+      - Worksheet
+      - SCH_
+      - Schedule A
+      - Schedule B
+      - Schedule C
+      - Schedule D
+      - Schedule E
+      - Schedule SE
+      - Carryover Worksheet
+      - Next Year's Depreciation
+      - Worksheet SCOMP
+      - Worksheet SOWN
+      - Worksheet M2
+      - Worksheet QBI
+
+  - role: form_w2
+    priority: 25
+    match: substring
+    patterns:
+      - W-2
+      - W2CG
+      - _W2
+
+  - role: form_statement
+    priority: 20
+    match: substring
+    patterns:
+      - Overflow Statement
+      - Support Statements
+
+# ---------------------------------------------------------------------------
+# S-corp spine (3/8 corpus samples — 1120-S + CA 100S)
+# ---------------------------------------------------------------------------
+scorp_spine:
+  return_type: scorp_1120s
+  signature_titles:
+    - 8879CORP
+    - Engagement Letter
+    - Engagement Letter page 2
+    - California 8453C
+    - California 8453C Page 2
+  federal_titles:
+    - 1120S
+    - 1120SEF
+    - 1120SK_1
+  state_titles:
+    - California 100S
+    - California 100SK1
+    - California 8453C
+
+# ---------------------------------------------------------------------------
+# High-frequency titles (8/8 samples) — stable Drake client-packet spine
+# ---------------------------------------------------------------------------
+stable_spine:
+  frequency_min: 8
+  titles:
+    - Client Letter
+    - BILL_01
+    - BILL_01 page 2
+    - Folder Page
+    - FILEINST
+    - Privacy Policy Letter
+    - Engagement Letter
+    - Engagement Letter page 2
+    - EF Messages
+    - Notes
+    - Comparison
+    - Diagnostic Summary
+    - California EF Messages
+    - California INST
+    - California Notes
+
+# ---------------------------------------------------------------------------
+# Packet build summary (maps to parser output PDFs)
+# ---------------------------------------------------------------------------
+packets:
+  main:
+    section_order:
+      - cover
+      - extract_client_letter
+      - extract_bill
+      - form_federal
+      - form_k1
+      - form_state
+      - form_worksheet
+      - form_w2
+      - form_statement
+      - form_other
+    include_roles:
+      - cover
+      - extract_client_letter
+      - extract_bill
+      - form_federal
+      - form_state
+      - form_k1
+      - form_worksheet
+      - form_w2
+      - form_statement
+      - form_other
+    exclude_roles:
+      - remove
+      - signature
+      - payment_voucher
+
+  signature:
+    include_roles:
+      - signature
+
+  payment_voucher:
+    include_roles:
+      - payment_voucher

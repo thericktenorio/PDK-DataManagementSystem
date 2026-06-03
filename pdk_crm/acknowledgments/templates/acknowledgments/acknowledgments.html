@@ -66,9 +66,42 @@
                 margin-top: 10px;
                 margin-bottom: 6px;
             }
+
+            .ack-status-accepted { color: #62f0a2; font-weight: 600; }
+            .ack-status-rejected { color: #ff6b6b; font-weight: 600; }
+            .ack-status-pending { color: #ffc83a; font-weight: 600; }
+
+            .ack-unmatched-banner {
+                max-width: 1100px;
+                margin: 0 auto 24px auto;
+                border: 1px solid #fd7e14;
+                border-radius: 12px;
+                background: rgba(253, 126, 20, 0.12);
+                padding: 16px 20px;
+            }
         </style>
 
         <div class = "ack-wrapper">
+
+            {% if unmatched_staging %}
+            <div class="container-fluid">
+                <div class="ack-unmatched-banner text-light">
+                    <h5 class="mb-2">Unmatched acknowledgments</h5>
+                    <p class="mb-2 small">
+                        These acks could not be paired to a filed assignment.
+                        Go to <strong>Clearing</strong> and update tax services for the client, then re-import.
+                    </p>
+                    <ul class="mb-0 small">
+                        {% for row in unmatched_staging|slice:":20" %}
+                        <li>
+                            <strong>SSN {{ row.tin }}</strong> — form <strong>{{ row.form_type }}</strong>
+                            {% if row.client_name %} ({{ row.client_name }}){% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
             
             <h1 class="ack-page-title text-light">Acknowledgments</h1>
 
@@ -157,7 +190,15 @@
                                             <td>{{ ack.client_tin }}</td>
                                             <td>{{ ack.client_name }}</td>
                                             <td>{{ ack.type }}</td>
-                                            <td>{{ ack.status }}</td>
+                                            <td>
+                                                {% if ack.status == 'A' or ack.status == 'Accepted' %}
+                                                    <span class="ack-status-accepted">{{ ack.status }}</span>
+                                                {% elif ack.status == 'R' or ack.status == 'Rejected' %}
+                                                    <span class="ack-status-rejected">{{ ack.status }}</span>
+                                                {% else %}
+                                                    <span class="ack-status-pending">{{ ack.status|default:"—" }}</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 {% else %}
@@ -206,7 +247,15 @@
                                             <td>{{ ack.client_tin }}</td>
                                             <td>{{ ack.client_name }}</td>
                                             <td>{{ ack.type }}</td>
-                                            <td>{{ ack.status }}</td>
+                                            <td>
+                                                {% if ack.status == 'A' or ack.status == 'Accepted' %}
+                                                    <span class="ack-status-accepted">{{ ack.status }}</span>
+                                                {% elif ack.status == 'R' or ack.status == 'Rejected' %}
+                                                    <span class="ack-status-rejected">{{ ack.status }}</span>
+                                                {% else %}
+                                                    <span class="ack-status-pending">{{ ack.status|default:"—" }}</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 {% else %}
@@ -255,7 +304,15 @@
                                             <td>{{ ack.client_tin }}</td>
                                             <td>{{ ack.client_name }}</td>
                                             <td>{{ ack.type }}</td>
-                                            <td>{{ ack.status }}</td>
+                                            <td>
+                                                {% if ack.status == 'A' or ack.status == 'Accepted' %}
+                                                    <span class="ack-status-accepted">{{ ack.status }}</span>
+                                                {% elif ack.status == 'R' or ack.status == 'Rejected' %}
+                                                    <span class="ack-status-rejected">{{ ack.status }}</span>
+                                                {% else %}
+                                                    <span class="ack-status-pending">{{ ack.status|default:"—" }}</span>
+                                                {% endif %}
+                                            </td>
                                         </tr>
                                     {% endfor %}
                                 {% else %}
@@ -298,13 +355,21 @@
                     </table>
                     </div>
                     <p class="text-muted mt-3 mb-0">
+                    {% if ack_auto_create_enabled %}
                     Click <strong>Yes</strong> to automatically create a default ProductAssignment (TBD) and attach these acknowledgments.
                     Click <strong>No</strong> to mark them as unmatched.
+                    {% else %}
+                    Update tax services in <strong>Clearing</strong>, then re-import. Auto-create is disabled in this environment.
+                    {% endif %}
                     </p>
                 </div>
                 <div class="modal-footer">
+                    {% if ack_auto_create_enabled %}
                     <button type="button" class="btn btn-outline-secondary" id="ackResolveNoBtn">No</button>
                     <button type="button" class="btn btn-primary" id="ackResolveYesBtn">Yes</button>
+                    {% else %}
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                    {% endif %}
                 </div>
                 </div>
             </div>

@@ -202,4 +202,7 @@ def sync_invoice(conn, qbo_invoice: dict) -> Invoice:
                 inv.last_synced_at = timezone.now()
                 inv.save()
 
+    from billing.services.invoice_lifecycle import advance_pas_when_invoice_paid
+    advance_pas_when_invoice_paid(inv)
+
     return inv

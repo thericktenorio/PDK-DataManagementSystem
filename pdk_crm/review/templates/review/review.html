@@ -1,13 +1,232 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Review - {{ page_title|default:"Module" }}{% endblock %}
+{% block title %}Review{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="text-center">
-        <h1 class="mb-4">{{ page_title|default:"Review" }}</h1>
-        <p class="lead">This page is under development.</p>
+<div class="container-fluid py-4">
+    {% csrf_token %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="h3 mb-1">Review</h1>
+            <p class="text-muted mb-0 small">
+                Paid assignments ready for Drake review and filing.
+                {% if tax_season %}
+                    Active season: {{ tax_season.year }}.
+                {% else %}
+                    <span class="text-warning">No active tax season.</span>
+                {% endif %}
+            </p>
+        </div>
+        <span class="badge bg-primary">{{ queue_count }} in queue</span>
     </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Ready for review</span>
+                    <span class="badge bg-secondary">{{ ready_rows|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if ready_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Product</th>
+                                    <th>Preparer</th>
+                                    <th>Payment</th>
+                                    <th>Fee</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in ready_rows %}
+                                <tr id="pa-row-{{ row.pa_id }}">
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.product_type }}</td>
+                                    <td>{{ row.preparer }}</td>
+                                    <td>
+                                        <div>{{ row.payment_method }}</div>
+                                        <small class="text-muted">{{ row.payment_status }}</small>
+                                        {% if row.invoice_number %}
+                                            <small class="d-block text-muted">#{{ row.invoice_number }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{% if row.fee is not None %}${{ row.fee }}{% else %}—{% endif %}</td>
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-sm btn-primary btn-start-review"
+                                                data-pa-id="{{ row.pa_id }}"
+                                                data-url="{% url 'review:start_review' row.pa_id %}">
+                                            Start review
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No assignments waiting for review.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>In review</span>
+                    <span class="badge bg-warning text-dark">{{ in_review_rows|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if in_review_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Product</th>
+                                    <th>Reviewer</th>
+                                    <th>Payment</th>
+                                    <th>Notes</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in in_review_rows %}
+                                <tr id="pa-row-{{ row.pa_id }}">
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.product_type }}</td>
+                                    <td>{{ row.assigned_reviewer }}</td>
+                                    <td>
+                                        <div>{{ row.payment_method }}</div>
+                                        <small class="text-muted">{{ row.payment_status }}</small>
+                                    </td>
+                                    <td>
+                                        <textarea class="form-control form-control-sm review-notes"
+                                                  rows="2"
+                                                  data-pa-id="{{ row.pa_id }}"
+                                                  data-url="{% url 'review:review_notes' row.pa_id %}">{{ row.notes }}</textarea>
+                                    </td>
+                                    <td>
+                                        <button type="button"
+                                                class="btn btn-sm btn-success btn-mark-filed"
+                                                data-pa-id="{{ row.pa_id }}"
+                                                data-url="{% url 'review:mark_filed' row.pa_id %}">
+                                            Mark filed
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No assignments currently in review.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="review-status" class="alert mt-3 d-none" role="alert"></div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value
+        || "{{ csrf_token }}";
+
+    const statusEl = document.getElementById("review-status");
+
+    function showStatus(message, kind) {
+        if (!statusEl) return;
+        statusEl.textContent = message;
+        statusEl.className = "alert mt-3 alert-" + (kind || "info");
+        statusEl.classList.remove("d-none");
+    }
+
+    async function postJson(url, body) {
+        const resp = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": csrfToken,
+            },
+            body: body ? JSON.stringify(body) : "{}",
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+            const msg = data.message || data.detail || "Request failed.";
+            throw new Error(typeof msg === "object" ? JSON.stringify(msg) : msg);
+        }
+        return data;
+    }
+
+    document.querySelectorAll(".btn-start-review").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            try {
+                const data = await postJson(btn.dataset.url);
+                showStatus(data.message || "Review started.", "success");
+                window.location.reload();
+            } catch (err) {
+                showStatus(err.message, "danger");
+                btn.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll(".btn-mark-filed").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const expectedRaw = prompt(
+                "Expected acknowledgment count (federal + state forms):",
+                "1"
+            );
+            if (expectedRaw === null) return;
+            const expected = parseInt(expectedRaw, 10);
+            if (!Number.isFinite(expected) || expected < 1) {
+                showStatus("Expected ack count must be at least 1.", "danger");
+                return;
+            }
+            if (!confirm("Mark this return as filed in Drake?")) return;
+            btn.disabled = true;
+            const row = btn.closest("tr");
+            const notesEl = row?.querySelector(".review-notes");
+            const notes = notesEl ? notesEl.value : "";
+            try {
+                const data = await postJson(btn.dataset.url, {
+                    notes,
+                    expected_ack_count: expected,
+                });
+                showStatus(data.message || "Marked filed.", "success");
+                row?.remove();
+            } catch (err) {
+                showStatus(err.message, "danger");
+                btn.disabled = false;
+            }
+        });
+    });
+
+    let notesTimer = null;
+    document.querySelectorAll(".review-notes").forEach((textarea) => {
+        textarea.addEventListener("input", () => {
+            clearTimeout(notesTimer);
+            notesTimer = setTimeout(async () => {
+                try {
+                    await postJson(textarea.dataset.url, { notes: textarea.value });
+                } catch (_err) {
+                    /* silent autosave failure */
+                }
+            }, 800);
+        });
+    });
+})();
+</script>
 {% endblock %}

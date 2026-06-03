@@ -1,0 +1,143 @@
+# Drake sample corpus manifest (structural tags only — no PII).
+# PDF files stay local (gitignored). This file is safe to commit.
+#
+# Regenerate audit: python manage.py audit_drake_corpus (see README.md)
+
+schema_version: 1
+
+samples:
+  - id: sample_a_personal_tpg_epayments
+    file: SampleA_Personal_TPG_EPayments_NoWaterMark copy.pdf
+    return_type: personal_1040
+    page_count: 118
+    tags:
+      - personal
+      - tpg
+      - epayments
+      - ca_state
+      - ny_state
+      - no_watermark
+    notes: >
+      Personal return with TPG and e-payment forms; no payment vouchers in outline.
+      Duplicate iteration of sample_personal_tpg_epayments_test (same page count).
+
+  - id: sample_b_scorp
+    file: SampleB_SCorp_NoWaterMark.pdf
+    return_type: scorp_1120s
+    page_count: 55
+    tags:
+      - scorp
+      - ca_state
+      - no_watermark
+    notes: >
+      S corporation return; California forms present; no federal/state payment vouchers.
+
+  - id: sample_c_personal_fed_ca_vouchers_wm
+    file: SampleC_Personal_FedPmtVoucher_CaPmtVoucher_WaterMark.pdf
+    return_type: personal_1040
+    page_count: 97
+    tags:
+      - personal
+      - balance_due
+      - federal_payment_voucher
+      - ca_payment_voucher
+      - ca_state
+      - ny_state
+      - watermark
+    notes: >
+      Personal return with 1040V and California 3582-V; watermarked export.
+
+  - id: sample_d_personal_multi_state_vouchers_wm
+    file: SampleD_Fed&MultiStatePmtVouchers_WaterMark.pdf
+    return_type: personal_1040
+    page_count: 111
+    tags:
+      - personal
+      - balance_due
+      - federal_payment_voucher
+      - ca_payment_voucher
+      - ny_payment_voucher
+      - vt_payment_voucher
+      - multi_state
+      - ca_state
+      - ny_state
+      - vt_state
+      - watermark
+    notes: >
+      Personal return with federal + CA + NY + VT payment vouchers; watermarked export.
+
+  - id: test_personal_no_watermark
+    file: TEST PERSONAL_NO WATER MARK.pdf
+    return_type: personal_1040
+    page_count: 97
+    tags:
+      - personal
+      - balance_due
+      - federal_payment_voucher
+      - ca_payment_voucher
+      - ca_state
+      - ny_state
+      - no_watermark
+    notes: >
+      Personal return with 1040V and California 3582-V; unwatermarked export.
+      Same structural profile as sample_c (97 pages, same voucher set).
+
+  - id: test_personal_tpg_epayments
+    file: TEST PERSONAL_TPG & EPAYMENTS.pdf
+    return_type: personal_1040
+    page_count: 118
+    tags:
+      - personal
+      - tpg
+      - epayments
+      - ca_state
+      - ny_state
+      - no_watermark
+    notes: >
+      Personal return with TPG and e-payment forms; unwatermarked export.
+      Same structural profile as sample_a (118 pages).
+
+  - id: test_scorp_no_watermark
+    file: TEST S CORP_NO WATER MARK.pdf
+    return_type: scorp_1120s
+    page_count: 54
+    tags:
+      - scorp
+      - ca_state
+      - no_watermark
+    notes: >
+      S corporation return; unwatermarked export. Pair with test_scorp_with_watermark.
+
+  - id: test_scorp_with_watermark
+    file: TEST S CORP_WITH WATER MARK.pdf
+    return_type: scorp_1120s
+    page_count: 54
+    tags:
+      - scorp
+      - ca_state
+      - watermark
+    notes: >
+      S corporation return; watermarked export. Same page count as test_scorp_no_watermark.
+
+# Excluded from corpus (invalid upload — do not use in audits)
+excluded:
+  - file: SampleA_Personal_TPG_EPayments_NoWaterMark copy (dragged).pdf
+    reason: single-page drag artifact; not a complete return
+
+# Tag glossary (for filters and test parametrization)
+tag_glossary:
+  personal: Form 1040 individual client packet
+  scorp: Form 1120-S S corporation packet
+  tpg: Tax Products Group fee / bank-product pages in outline
+  epayments: ACH / direct-deposit authorization pages
+  balance_due: Includes at least one payment voucher outline
+  federal_payment_voucher: Outline includes 1040V or equivalent
+  ca_payment_voucher: Outline includes California 3582-V
+  ny_payment_voucher: Outline includes New York 201V (or similar *V title)
+  vt_payment_voucher: Outline includes Vermont IN116V (or similar)
+  multi_state: Three or more state jurisdictions in outline tree
+  ca_state: California forms or worksheets in outline
+  ny_state: New York forms or worksheets in outline
+  vt_state: Vermont forms in outline
+  watermark: Drake export includes visible watermark layer
+  no_watermark: No watermark (or NoWaterMark in export filename)

@@ -17,6 +17,7 @@ from django.http import FileResponse, Http404, HttpResponse, HttpResponseBadRequ
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from pdf_manager.apps.core.field_persistence import get_drake_template, persist_extracted_fields
 from pdf_manager.apps.core.models import Document, ParseJob
 from pdf_manager.apps.parser.exceptions import ParserError
 from pdf_manager.apps.parser.facade import PDFParserFacade
@@ -287,6 +288,13 @@ def upload_api(request):
             result = facade.parse(job_id=job.job_uuid, file_path=in_path)
 
             job.result_fields = _to_jsonable(result.extracted_fields)
+            tpl = get_drake_template()
+            persist_extracted_fields(
+                job=job,
+                document=doc,
+                template=tpl,
+                fields=result.extracted_fields or {},
+            )
             job.result_pages = _to_jsonable(
                 [
                     {

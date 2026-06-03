@@ -1,0 +1,180 @@
+import datetime
+import json
+import uuid
+
+from django.contrib.auth import get_user_model
+from django.test import Client as HttpClient, TestCase
+from django.urls import reverse
+
+from core.models import (
+    Client,
+    DailyClearing,
+    Intake,
+    Organization,
+    Product,
+    ProductAssignment,
+    TaxSeason,
+    TaxYear,
+)
+from intake.services.enrollment import enroll_client_in_intake, NoActiveTaxSeasonError
+
+User = get_user_model()
+
+
+class IntakeEnrollmentServiceTests(TestCase):
+    def setUp(self):
+        self.tax_season = TaxSeason.objects.create(
+            year=2025,
+            start_date=datetime.date(2025, 1, 1),
+            end_date=datetime.date(2025, 10, 15),
+            is_active=True,
+        )
+        self.client_obj = Client.objects.create(TIN="111111111", name="Enrollment Client")
+
+    def test_enroll_creates_intake_and_product_assignment(self):
+        payload = enroll_client_in_intake(self.client_obj)
+
+        intake = Intake.objects.get(client=self.client_obj, tax_season=self.tax_season)
+        self.assertTrue(intake.is_active)
+
+        pa = ProductAssignment.objects.get(intake=intake, is_active=True)
+        self.assertEqual(pa.client, self.client_obj)
+        self.assertEqual(payload["product_assignment"]["id"], pa.id)
+        self.assertFalse(DailyClearing.objects.filter(client=self.client_obj).exists())
+
+    def test_enroll_reactivates_existing_intake(self):
+        intake = Intake.objects.create(
+            client=self.client_obj,
+            tax_season=self.tax_season,
+            is_active=False,
+        )
+        payload = enroll_client_in_intake(self.client_obj)
+
+        intake.refresh_from_db()
+        self.assertTrue(intake.is_active)
+        self.assertEqual(
+            ProductAssignment.objects.filter(intake=intake, is_active=True).count(),
+            1,
+        )
+        self.assertIn("product_assignment", payload)
+
+    def test_enroll_requires_active_tax_season(self):
+        self.tax_season.is_active = False
+        self.tax_season.save()
+
+        with self.assertRaises(NoActiveTaxSeasonError):
+            enroll_client_in_intake(self.client_obj)
+
+
+class IntakeViewTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name=f"Org {uuid.uuid4().hex[:8]}")
+        self.user = User.objects.create_user(
+            email=f"preparer-{uuid.uuid4().hex[:8]}@example.com",
+            password="testpass123",
+            organization=self.org,
+            role="tax_preparer",
+        )
+        self.http = HttpClient()
+        self.http.force_login(self.user)
+
+        self.active_season = TaxSeason.objects.create(
+            year=2025,
+            start_date=datetime.date(2025, 1, 1),
+            end_date=datetime.date(2025, 10, 15),
+            is_active=True,
+        )
+        self.old_season = TaxSeason.objects.create(
+            year=2024,
+            start_date=datetime.date(2024, 1, 1),
+            end_date=datetime.date(2024, 10, 15),
+            is_active=False,
+        )
+        self.client_a = Client.objects.create(TIN="222222222", name="Active Season Client")
+        self.client_b = Client.objects.create(TIN="333333333", name="Old Season Client")
+
+        Intake.objects.create(
+            client=self.client_a,
+            tax_season=self.active_season,
+            is_active=True,
+        )
+        Intake.objects.create(
+            client=self.client_b,
+            tax_season=self.old_season,
+            is_active=True,
+        )
+
+    def test_intake_page_shows_only_active_tax_season(self):
+        response = self.http.get(reverse("intake:intake"))
+        self.assertEqual(response.status_code, 200)
+        names = [c.name for c in response.context["intake_clients"]]
+        self.assertIn("Active Season Client", names)
+        self.assertNotIn("Old Season Client", names)
+
+    def test_create_new_client_auto_enrolls_in_intake(self):
+        response = self.http.post(
+            reverse("intake:create_new_client"),
+            data=json.dumps({"TIN": "444444444", "name": "Brand New Client"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["status"], "success")
+        self.assertIn("product_assignment", data)
+
+        client = Client.objects.get(TIN="444444444")
+        intake = Intake.objects.get(client=client, tax_season=self.active_season)
+        self.assertTrue(intake.is_active)
+        self.assertTrue(
+            ProductAssignment.objects.filter(intake=intake, is_active=True).exists()
+        )
+
+    def test_portfolio_create_does_not_enroll_in_intake(self):
+        response = self.http.post(
+            reverse("client_portfolio:save_client"),
+            data=json.dumps({"TIN": "555555555", "name": "Portfolio Client"}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+
+        client = Client.objects.get(TIN="555555555")
+        self.assertFalse(Intake.objects.filter(client=client).exists())
+
+    def test_remove_client_from_intake_accepts_post(self):
+        tax_year = TaxYear.objects.create(client=self.client_a, year=2024)
+        product = Product.objects.create(
+            tax_year=tax_year,
+            product_type=Product.PRODUCT_TYPE_DEFAULT,
+            is_product_active=False,
+        )
+        intake = Intake.objects.get(client=self.client_a, tax_season=self.active_season)
+        ProductAssignment.objects.create(
+            client=self.client_a,
+            intake=intake,
+            tax_year=tax_year,
+            product=product,
+            is_active=True,
+        )
+
+        response = self.http.post(
+            reverse("intake:remove_client_from_intake", args=[self.client_a.id])
+        )
+        self.assertEqual(response.status_code, 200)
+        intake.refresh_from_db()
+        self.assertFalse(intake.is_active)
+
+    def test_search_marks_in_intake_for_active_season_only(self):
+        response = self.http.get(
+            reverse("intake:search_clients"),
+            {"q": "222222222"},
+        )
+        self.assertEqual(response.status_code, 200)
+        result = response.json()[0]
+        self.assertTrue(result["in_intake"])
+
+        response = self.http.get(
+            reverse("intake:search_clients"),
+            {"q": "333333333"},
+        )
+        result = response.json()[0]
+        self.assertFalse(result["in_intake"])

@@ -2,6 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from billing.models import Invoice, AssignmentInvoiceLink
 from billing.services.drafts import get_or_create_draft_invoice, link_pas_to_draft
+from billing.services.invoice_lifecycle import advance_pas_when_invoice_sent
 from billing.providers import get_provider
 
 
@@ -61,5 +62,7 @@ def send_invoice_now_for(client, tax_year, *, pa_queryset, line_builder, private
 
     # Idempotency links after client has been billed
     link_pas_to_draft(invoice, pas)
+
+    advance_pas_when_invoice_sent(invoice, pas)
 
     return {"invoice_id": str(invoice.id), "status": invoice.status, "qbo_invoice_id": invoice.qbo_invoice_id, "lines": len(pas)}

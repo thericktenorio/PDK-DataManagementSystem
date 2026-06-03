@@ -60,6 +60,27 @@ QBO_DEFAULT_ITEM_ID = os.getenv("QBO_DEFAULT_ITEM_ID", "").strip()
 # Quiet period used to determine how soon an invoice is automatically sent after a product assignment as been marked as completed
 BILLING_QUIET_PERIOD_MINUTES = int(os.getenv("BILLING_QUIET_PERIOD_MINUTES", "5"))
 
+FEATURE_AUTO_SEND_INVOICES = os.getenv("FEATURE_AUTO_SEND_INVOICES", "False").strip().lower() == "true"
+
+# pdf_manager service (Phase 4 client; fields on PA populated in Phase 4)
+ACK_ALLOW_AUTO_CREATE_PA = (
+    os.getenv("ACK_ALLOW_AUTO_CREATE_PA", "False").strip().lower() == "true"
+)
+
+PDF_MANAGER_BASE_URL = os.getenv("PDF_MANAGER_BASE_URL", "http://localhost:8001").strip().rstrip("/")
+PDF_MANAGER_TIMEOUT_SECONDS = int(os.getenv("PDF_MANAGER_TIMEOUT_SECONDS", "30"))
+PDF_MANAGER_API_KEY = os.getenv("PDF_MANAGER_API_KEY", "").strip() or None
+FEATURE_PARSER_PATH_A = os.getenv("FEATURE_PARSER_PATH_A", "True").strip().lower() == "true"
+
+# Phase 9: analytics warehouse (separate PostgreSQL; ETL from tax_operations)
+ANALYTICS_ENABLED = os.getenv("ANALYTICS_ENABLED", "False").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+ANALYTICS_ETL_INTERVAL_SECONDS = int(os.getenv("ANALYTICS_ETL_INTERVAL_SECONDS", "1800"))
+
 
 
 # SECURITY WARNING: Keep secret key used in production vaulted
@@ -96,7 +117,11 @@ for h in ALLOWED_HOSTS:
         continue
     CSRF_TRUSTED_ORIGINS.append(f"https://{h}")
 
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "http")
+# Cloudflare Tunnel / reverse proxy sends https; local runserver has no header.
+SECURE_PROXY_SSL_HEADER = (
+    "HTTP_X_FORWARDED_PROTO",
+    os.getenv("SECURE_PROXY_SSL_PROTO", "https"),
+)
 
 '''
 # ALLOWED_HOSTS should be a comma-separated list in the .env file
@@ -200,6 +225,14 @@ if USE_SQLITE:
             "NAME": BASE_DIR / "var" / "db.sqlite3",
         }
     }
+    if os.getenv("DJANGO_TEST_DUAL_ANALYTICS", "").strip().lower() in ("1", "true", "yes", "on"):
+        (BASE_DIR / "var").mkdir(parents=True, exist_ok=True)
+        DATABASES["analytics"] = {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "var" / "analytics_test.sqlite3",
+        }
+        ANALYTICS_ENABLED = True
+        DATABASE_ROUTERS = ["analytics.db_router.AnalyticsRouter"]
 else:
     # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
     DATABASES = {
@@ -212,6 +245,16 @@ else:
             'PORT': os.getenv("DB_PORT", "5432"),
         }
     }
+    if ANALYTICS_ENABLED:
+        DATABASES["analytics"] = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": os.getenv("ANALYTICS_DB_NAME", "analytics"),
+            "USER": os.getenv("ANALYTICS_DB_USER", "analytics"),
+            "PASSWORD": os.getenv("ANALYTICS_DB_PASSWORD", ""),
+            "HOST": os.getenv("ANALYTICS_DB_HOST", "analytics_db"),
+            "PORT": os.getenv("ANALYTICS_DB_PORT", "5432"),
+        }
+        DATABASE_ROUTERS = ["analytics.db_router.AnalyticsRouter"]
 
 
 # Password validation

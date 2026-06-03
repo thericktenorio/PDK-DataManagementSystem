@@ -6,12 +6,24 @@ from django.views.decorators.csrf import csrf_exempt, csrf_protect
 from django.views.decorators.http import require_POST
 from django.utils import timezone
 from django.db import IntegrityError
+from django.contrib import messages
+from django.conf import settings
 
 from core.models import Client, TaxYear
-from .models import QboConnection, QboWebhookDelivery, QboEntityEvent, DeliveryStatus, EventStatus
+from .models import (
+    QboConnection,
+    QboWebhookDelivery,
+    QboEntityEvent,
+    DeliveryStatus,
+    EventStatus,
+    Invoice,
+)
 from .qbo import oauth_authorize_url, exchange_code_for_tokens, verify_webhook_signature, QboApi
 from .services.outbound import create_and_send_invoice
 from .services.sender import send_invoice_now_for
+from .policies import is_invoice_eligible_to_send
+from .selectors import clearing_complete_pas_for_invoice
+from .mappers import pa_to_qbo_sales_item
 
 from datetime import datetime
 from dateutil import parser as dtparser
@@ -24,9 +36,109 @@ import hmac
 
 # To Billing Page
 @login_required
-@cache_control(no_cache = True, must_revalidate = True, no_store = True)
+@cache_control(no_cache=True, must_revalidate=True, no_store=True)
 def billing(request):
-    return render(request, "billing/billing.html")
+    org_id = get_current_org_id(request)
+    qbo_connected = bool(
+        org_id
+        and QboConnection.objects.filter(org_id=org_id, is_active=True).exists()
+    )
+
+    draft_invoices = (
+        Invoice.objects.filter(
+            status__in=[Invoice.INVOICE_STATUS_DRAFT, Invoice.INVOICE_STATUS_ISSUED],
+        )
+        .select_related("client")
+        .prefetch_related("assignment_links__product_assignment")
+        .order_by("last_activity_at")[:100]
+    )
+
+    draft_rows = []
+    for inv in draft_invoices:
+        pas = [link.product_assignment for link in inv.assignment_links.all()]
+        draft_rows.append({
+            "invoice": inv,
+            "client_name": getattr(inv.client, "name", str(inv.client_id)),
+            "line_count": len(pas),
+            "eligible_to_send": is_invoice_eligible_to_send(inv) and len(pas) > 0,
+        })
+
+    open_invoices = (
+        Invoice.objects.filter(
+            status__in=[
+                Invoice.INVOICE_STATUS_SENT,
+                Invoice.INVOICE_STATUS_PARTIAL,
+                Invoice.INVOICE_STATUS_ISSUED,
+            ],
+        )
+        .exclude(qbo_balance_cents=0)
+        .select_related("client")
+        .order_by("-updated_at")[:50]
+    )
+    open_rows = [
+        {
+            "invoice": inv,
+            "client_name": getattr(inv.client, "name", str(inv.client_id)),
+            "balance_display": f"{inv.qbo_balance_cents / 100:.2f}",
+        }
+        for inv in open_invoices
+    ]
+
+    paid_invoices = (
+        Invoice.objects.filter(status=Invoice.INVOICE_STATUS_PAID)
+        .select_related("client")
+        .order_by("-last_synced_at")[:25]
+    )
+    paid_rows = [
+        {
+            "invoice": inv,
+            "client_name": getattr(inv.client, "name", str(inv.client_id)),
+        }
+        for inv in paid_invoices
+    ]
+
+    recent_errors = (
+        QboEntityEvent.objects.filter(status=EventStatus.ERROR)
+        .order_by("-last_updated")[:15]
+    )
+
+    return render(
+        request,
+        "billing/billing.html",
+        {
+            "qbo_connected": qbo_connected,
+            "draft_rows": draft_rows,
+            "open_rows": open_rows,
+            "paid_rows": paid_rows,
+            "recent_errors": recent_errors,
+            "quiet_period_minutes": getattr(settings, "BILLING_QUIET_PERIOD_MINUTES", 5),
+            "auto_send_enabled": getattr(settings, "FEATURE_AUTO_SEND_INVOICES", False),
+        },
+    )
+
+
+@login_required
+@require_POST
+def send_draft_invoice(request, invoice_id):
+    invoice = get_object_or_404(Invoice, pk=invoice_id)
+    pa_qs = clearing_complete_pas_for_invoice(invoice)
+    if not pa_qs.exists():
+        messages.error(request, "No clearing-complete QBO lines on this draft.")
+        return redirect("billing:billing")
+
+    try:
+        send_invoice_now_for(
+            invoice.client,
+            None,
+            pa_queryset=pa_qs,
+            line_builder=pa_to_qbo_sales_item,
+            private_note=f"Manual send from billing page for invoice {invoice.id}",
+        )
+        messages.success(request, "Invoice sent to QBO.")
+    except Exception as e:
+        messages.error(request, f"Send failed: {e}")
+
+    return redirect("billing:billing")
 
 
 # resolve current org from logged-in user (expects InternalUser.organization to exist)
@@ -262,11 +374,10 @@ def send_invoice_now(request):
         client = get_object_or_404(Client, pd = client_id)
         tax_year = get_object_or_404(TaxYear, pk = tax_year_id) if tax_year_id not in (None, "", "null") else None
 
-        # TODO: confirm PA fields for callables
-        from billing.selectors import completed_unlinked_pas_for
+        from billing.selectors import clearing_complete_qbo_pas_for
         from billing.mappers import pa_to_qbo_sales_item
 
-        pa_qs = completed_unlinked_pas_for(client, tax_year)
+        pa_qs = clearing_complete_qbo_pas_for(client, tax_year)
         result = send_invoice_now_for(
             client,
             tax_year,

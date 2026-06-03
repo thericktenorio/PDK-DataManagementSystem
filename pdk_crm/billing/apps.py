@@ -6,5 +6,4 @@ class BillingConfig(AppConfig):
     name = 'billing'
 
     def ready(self):
-        # import signals so receivers are registered
-        from . import signals # noqa: F401
+        pass  # Phase 6: billing hooks via billing.services.post_clearing (no signals)

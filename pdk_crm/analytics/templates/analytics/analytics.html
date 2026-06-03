@@ -1,13 +1,139 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Analytics - {{ page_title|default:"Module" }}{% endblock %}
+{% block title %}Analytics{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="text-center">
-        <h1 class="mb-4">{{ page_title|default:"Analytics" }}</h1>
-        <p class="lead">This page is under development.</p>
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 gap-3">
+        <div>
+            <h1 class="h3 mb-1">Operations analytics</h1>
+            <p class="text-muted mb-0 small">KPIs from the analytics warehouse — not live operational data.</p>
+        </div>
+        {% if dashboard.warehouse_enabled and dashboard.seasons %}
+        <form method="get" class="d-flex align-items-center gap-2">
+            <label for="season" class="form-label mb-0 small text-muted">Tax season</label>
+            <select name="season" id="season" class="form-select form-select-sm" onchange="this.form.submit()">
+                {% for s in dashboard.seasons %}
+                <option value="{{ s.year }}" {% if s.year == dashboard.selected_season_year %}selected{% endif %}>
+                    {{ s.label }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
     </div>
+
+    {% if dashboard.last_etl_finished_at %}
+    <div class="alert alert-secondary py-2 small mb-4" role="status">
+        Data as of <strong>{{ dashboard.last_etl_finished_at|date:"M j, Y g:i A T" }}</strong>
+        (last successful warehouse sync).
+    </div>
+    {% elif dashboard.warehouse_enabled %}
+    <div class="alert alert-warning py-2 small mb-4" role="alert">
+        {{ dashboard.error_message|default:"Warehouse sync has not completed successfully yet." }}
+    </div>
+    {% endif %}
+
+    {% if not dashboard.warehouse_enabled %}
+    <div class="alert alert-info">
+        {{ dashboard.error_message }}
+    </div>
+    {% elif dashboard.error_message and not dashboard.snapshot %}
+    <div class="alert alert-warning">{{ dashboard.error_message }}</div>
+    {% elif dashboard.snapshot %}
+    {% with s=dashboard.snapshot %}
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Product assignments</div>
+                    <div class="display-6">{{ s.total_assignments }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Clients serviced</div>
+                    <div class="display-6">{{ s.clients_serviced }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Closed</div>
+                    <div class="display-6">{{ s.closed_count }}</div>
+                    <div class="small text-muted">{{ s.in_progress_count }} in progress</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="text-muted small">Parser-assisted (Path A)</div>
+                    <div class="display-6">{{ s.parser_assisted_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Revenue &amp; payment turnover</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6">Expected (fees at clearing)</dt>
+                        <dd class="col-sm-6 text-end">${{ s.expected_revenue }}</dd>
+                        <dt class="col-sm-6">Recognized (collected)</dt>
+                        <dd class="col-sm-6 text-end">${{ s.recognized_revenue }}</dd>
+                        <dt class="col-sm-6">Gap (expected − recognized)</dt>
+                        <dd class="col-sm-6 text-end {% if s.revenue_gap > 0 %}text-warning{% endif %}">${{ s.revenue_gap }}</dd>
+                        <dt class="col-sm-6">Collection rate</dt>
+                        <dd class="col-sm-6 text-end">
+                            {% if s.collection_rate_pct is not None %}{{ s.collection_rate_pct }}%{% else %}—{% endif %}
+                        </dd>
+                        <dt class="col-sm-6">Median days to payment</dt>
+                        <dd class="col-sm-6 text-end">
+                            {% if s.median_days_to_payment is not None %}{{ s.median_days_to_payment }}{% else %}—{% endif %}
+                        </dd>
+                        <dt class="col-sm-6">Outstanding (pre-payment pipeline)</dt>
+                        <dd class="col-sm-6 text-end">${{ s.outstanding_expected }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">Lifecycle breakdown</div>
+                <div class="card-body p-0">
+                    <table class="table table-dark table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>State</th>
+                                <th class="text-end">Count</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for bucket in s.lifecycle_buckets %}
+                            {% if bucket.count > 0 %}
+                            <tr>
+                                <td>{{ bucket.label }}</td>
+                                <td class="text-end">{{ bucket.count }}</td>
+                            </tr>
+                            {% endif %}
+                            {% empty %}
+                            <tr><td colspan="2" class="text-muted p-3">No assignments in this season.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endif %}
 </div>
 {% endblock %}

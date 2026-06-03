@@ -18,7 +18,7 @@ class OCREngineConfig:
     """
 
     lang: str = "eng"
-    dpi: int = 300
+    dpi: int = 150
     min_text_length: int = 10
     tesseract_cmd: str | None = None
 
@@ -33,7 +33,7 @@ def build_ocr_config_from_settings() -> OCREngineConfig:
 
     return OCREngineConfig(
         lang=getattr(settings, "OCR_LANG", "eng"),
-        dpi=int(getattr(settings, "OCR_DPI", 300)),
+        dpi=int(getattr(settings, "OCR_DPI", 150)),
         min_text_length=int(getattr(settings, "OCR_MIN_TEXT_LENGTH", 10)),
         tesseract_cmd=getattr(settings, "OCR_TESSERACT_CMD", None),
     )

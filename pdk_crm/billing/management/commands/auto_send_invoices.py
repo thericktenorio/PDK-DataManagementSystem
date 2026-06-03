@@ -10,7 +10,12 @@ class Command(BaseCommand):
     help = "Auto-send draft invoices after the quiet period elapses."
 
     def handle(self, *args, **options):
-        # pull a modelst batch to avoid long transactions
+        from django.conf import settings
+
+        if not getattr(settings, "FEATURE_AUTO_SEND_INVOICES", False):
+            self.stdout.write("FEATURE_AUTO_SEND_INVOICES is disabled; skipping.")
+            return
+
         candidates = (Invoice.objects.filter(status__in = [Invoice.INVOICE_STATUS_DRAFT, Invoice.INVOICE_STATUS_ISSUED]).order_by("last_activity_at")[:100])
         
         sent = 0
@@ -25,10 +30,10 @@ class Command(BaseCommand):
                 #for robust behavior, may store tax_year on the invoice or infer from PA records
                 #the following follows PA records
 
-                from billing.selectors import completed_unlinked_pas_for_invoice
+                from billing.selectors import clearing_complete_pas_for_invoice
                 from billing.mappers import pa_to_qbo_sales_item
 
-                pa_qs = completed_unlinked_pas_for_invoice(inv)
+                pa_qs = clearing_complete_pas_for_invoice(inv)
                 if not pa_qs.exists():
                     # nothing to send, then skip
                     continue

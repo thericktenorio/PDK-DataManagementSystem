@@ -15,9 +15,14 @@ def get_valid_tax_years():
     return list(range(current_tax_year, seven_years_before_current_tax_year -1, -1))
 
 
-# utility to return a newly created or activated intake NOTE: may be accessed by any module 
+def get_active_tax_season():
+    """Return the active tax season (highest year when multiple are active)."""
+    return TaxSeason.objects.filter(is_active=True).order_by("-year").first()
+
+
+# utility to return a newly created or activated intake NOTE: may be accessed by any module
 def get_or_create_intake(client):
-    current_tax_season = TaxSeason.objects.filter(is_active = True).order_by('-year').first()
+    current_tax_season = get_active_tax_season()
     if not current_tax_season:
         raise ValueError("No active tax season.")
     
@@ -107,8 +112,17 @@ def get_or_create_appointment(product_assignment):
 
 def enforce_pa_not_frozen_for_action(pa, *, action: str):
     """
-    Block structural changes (deactivate/remove) once completion has started.
+    Block structural changes (deactivate/remove) once lifecycle has left IN_CLEARING
+    or legacy completion has started.
     """
-    if pa.completion_state and pa.completion_state != "OPEN":
-        raise ValidationError({"__all__": f"PA is frozen ({pa.completion_state}). Action '{action}' not allowed."})
+    from core.models import CompletionState, LifecycleState
+
+    state = (pa.lifecycle_state or "").strip()
+    if state and state != LifecycleState.IN_CLEARING:
+        raise ValidationError({"__all__": f"PA is frozen (lifecycle={state}). Action '{action}' not allowed."})
+
+    if pa.completion_state and pa.completion_state != CompletionState.OPEN:
+        raise ValidationError(
+            {"__all__": f"PA is frozen (legacy completion={pa.completion_state}). Action '{action}' not allowed."}
+        )
     

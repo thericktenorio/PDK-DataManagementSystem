@@ -21,14 +21,20 @@ env = environ.Env(
     # OCR Default Configurations
     OCR_ENABLED=(bool, True),
     OCR_LANG=(str, "eng"),
-    OCR_DPI=(int, 300),
+    OCR_DPI=(int, 150),
     OCR_MIN_TEXT_LENGTH=(int, 10),
     OCR_PYMUPDF_MIN_LENGTH=(int, 30),
-    OCR_FORCE_CLIENT_LETTER=(bool, True),
-    OCR_FORCE_BILL=(bool, True),
-    OCR_CANDIDATE_TAG_LABELS=(list, []),  # may include "COVER" later
-    OCR_TESSERACT_CMD=(str, ""),  # empty string = not yet set
-    PARSER_DEBUG_OCR_PAGES=(bool, True),
+    OCR_FORCE_CLIENT_LETTER=(bool, False),
+    OCR_FORCE_BILL=(bool, False),
+    OCR_EXTRACT_BILL=(bool, False),
+    PARSER_BENCHMARK_MAX_SECONDS=(float, 5.0),
+    OCR_CANDIDATE_TAG_LABELS=(list, []),
+    OCR_TESSERACT_CMD=(str, ""),
+    PARSER_DEBUG=(bool, False),
+    PARSER_DEBUG_OCR_PAGES=(bool, False),
+    PARSER_PDF_READER=(str, "pymupdf"),
+    PARSER_PAGE_CLASSIFIER=(str, "drake"),
+    PARSER_OUTLINE_REGISTRY=(str, ""),
 )
 environ.Env.read_env(BASE_DIR / ".env")
 
@@ -46,7 +52,7 @@ def _env_list(name: str, default: list[str] | None = None) -> list[str]:
     raw = raw.strip()
 
     # JSON list support
-    if raw.startswith("[") and raw.endswith("["):
+    if raw.startswith("[") and raw.endswith("]"):
         try:
             val = json.loads(raw)
             if isinstance(val, list):
@@ -79,7 +85,6 @@ INSTALLED_APPS = [
     "pdf_manager.apps.core",
     "pdf_manager.apps.parser",
     "pdf_manager.apps.ui",
-    "pdf_manager.apps.audit",
 ]
 
 MIDDLEWARE = [
@@ -189,10 +194,17 @@ OCR_PYMUPDF_MIN_LENGTH = env("OCR_PYMUPDF_MIN_LENGTH")
 # force OCR on high-value pages (ie client letter, bill_01) even if pymu returns usable text
 OCR_FORCE_CLIENT_LETTER = env("OCR_FORCE_CLIENT_LETTER")
 OCR_FORCE_BILL = env("OCR_FORCE_BILL")
+# When false (default), skip BILL_01 OCR; fee comes from CRM product default / staff edit.
+OCR_EXTRACT_BILL = env("OCR_EXTRACT_BILL")
+PARSER_BENCHMARK_MAX_SECONDS = env("PARSER_BENCHMARK_MAX_SECONDS")
 
 # tag labels that are allowed to trigger OCR when pymupdf text too short
 OCR_CANDIDATE_TAG_LABELS = env("OCR_CANDIDATE_TAG_LABELS")
 
 OCR_TESSERACT_CMD = env("OCR_TESSERACT_CMD") or None
 
+PARSER_DEBUG = env("PARSER_DEBUG")
 PARSER_DEBUG_OCR_PAGES = env("PARSER_DEBUG_OCR_PAGES")
+PARSER_PDF_READER = env("PARSER_PDF_READER")
+PARSER_PAGE_CLASSIFIER = env("PARSER_PAGE_CLASSIFIER")
+PARSER_OUTLINE_REGISTRY = env("PARSER_OUTLINE_REGISTRY") or ""

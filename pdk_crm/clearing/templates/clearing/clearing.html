@@ -74,7 +74,84 @@
     }
 
     .completion-status-cell {
-        min-width: 56px;
+        min-width: 110px;
+    }
+
+    .lifecycle-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .lifecycle-in-clearing {
+        background: #495057;
+        color: #f8f9fa;
+    }
+
+    .lifecycle-clearing-complete {
+        background: #198754;
+        color: #fff;
+    }
+
+    .lifecycle-other {
+        background: #0d6efd;
+        color: #fff;
+    }
+
+    .pa-status-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .pa-status-actions .btn {
+        padding: 1px 4px;
+        line-height: 1;
+    }
+
+    .invoice-badge {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.62rem;
+        font-weight: 600;
+        background: #6c757d;
+        color: #fff;
+    }
+
+    .invoice-badge-sent {
+        background: #fd7e14;
+    }
+
+    .invoice-badge-draft {
+        background: #6f42c1;
+    }
+
+    .invoice-badge-partial {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .ack-badge {
+        display: inline-block;
+        font-size: 0.62rem;
+        font-weight: 600;
+        padding: 1px 6px;
+        border-radius: 999px;
+        margin-left: 2px;
+    }
+    .ack-badge-none { background: #495057; color: #dee2e6; }
+    .ack-badge-progress { background: #0d6efd; color: #fff; }
+    .ack-badge-complete { background: #198754; color: #fff; }
+    .ack-badge-rejected { background: #dc3545; color: #fff; }
+
+    .row-invoice-sent td.editable,
+    .row-invoice-sent .editable {
+        opacity: 0.85;
     }
 
     .search-wrapper {
@@ -295,7 +372,7 @@
                         <th scope = "col" class = "text-center align-middle">Pmt Method</th>
                         <th scope = "col" class = "text-center align-middle">Fee</th>
                         <th scope = "col" class = "text-center align-middle">Preparer</th>
-                        <th scope = "col" class = "text-center align-middle">Completed</th>
+                        <th scope = "col" class = "text-center align-middle">Status</th>
 
                         <!-- actions buttons -->
                         <th scope = "col" class = "text-center align-middle">Actions</th>
@@ -319,9 +396,16 @@
                                 <tr class = "{% if forloop.first %}main-row{% else %}sub-row{% endif %}"
                                     data-client-id = "{{ client.id }}"
                                     data-product-assignment-id = "{{ product_assignment.id }}"
-                                    data-completion-state="{{ product_assignment.completion_state }}"
-                                    data-parser-status="{{ product_assignment.parser_status}}"
-                                    data-expected-ack-count="{{ product_assignment.expected_ack_count|default:'' }}"
+                                    data-lifecycle-state="{{ product_assignment.lifecycle_state|default:'IN_CLEARING' }}"
+                                    data-payment-method="{{ product_assignment.payment_method|default:'' }}"
+                                    data-fee="{{ product_assignment.fee|default:'' }}"
+                                    data-is-qbo="{% if product_assignment.payment_method == 'QBO' %}true{% else %}false{% endif %}"
+                                    data-reopen-tier="{{ product_assignment.billing_context.reopen_tier|default:'none' }}"
+                                    data-invoice-sent="{% if product_assignment.billing_context.invoice_sent %}true{% else %}false{% endif %}"
+                                    data-can-confirm-payment="{% if product_assignment.billing_context.can_confirm_payment %}true{% else %}false{% endif %}"
+                                    {% if product_assignment.parse_job_uuid %}data-parse-job-id="{{ product_assignment.parse_job_uuid }}"{% endif %}
+                                    {% if product_assignment.billing_context.invoice_sent %}data-row-invoice-sent="true"{% endif %}
+                                    {% if product_assignment.is_row_locked %}data-row-locked="true"{% endif %}
                                     {% if not forloop.first %} style = "display: none;"{% endif %}>
 
                                     <!-- ========== ID, TIN & NAME FOR MAIN ROW ========== -->
@@ -397,51 +481,74 @@
                                         <input type = "number" class = "form-control form-control-sm editable" data-model = "product_assignment" data-field = "fee" value = "{{ product_assignment.fee }}">
                                     </td>
                                     
-                                    <!-- ========== PREPARER ========== -->
+                                    <!-- ========== PREPARER (PA FK; calendar module owns Appointment later) ========== -->
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "appointment" data-field = "preparer" data-appointment-id = "{{ product_assignment.appointment.id }}">
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "preparer" data-product-assignment-id = "{{ product_assignment.id }}">
+                                            <option value=""></option>
                                             {% for preparer in preparer_options %}
-                                                <option value = "{{ preparer.id }}" {% if product_assignment.appointment and product_assignment.appointment.preparer and product_assignment.appointment.preparer.id == preparer.id %}selected{% endif %}>
+                                                <option value = "{{ preparer.id }}" {% if product_assignment.preparer and product_assignment.preparer.id == preparer.id %}selected{% endif %}>
                                                     {{ preparer.first_name }} {{ preparer.last_name }}
                                                 </option>
                                             {% endfor %}
                                         </select>
                                     </td>
                                     
-                                    <!-- ========== COMPLETION STATUS TOGGLE ========== -->
-                                    <td class = "completion-status-cell">
-                                        {% if forloop.first %}
-                                            <button class = "btn btn-dark toggle-completion-status-btn">
-                                                <!-- status incomplete -->
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-incomplete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:none;{% else %}display:inline;{% endif %}">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
-                                                </svg>
-
-                                                <!-- status complete -->
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-complete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:inline;{% else %}display:none;{% endif %}">
-                                                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                                                </svg>
+                                    <!-- ========== LIFECYCLE STATUS ========== -->
+                                    <td class = "completion-status-cell pa-status-cell">
+                                        <div class="pa-status-actions">
+                                            {% with state=product_assignment.lifecycle_state|default:"IN_CLEARING" %}
+                                            <span class="lifecycle-badge {% if state == 'IN_CLEARING' %}lifecycle-in-clearing{% elif state == 'CLEARING_COMPLETE' %}lifecycle-clearing-complete{% else %}lifecycle-other{% endif %} lifecycle-badge-label">
+                                                {% if product_assignment.lifecycle_state %}
+                                                    {{ product_assignment.get_lifecycle_state_display }}
+                                                {% else %}
+                                                    In Clearing
+                                                {% endif %}
+                                            </span>
+                                            {% if product_assignment.billing_context.invoice_badge %}
+                                            <span class="invoice-badge {% if product_assignment.billing_context.invoice_sent %}invoice-badge-sent{% elif product_assignment.billing_context.invoice_status == 'Draft' %}invoice-badge-draft{% elif product_assignment.billing_context.invoice_status == 'Partial' %}invoice-badge-partial{% endif %} invoice-badge-label">
+                                                {{ product_assignment.billing_context.invoice_badge }}
+                                                {% if product_assignment.billing_context.qbo_invoice_number %} #{{ product_assignment.billing_context.qbo_invoice_number }}{% endif %}
+                                            </span>
+                                            {% endif %}
+                                            {% if product_assignment.ack_summary.show_badge %}
+                                            <span class="ack-badge {{ product_assignment.ack_summary.badge_class }}" title="Acknowledgments received">
+                                                {{ product_assignment.ack_summary.badge_text }}
+                                            </span>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-success complete-clearing-btn" title="Complete clearing"
+                                                {% if state != 'IN_CLEARING' %}style="display:none;"{% endif %}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>
                                             </button>
-                                        {% else %}
-                                            <button class = "btn btn-dark toggle-completion-status-btn">
-                                                <!-- status incomplete -->
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-incomplete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:none;{% else %}display:inline;{% endif %}">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
-                                                </svg>
-
-                                                <!-- status complete -->
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-complete" viewBox="0 0 16 16" style = "{% if product_assignment.is_complete %}display:inline;{% else %}display:none;{% endif %}">
-                                                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                                                </svg>
+                                            <button type="button" class="btn btn-sm btn-warning reopen-clearing-btn" title="Unlock for editing"
+                                                {% if not product_assignment.billing_context.can_reopen %}style="display:none;"{% endif %}>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
                                             </button>
-                                        {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-info confirm-payment-btn" title="Confirm payment received"
+                                                {% if not product_assignment.billing_context.can_confirm_payment %}style="display:none;"{% endif %}>
+                                                Confirm paid
+                                            </button>
+                                            {% endwith %}
+                                        </div>
                                     </td>
 
 
                                     <!-- =========== Actions =========== -->
                                     <td class = "actions-cell">
+
+                                        {% if feature_parser_path_a %}
+                                        <button type="button" class="btn btn-dark parse-pdf-btn" title="Upload Drake PDF (Path A)"
+                                            {% if product_assignment.is_row_locked %}disabled{% endif %}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H10.343c-.638 0-1.167.425-1.167.947v.053c0 .574.425 1.047 1.167 1.047h2.344c1.812 0 3.313-1.433 3.313-3.229 0-1.018-.812-1.875-1.906-2.062A4.537 4.537 0 0 0 8 3.5c-1.312 0-2.489.562-3.304 1.459l-.712-.712A5.53 5.53 0 0 1 8 1.5c2.962 0 5.433 1.812 6.406 4.342l-.712.712z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/></svg>
+                                        </button>
+                                        <button type="button" class="btn btn-dark parser-downloads-btn" title="Download parser PDFs"
+                                            {% if not product_assignment.parse_job_uuid %}style="display:none;"{% endif %}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H4.906A1.5 1.5 0 0 1 3.5 12.5v-2A1.5 1.5 0 0 1 5 9h2.5V2.707L6.854 3.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 2.707V9H11a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 2 12.5v-2A2.5 2.5 0 0 1 4.5 8h.906z"/></svg>
+                                        </button>
+                                        {% endif %}
+
+                                        <button type="button" class="btn btn-dark client-message-btn" title="Client message">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>
+                                        </button>
 
                                         {% if forloop.first %}
 
@@ -507,8 +614,8 @@
                             {% endfor %}
                         {% endfor %}
 
-                        <!-- Toast host -->
-                        <div id="toastHost" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;"></div>
+        <!-- Toast host -->
+        <div id="toastHost" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;"></div>
                     {% endif %}
                 </tbody>
 
@@ -516,6 +623,83 @@
         </div>
     </div>
 </div>
+
+<!-- Client message modal -->
+<div class="modal fade" id="clientMessageModal" tabindex="-1" aria-labelledby="clientMessageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="clientMessageModalLabel">Client Message</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2" id="clientMessageMeta"></p>
+                <textarea id="clientMessageTextarea" class="form-control bg-dark text-light border-secondary" rows="12" placeholder="Compose the client message…"></textarea>
+                <div id="clientMessageDownloads" class="mt-3 d-none">
+                    <p class="small text-muted mb-2">Parser output PDFs</p>
+                    <div id="clientMessageDownloadLinks" class="d-flex flex-wrap gap-2"></div>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-outline-light" id="saveClientMessageBtn">Save</button>
+                <button type="button" class="btn btn-primary" id="copyClientMessageBtn">Copy to clipboard</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Parser output downloads modal -->
+<div class="modal fade" id="parserDownloadsModal" tabindex="-1" aria-labelledby="parserDownloadsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="parserDownloadsModalLabel">Parser PDFs</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="parserDownloadsMeta"></p>
+                <div id="parserDownloadsLinks" class="d-grid gap-2"></div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reopen / unlock modal -->
+<div class="modal fade" id="reopenClearingModal" tabindex="-1" aria-labelledby="reopenClearingModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="reopenClearingModalLabel">Unlock clearing row</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="reopenWarningText" class="mb-3">This row was marked clearing complete. Unlocking allows edits and may affect billing.</p>
+                <div class="mb-2">
+                    <label for="reopenFeeInput" class="form-label">Confirm fee</label>
+                    <input type="number" min="0" step="0.01" class="form-control bg-dark text-light border-secondary" id="reopenFeeInput">
+                </div>
+                <div class="form-check mb-2 d-none" id="reopenInvoiceSentAckWrap">
+                    <input class="form-check-input" type="checkbox" id="reopenInvoiceSentAck">
+                    <label class="form-check-label text-warning" for="reopenInvoiceSentAck">
+                        I understand an invoice was already sent to QuickBooks and unlocking may require manual QBO adjustment.
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmReopenBtn">Unlock row</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if feature_parser_path_a %}
+<input type="file" id="parsePdfFileInput" accept="application/pdf,.pdf" class="d-none" aria-hidden="true">
+{% endif %}
 
 {% else %}
 <h1>Login</h1>
@@ -534,18 +718,23 @@
     <!--- ========== AUTOSAVE URLS ========== -->
     <script>
         const URL_AUTO_SAVE = "{% url 'core:auto_save' %}";
-        {# const URL_AUTO_SAVE_TAX_YEAR = "{% url 'core:auto_save_tax_year' %}"; #}
-        {# const URL_AUTO_SAVE_PRODUCT = "{% url 'core:auto_save_product' %}"; #}
         const URL_AUTO_SAVE_PRODUCT_ASSIGNMENT = "{% url 'core:auto_save_product_assignment' %}";
 
-        const URL_START_COMPLETION_TEMPLATE = "{% url 'core:start_completion' 0 %}";
-        const URL_SKIP_PARSER_TEMPLATE = "{% url 'core:skip_parser' 0 %}";
-        const URL_BEGIN_ACK_COUNT_TEMPLATE = "{% url 'core:begin_ack_count' 0 %}";
-        const URL_SET_EXPECTED_ACK_COUNT_TEMPLATE = "{% url 'core:set_expected_ack_count' 0 %}";
-        const URL_FINALIZE_COMPLETION_TEMPLATE = "{% url 'core:finalize_completion' 0 %}";
-        const URL_CANCEL_COMPLETION_TEMPLATE = "{% url 'core:cancel_completion' 0 %}";
+        const URL_COMPLETE_CLEARING_TEMPLATE = "{% url 'clearing:complete_clearing' 0 %}";
+        const URL_REOPEN_CLEARING_TEMPLATE = "{% url 'clearing:reopen_clearing' 0 %}";
+        const URL_CONFIRM_PAYMENT_TEMPLATE = "{% url 'clearing:confirm_payment_received' 0 %}";
+        const URL_CLIENT_MESSAGE_TEMPLATE = "{% url 'clearing:client_message' 0 %}";
+        const URL_PARSE_PDF_TEMPLATE = "{% url 'clearing:parse_pdf_upload' 0 %}";
+        const URL_PARSER_OUTPUTS_TEMPLATE = "{% url 'clearing:parser_outputs' 0 %}";
+        const FEATURE_PARSER_PATH_A = {% if feature_parser_path_a %}true{% else %}false{% endif %};
 
-        function urlForPa(templateUrl, paId) {return templateUrl.replace(/\/0\//, `/${paId}/`);}
+        const LIFECYCLE_LABELS = {
+            {% for value, label in lifecycle_state_choices %}
+            "{{ value }}": "{{ label }}",
+            {% endfor %}
+        };
+
+        function urlForPa(templateUrl, paId) { return templateUrl.replace(/\/0\//, `/${paId}/`); }
     </script>
 
     <!-- ========== HELPER FUNCTIONS FOR CLEARING PAGE ========== -->
@@ -811,70 +1000,140 @@
         }
 
 
-        // ========== COMPLETION WORKFLOW LAUNCHER ========== //
-        function bindCompletionToggleButtons(container = document) {
-            console.log("Binding completion workflow buttons");
-            const buttons = container.querySelectorAll(".toggle-completion-status-btn");
+        // ========== LIFECYCLE ROW LOCK / UNLOCK ========== //
+        function isRowLocked(row) {
+            return row.dataset.rowLocked === "true";
+        }
 
-            buttons.forEach((button) => {
+        function setRowLocked(row, locked) {
+            if (locked) {
+                row.dataset.rowLocked = "true";
+            } else {
+                delete row.dataset.rowLocked;
+            }
+            row.querySelectorAll(".editable").forEach((el) => {
+                if (el.tagName === "SELECT" || el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+                    el.disabled = locked;
+                }
+                if (el.hasAttribute("contenteditable")) {
+                    el.setAttribute("contenteditable", locked ? "false" : "true");
+                    el.classList.toggle("text-muted", locked);
+                }
+            });
+            row.querySelectorAll(".parse-pdf-btn").forEach((btn) => {
+                btn.disabled = locked;
+            });
+        }
+
+        function updatePaStatusUI(row, data) {
+            const lifecycleState = data.lifecycle_state || row.dataset.lifecycleState || "IN_CLEARING";
+            const lifecycleLabel = data.lifecycle_label;
+            updateLifecycleUI(row, lifecycleState, lifecycleLabel);
+
+            row.dataset.reopenTier = data.reopen_tier || "none";
+            row.dataset.invoiceSent = data.invoice_sent ? "true" : "false";
+            row.dataset.canConfirmPayment = data.can_confirm_payment ? "true" : "false";
+            if (data.invoice_sent) {
+                row.dataset.rowInvoiceSent = "true";
+                row.classList.add("row-invoice-sent");
+            } else {
+                delete row.dataset.rowInvoiceSent;
+                row.classList.remove("row-invoice-sent");
+            }
+
+            const badge = row.querySelector(".invoice-badge-label");
+            if (badge) {
+                if (data.invoice_badge) {
+                    badge.textContent = data.invoice_badge + (data.qbo_invoice_number ? ` #${data.qbo_invoice_number}` : "");
+                    badge.style.display = "inline-block";
+                    badge.classList.toggle("invoice-badge-sent", !!data.invoice_sent);
+                    badge.classList.toggle("invoice-badge-draft", data.invoice_status === "Draft");
+                    badge.classList.toggle("invoice-badge-partial", data.invoice_status === "Partial");
+                } else {
+                    badge.style.display = "none";
+                }
+            } else if (data.invoice_badge) {
+                const actions = row.querySelector(".pa-status-actions");
+                if (actions) {
+                    const span = document.createElement("span");
+                    span.className = "invoice-badge invoice-badge-label" + (data.invoice_sent ? " invoice-badge-sent" : "");
+                    span.textContent = data.invoice_badge;
+                    actions.insertBefore(span, actions.querySelector(".complete-clearing-btn"));
+                }
+            }
+
+            const reopenBtn = row.querySelector(".reopen-clearing-btn");
+            if (reopenBtn) {
+                reopenBtn.style.display = data.can_reopen ? "inline-block" : "none";
+            }
+            const confirmBtn = row.querySelector(".confirm-payment-btn");
+            if (confirmBtn) {
+                confirmBtn.style.display = data.can_confirm_payment ? "inline-block" : "none";
+            }
+        }
+
+        function updateLifecycleUI(row, lifecycleState, lifecycleLabel) {
+            row.dataset.lifecycleState = lifecycleState;
+            const badge = row.querySelector(".lifecycle-badge-label");
+            if (badge) {
+                badge.textContent = lifecycleLabel || LIFECYCLE_LABELS[lifecycleState] || lifecycleState;
+                badge.classList.remove("lifecycle-in-clearing", "lifecycle-clearing-complete", "lifecycle-other");
+                if (lifecycleState === "IN_CLEARING") {
+                    badge.classList.add("lifecycle-in-clearing");
+                } else if (lifecycleState === "CLEARING_COMPLETE") {
+                    badge.classList.add("lifecycle-clearing-complete");
+                } else {
+                    badge.classList.add("lifecycle-other");
+                }
+            }
+            const completeBtn = row.querySelector(".complete-clearing-btn");
+            const reopenBtn = row.querySelector(".reopen-clearing-btn");
+            if (completeBtn) {
+                completeBtn.style.display = lifecycleState === "IN_CLEARING" ? "inline-block" : "none";
+            }
+            if (reopenBtn && lifecycleState !== "IN_CLEARING") {
+                const canReopen = lifecycleState === "CLEARING_COMPLETE" || lifecycleState === "AWAITING_PAYMENT";
+                if (!row.dataset.canConfirmPayment && canReopen) {
+                    reopenBtn.style.display = "inline-block";
+                }
+            }
+            setRowLocked(row, lifecycleState !== "IN_CLEARING" && lifecycleState !== "");
+        }
+
+        function formatValidationErrors(message) {
+            if (typeof message === "string") return message;
+            if (!message || typeof message !== "object") return "Validation failed.";
+            return Object.entries(message)
+                .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : v}`)
+                .join("\n");
+        }
+
+        function bindCompleteClearingButtons(container = document) {
+            container.querySelectorAll(".complete-clearing-btn").forEach((button) => {
                 if (button.dataset.bound === "true") return;
                 button.dataset.bound = "true";
 
-                button.addEventListener("click", async function () {
-                    const row = this.closest("tr");
-                    if (!row) return;
+                button.addEventListener("click", async () => {
+                    const row = button.closest("tr");
+                    const paId = row?.dataset.productAssignmentId;
+                    if (!paId) return;
 
-                    const paId = row.dataset.productAssignmentId;
-                    if (!paId) {
-                        console.warn("Missing data-product-assignment-id on row");
+                    if (!confirm("Complete clearing for this service? Required fields must be filled.")) {
                         return;
                     }
 
-                    // Always treat this as a WORKFLOW button, not a toggle.
-                    // State lives on the row and is updated after each command call.
-                    const getState = () => (row.dataset.completionState || "OPEN").trim();
-                    const setState = (newState) => {
-                        row.dataset.completionState = newState;
-                        // update icons based on state
-                        updateCompletionIcons(row, newState);
-                    };
-
-                    // disable button while running
                     button.disabled = true;
-
                     try {
-                        const state = getState();
-
-                        if (state === "COMPLETED") {
-                            // Already complete; do nothing
-                            return;
-                        }
-
-                        // Ensure completion has started
-                        if (state === "OPEN") {
-                            const res = await axios.post(
-                                urlForPa(URL_START_COMPLETION_TEMPLATE, paId),
-                                {},
-                                { headers: { "X-CSRFToken": getCookie("csrftoken") } }
-                            );
-                            setState(res.data.state || "PENDING_PARSER");
-                        }
-
-                        // Resume based on latest state
-                        await runCompletionFlow(row, paId, setState);
-
+                        const res = await axios.post(
+                            urlForPa(URL_COMPLETE_CLEARING_TEMPLATE, paId),
+                            {},
+                            { headers: { "X-CSRFToken": getCookie("csrftoken") } }
+                        );
+                        updatePaStatusUI(row, res.data);
+                        showToast(res.data.message || "Clearing completed.", "Success");
                     } catch (err) {
-                        console.error("Completion workflow error:", err);
-
-                        // Surface backend reason if present
-                        const msg = 
-                            err?.response?.data?.message ||
-                            err?.response?.data?.error ||
-                            err?.message ||
-                            "Completion workflow failed.";
-                        
-                        alert(typeof msg === "string" ? msg : JSON.stringify(msg));
-
+                        const msg = formatValidationErrors(err?.response?.data?.message) || "Could not complete clearing.";
+                        alert(msg);
                     } finally {
                         button.disabled = false;
                     }
@@ -882,211 +1141,423 @@
             });
         }
 
-        /**
-         * Orchestrates the workflow using simple prompts/confirm.
-         * Replace prompts with Bootstrap modals later
-         */
-         async function runCompletionFlow(row, paId, setState) {
-            const csrf = { headers: { "X-CSRFToken": getCookie("csrftoken") } };
+        let reopenTargetRow = null;
+        let reopenTargetPaId = null;
 
-            const state = () => (row.dataset.completionState || "OPEN").trim();
+        function bindReopenClearingButtons(container = document) {
+            container.querySelectorAll(".reopen-clearing-btn").forEach((button) => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
 
-            // ---------- Modal 1: Dummy Parser Step ---------- //
-            // States that should land on parser step:
-            // - PENDING_PARSER (normal start)
-            // - OPEN handled earlier (later)
-            if (state() === "PENDING_PARSER") {
-                // as of 12.27.2025 a dummy parser modal UX:
-                // You want upload UI later; for :
-                // - "Skip" -> cmd_skip_parser, then begin_ack_count
-                // - "Cancel" -> cancel_completion (reset OPEN)
-                const choice = confirm ("Parser step (dummy)\n\nOK = Skip Parser\nCancel = Cancel completion");
+                button.addEventListener("click", () => {
+                    const row = button.closest("tr");
+                    const paId = row?.dataset.productAssignmentId;
+                    if (!paId || !row) return;
 
-                if (!choice) {
-                    const res = await axios.post(urlForPa(URL_CANCEL_COMPLETION_TEMPLATE, paId), {}, csrf);
-                    setState(res.data.state || "OPEN");
-                    return;     // cancel-to-reset
-                }
+                    reopenTargetRow = row;
+                    reopenTargetPaId = paId;
 
-                // skip parser
-                {
-                    const res = await axios.post(urlForPa(URL_SKIP_PARSER_TEMPLATE, paId), {}, csrf);
-                    setState(res.data.state || "PARSER_SKIPPED");
-                }
+                    const feeInput = document.getElementById("reopenFeeInput");
+                    const feeFromRow = row.querySelector('[data-field="fee"]')?.value;
+                    if (feeInput) {
+                        feeInput.value = feeFromRow || row.dataset.fee || "";
+                    }
 
-                // move into ack-count step when parser Skipped
-                {
-                    const res = await axios.post(urlForPa(URL_BEGIN_ACK_COUNT_TEMPLATE, paId), {}, csrf);
-                    setState(res.data.state || "PENDING_ACK_COUNT");
-                }
-            }
-
-            // ---------- Modal 2: Expected Ack Count ---------- //
-            // If UI resumes mid-flow, state might already be PARSER_SKIPPED or PENDING_ACK_COUNT
-            if (state() === "PARSER_SKIPPED") {
-                // Ensure we enter ack-count step
-                const res = await axios.post(urlForPa(URL_BEGIN_ACK_COUNT_TEMPLATE, paId), {}, csrf);
-                setState(res.data.state || "PENDING_ACK_COUNT");
-            }
-
-            if (state() === "PENDING_ACK_COUNT") {
-                // cancel-to-reset must be supported here taxYearOptions
-                // minimum expected ack count is 0 for paper filings
-                const input = prompt(
-                    "Expected acknowledgment count (min = 0).\n\nLeave blank to cancel completion.",
-                    row.dataset.expectedAckCount || "0"
-                );
-
-                if (input === null || String(input).trim() === "") {
-                    const res = await axios.post(urlForPa(URL_CANCEL_COMPLETION_TEMPLATE, paId), {}, csrf);
-                    setState(res.data.state || "OPEN");
-                    return;
-                }
-
-                const n = Number(String(input).trim());
-                if (!Number.isInteger(n) || n < 0) {
-                    alert("Ack count must be an integer >= 0.");
-                    return;
-                }
-
-                // set expected ack count -> READY_TO_COMPLETE
-                {
-                    const res = await axios.post(urlForPa(URL_SET_EXPECTED_ACK_COUNT_TEMPLATE, paId), { expected_ack_count: n }, csrf);
-                    row.dataset.expectedAckCount = String(n);
-                    setState(res.data.state || "READY_TO_COMPLETE");
-                }
-            }
-
-            // ---------- Finalization ---------- //
-            if (state() === "READY_TO_COMPLETE") {
-                // Industry standard: either auto finalize after ack count,
-                // used here: confirm to reduce accidental completion
-                const ok = confirm("Finalize completion for this service?");
-                if (!ok) {
-                    const res = await axios.post(urlForPa(URL_CANCEL_COMPLETION_TEMPLATE, paId), {}, csrf);
-                    setState(res.data.state || "OPEN");
-                    return;
-                }
-
-                const res = await axios.post(urlForPa(URL_FINALIZE_COMPLETION_TEMPLATE, paId), {}, csrf);
-                setState(res.data.state || "COMPLETED");
-
-                // lock UI controls for this row
-                lockRowAfterCompletion(row);
-            }
-        }  
-
-        /**
-        * Optional visual behavior: show the "complete" icon only when COMPLETED
-        * every other step within completion workflow shows the 'incomplete' icon
-        */
-        function updateCompletionIcons(row, completionState) {
-            const btn = row.querySelector(".toggle-completion-status-btn");
-            if (!btn) return;
-
-            const iconComplete = btn.querySelector(".toggle-status-complete");
-            const iconIncomplete = btn.querySelector(".toggle-status-incomplete");
-            if (!iconComplete || !iconIncomplete) return;
-
-            const isDone = completionState === "COMPLETED";
-            iconComplete.style.display = isDone ? "inline" : "none";
-            iconIncomplete.style.display = isDone ? "none" : "inline";
-        }
-
-        /**
-        * Optional: disable edits once completed
-        * can expand this to reflect "frozen" states later
-        **/
-        function lockRowAfterCompletion(row) {
-            row.querySelectorAll(".editable").forEach((e1) => {
-                // keep actions usable if you want
-                if (e1.classList.contains("toggle-completion-status-btn")) return;
-
-                // disable inputs/selects
-                if (e1.tagName === "SELECT" || e1.tagName === "INPUT" || e1.tagName === "TEXTAREA") {
-                    e1.disabled = true;
-                }
-
-                // disable contenteditable cells
-                if (e1.hasAttribute("contenteditable")) {
-                    e1.setAttribute("contenteditable", "false");
-                    e1.classList.add("text-muted");
-                }
-            });
-        }
-
-
-        // ========== TOGGLE COMPLETION STATUS BUTTONS ========== //
-        // POSSIBLY DEPRICATE IF COMPLETION WORKFLOW LAUNCHER SECTION ABOVE
-        function __z__bindCompletionToggleButtons(container = document) {
-            console.log("Binding toggle-completion-status-btns");
-            const buttons = container.querySelectorAll(".toggle-completion-status-btn");
-
-            buttons.forEach(button => {
-                button.addEventListener("click", function () {
-                    const row = this.closest("tr");
-                    const productAssignmentId = row.dataset.productAssignmentId;
-
-                    const iconComplete = this.querySelector(".toggle-status-complete");
-                    const iconIncomplete = this.querySelector(".toggle-status-incomplete");
-
-                    const isCurrentlyComplete = getComputedStyle(iconComplete).display !== "none";
-
-                    // warn user if attempting to toggle from complete TO incomplete
-                    if (isCurrentlyComplete) {
-                        const confirmRevert = confirm("You are attempting to revert this 'completed' product to 'incomplete'. Doing so may cause billing issues. Are you sure you want to proceed?");
-                        
-                        if (!confirmRevert) {
-                            // cancel the request to revert completion status to incomplete
-                            iconComplete.style.display = "inline";
-                            iconIncomplete.style.display = "none";
-                            return;
+                    const warning = document.getElementById("reopenWarningText");
+                    const isQbo = row.dataset.isQbo === "true";
+                    const reopenTier = row.dataset.reopenTier || "standard";
+                    const invoiceSent = row.dataset.invoiceSent === "true" || row.dataset.rowInvoiceSent === "true";
+                    const ackWrap = document.getElementById("reopenInvoiceSentAckWrap");
+                    const ackBox = document.getElementById("reopenInvoiceSentAck");
+                    if (ackWrap && ackBox) {
+                        const showAck = reopenTier === "strict" || invoiceSent;
+                        ackWrap.classList.toggle("d-none", !showAck);
+                        ackBox.checked = false;
+                    }
+                    if (warning) {
+                        if (reopenTier === "strict" || invoiceSent) {
+                            warning.textContent = "An invoice was sent to QuickBooks. Unlocking allows edits but may require manual invoice adjustment in QBO. Confirm the fee and acknowledge below.";
+                        } else if (isQbo) {
+                            warning.textContent = "This client pays via QuickBooks. A draft invoice may exist. Unlocking allows edits before send. Confirm the fee before unlocking.";
+                        } else {
+                            warning.textContent = "This row was marked clearing complete. Unlocking allows edits and may affect billing. Confirm the fee before unlocking.";
                         }
                     }
 
-                    // toggle visual state
-                    if(isCurrentlyComplete) {
-                        iconComplete.style.display = "none";
-                        iconIncomplete.style.display = "inline";
-                    } else {
-                        iconComplete.style.display = "inline";
-                        iconIncomplete.style.display = "none";
+                    const modalEl = document.getElementById("reopenClearingModal");
+                    if (modalEl && typeof bootstrap !== "undefined") {
+                        bootstrap.Modal.getOrCreateInstance(modalEl).show();
                     }
-
-                    // payload for backend logic
-                    // may deprecate if axios.post(url,{},{...}) works
-                    const payload = {
-                        id: productAssignmentId,
-                        field: "is_complete",
-                        value: !isCurrentlyComplete,
-                        model: "product_assignment",
-                    };
-
-                    // send update to backend
-                    const url = urlForPa(URL_START_COMPLETION_TEMPLATE, productAssignmentId);
-                    axios.post(url, {}, {
-                        headers: { "X-CSRFToken": getCookie('csrftoken') }
-                    })
-                    .then(response => {
-                        if (response.data.status !== 'success') {
-                            console.warn("Completion status update warning:", response.data.message);
-                        } else {
-                            console.log("Completion status upadted.");
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error updating completion status:", error);
-                        // revert toggle in UI to initial state
-                        if (isCurrentlyComplete) {
-                            iconComplete.style.display = "inline";
-                            iconIncomplete.style.display = "none";
-                        } else {
-                            iconComplete.style.display = "none";
-                            iconIncomplete.style.display = "inline";
-                        }
-                    });
                 });
             });
+        }
+
+        async function confirmReopenClearing() {
+            if (!reopenTargetRow || !reopenTargetPaId) return;
+
+            const feeInput = document.getElementById("reopenFeeInput");
+            const confirmedFee = feeInput?.value;
+            if (confirmedFee === null || String(confirmedFee).trim() === "") {
+                alert("Fee confirmation is required.");
+                return;
+            }
+
+            const btn = document.getElementById("confirmReopenBtn");
+            if (btn) btn.disabled = true;
+
+            const reopenTier = reopenTargetRow?.dataset.reopenTier || "standard";
+            const invoiceSent = reopenTargetRow?.dataset.invoiceSent === "true";
+            const ackBox = document.getElementById("reopenInvoiceSentAck");
+            const needsAck = reopenTier === "strict" || invoiceSent;
+            if (needsAck && ackBox && !ackBox.checked) {
+                alert("Please acknowledge that an invoice may have been sent to QuickBooks.");
+                if (btn) btn.disabled = false;
+                return;
+            }
+
+            try {
+                const res = await axios.post(
+                    urlForPa(URL_REOPEN_CLEARING_TEMPLATE, reopenTargetPaId),
+                    {
+                        confirmed_fee: confirmedFee,
+                        acknowledge_invoice_sent: needsAck && ackBox ? ackBox.checked : false,
+                    },
+                    { headers: { "X-CSRFToken": getCookie("csrftoken") } }
+                );
+                reopenTargetRow.dataset.fee = confirmedFee;
+                const feeField = reopenTargetRow.querySelector('[data-field="fee"]');
+                if (feeField) feeField.value = confirmedFee;
+
+                updatePaStatusUI(reopenTargetRow, res.data);
+                showToast(res.data.message || "Row unlocked.", "Success");
+
+                const modalEl = document.getElementById("reopenClearingModal");
+                if (modalEl && typeof bootstrap !== "undefined") {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                }
+            } catch (err) {
+                const msg = formatValidationErrors(err?.response?.data?.message) || "Could not unlock row.";
+                alert(msg);
+            } finally {
+                if (btn) btn.disabled = false;
+                reopenTargetRow = null;
+                reopenTargetPaId = null;
+            }
+        }
+
+        function bindConfirmPaymentButtons(container = document) {
+            container.querySelectorAll(".confirm-payment-btn").forEach((button) => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
+
+                button.addEventListener("click", async () => {
+                    const row = button.closest("tr");
+                    const paId = row?.dataset.productAssignmentId;
+                    if (!paId) return;
+
+                    if (!confirm("Confirm that payment was received for this assignment?")) {
+                        return;
+                    }
+
+                    button.disabled = true;
+                    try {
+                        const res = await axios.post(
+                            urlForPa(URL_CONFIRM_PAYMENT_TEMPLATE, paId),
+                            {},
+                            { headers: { "X-CSRFToken": getCookie("csrftoken") } }
+                        );
+                        updatePaStatusUI(row, res.data);
+                        showToast(res.data.message || "Payment confirmed.", "Success");
+                    } catch (err) {
+                        const msg = formatValidationErrors(err?.response?.data?.message) || "Could not confirm payment.";
+                        alert(msg);
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+        }
+
+        let activeMessagePaId = null;
+        let activeMessageLocked = false;
+        let parseUploadTargetRow = null;
+        let parseUploadTargetPaId = null;
+
+        function renderParserDownloadLinks(container, downloads, { compact = false } = {}) {
+            if (!container) return;
+            container.innerHTML = "";
+            const messageHost = document.getElementById("clientMessageDownloads");
+            if (!downloads || !downloads.length) {
+                if (container.id === "clientMessageDownloadLinks" && messageHost) {
+                    messageHost.classList.add("d-none");
+                }
+                return;
+            }
+            if (container.id === "clientMessageDownloadLinks" && messageHost) {
+                messageHost.classList.remove("d-none");
+            }
+
+            downloads.forEach((item) => {
+                const link = document.createElement("a");
+                link.href = item.url;
+                link.className = compact ? "btn btn-sm btn-outline-light" : "btn btn-outline-light";
+                link.textContent = item.label || item.kind;
+                link.setAttribute("download", "");
+                container.appendChild(link);
+            });
+        }
+
+        async function fetchParserDownloads(paId) {
+            const res = await axios.get(urlForPa(URL_PARSER_OUTPUTS_TEMPLATE, paId));
+            return res.data.downloads || [];
+        }
+
+        function showParserDownloadsButton(row, show) {
+            const btn = row?.querySelector(".parser-downloads-btn");
+            if (btn) btn.style.display = show ? "inline-block" : "none";
+        }
+
+        async function openParserDownloadsModal(paId) {
+            try {
+                const downloads = await fetchParserDownloads(paId);
+                const meta = document.getElementById("parserDownloadsMeta");
+                if (meta) meta.textContent = downloads.length ? "Download generated PDFs from the parser job." : "No parser outputs available.";
+                renderParserDownloadLinks(document.getElementById("parserDownloadsLinks"), downloads);
+                const modalEl = document.getElementById("parserDownloadsModal");
+                if (modalEl && typeof bootstrap !== "undefined") {
+                    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                }
+            } catch (err) {
+                alert("Could not load parser downloads.");
+                console.error(err);
+            }
+        }
+
+        function bindParserDownloadButtons(container = document) {
+            if (!FEATURE_PARSER_PATH_A) return;
+
+            container.querySelectorAll(".parser-downloads-btn").forEach((button) => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
+
+                button.addEventListener("click", async () => {
+                    const row = button.closest("tr");
+                    const paId = row?.dataset.productAssignmentId;
+                    if (!paId) return;
+                    button.disabled = true;
+                    try {
+                        await openParserDownloadsModal(paId);
+                    } finally {
+                        button.disabled = false;
+                    }
+                });
+            });
+        }
+
+        function applyParseResultToRow(row, data) {
+            if (data.parse_job_uuid) {
+                row.dataset.parseJobId = data.parse_job_uuid;
+                showParserDownloadsButton(row, true);
+            }
+            if (data.fee !== undefined && data.fee !== "") {
+                row.dataset.fee = data.fee;
+                const feeField = row.querySelector('[data-field="fee"]');
+                if (feeField) {
+                    feeField.value = data.fee;
+                    snapshotLastSaved(feeField);
+                }
+            }
+            if (data.payment_method) {
+                row.dataset.paymentMethod = data.payment_method;
+                const pmField = row.querySelector('[data-field="payment_method"]');
+                if (pmField) {
+                    pmField.value = data.payment_method;
+                    snapshotLastSaved(pmField);
+                }
+            }
+        }
+
+        function bindParseUploadButtons(container = document) {
+            if (!FEATURE_PARSER_PATH_A) return;
+
+            const fileInput = document.getElementById("parsePdfFileInput");
+            if (!fileInput) return;
+
+            container.querySelectorAll(".parse-pdf-btn").forEach((button) => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
+
+                button.addEventListener("click", () => {
+                    const row = button.closest("tr");
+                    const paId = row?.dataset.productAssignmentId;
+                    if (!paId || isRowLocked(row)) return;
+
+                    parseUploadTargetRow = row;
+                    parseUploadTargetPaId = paId;
+                    fileInput.value = "";
+                    fileInput.click();
+                });
+            });
+
+            if (fileInput.dataset.bound === "true") return;
+            fileInput.dataset.bound = "true";
+
+            fileInput.addEventListener("change", async () => {
+                const file = fileInput.files?.[0];
+                const row = parseUploadTargetRow;
+                const paId = parseUploadTargetPaId;
+                parseUploadTargetRow = null;
+                parseUploadTargetPaId = null;
+
+                if (!file || !paId || !row) return;
+
+                const btn = row.querySelector(".parse-pdf-btn");
+                if (btn) btn.disabled = true;
+
+                const formData = new FormData();
+                formData.append("file", file);
+
+                try {
+                    const res = await axios.post(
+                        urlForPa(URL_PARSE_PDF_TEMPLATE, paId),
+                        formData,
+                        {
+                            headers: {
+                                "X-CSRFToken": getCookie("csrftoken"),
+                                "Content-Type": "multipart/form-data",
+                            },
+                        }
+                    );
+                    applyParseResultToRow(row, res.data);
+                    if (res.data.message_ready === false) {
+                        showToast(
+                            "PDF parsed (packets ready). Client name or tax year missing — compose the message manually.",
+                            "Parser — review message"
+                        );
+                    } else {
+                        showToast(res.data.message || "PDF parsed successfully.", "Parser");
+                    }
+
+                    if (res.data.downloads?.length) {
+                        renderParserDownloadLinks(
+                            document.getElementById("clientMessageDownloadLinks"),
+                            res.data.downloads,
+                            { compact: true }
+                        );
+                    }
+
+                    if (res.data.message_text) {
+                        activeMessagePaId = paId;
+                        activeMessageLocked = false;
+                        const textarea = document.getElementById("clientMessageTextarea");
+                        const meta = document.getElementById("clientMessageMeta");
+                        if (textarea) {
+                            textarea.value = res.data.message_text;
+                            textarea.readOnly = false;
+                        }
+                        if (meta) {
+                            meta.textContent = "Generated from parser — review before sending.";
+                        }
+                        const saveBtn = document.getElementById("saveClientMessageBtn");
+                        if (saveBtn) saveBtn.style.display = "inline-block";
+                        const modalEl = document.getElementById("clientMessageModal");
+                        if (modalEl && typeof bootstrap !== "undefined") {
+                            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                        }
+                    }
+                } catch (err) {
+                    const msg = err?.response?.data?.message || "Parser upload failed. Use manual entry (Path B).";
+                    alert(msg);
+                } finally {
+                    if (btn && !isRowLocked(row)) btn.disabled = false;
+                    fileInput.value = "";
+                }
+            });
+        }
+
+        function bindClientMessageButtons(container = document) {
+            container.querySelectorAll(".client-message-btn").forEach((button) => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
+
+                button.addEventListener("click", async () => {
+                    const row = button.closest("tr");
+                    const paId = row?.dataset.productAssignmentId;
+                    if (!paId) return;
+
+                    activeMessagePaId = paId;
+                    try {
+                        const res = await axios.get(urlForPa(URL_CLIENT_MESSAGE_TEMPLATE, paId));
+                        activeMessageLocked = !!res.data.is_locked;
+                        const textarea = document.getElementById("clientMessageTextarea");
+                        const meta = document.getElementById("clientMessageMeta");
+                        if (textarea) {
+                            textarea.value = res.data.message_text || "";
+                            textarea.readOnly = activeMessageLocked;
+                        }
+                        if (meta) {
+                            meta.textContent = `${res.data.client_name || "Client"} — ${res.data.product_type || "Service"}${activeMessageLocked ? " (read-only)" : ""}`;
+                        }
+                        if (!res.data.downloads?.length && activeMessagePaId) {
+                            fetchParserDownloads(activeMessagePaId)
+                                .then((downloads) => renderParserDownloadLinks(
+                                    document.getElementById("clientMessageDownloadLinks"),
+                                    downloads,
+                                    { compact: true }
+                                ))
+                                .catch(() => {});
+                        } else {
+                            document.getElementById("clientMessageDownloads")?.classList.add("d-none");
+                        }
+                        const saveBtn = document.getElementById("saveClientMessageBtn");
+                        if (saveBtn) saveBtn.style.display = activeMessageLocked ? "none" : "inline-block";
+
+                        const modalEl = document.getElementById("clientMessageModal");
+                        if (modalEl && typeof bootstrap !== "undefined") {
+                            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                        }
+                    } catch (err) {
+                        alert("Could not load client message.");
+                        console.error(err);
+                    }
+                });
+            });
+        }
+
+        async function saveClientMessage() {
+            if (!activeMessagePaId || activeMessageLocked) return;
+            const textarea = document.getElementById("clientMessageTextarea");
+            const messageText = textarea?.value ?? "";
+            try {
+                await axios.post(
+                    urlForPa(URL_CLIENT_MESSAGE_TEMPLATE, activeMessagePaId),
+                    { message_text: messageText },
+                    { headers: { "X-CSRFToken": getCookie("csrftoken") } }
+                );
+                showToast("Message saved.", "Success");
+            } catch (err) {
+                alert(err?.response?.data?.message || "Could not save message.");
+            }
+        }
+
+        async function copyClientMessage() {
+            const textarea = document.getElementById("clientMessageTextarea");
+            const text = textarea?.value ?? "";
+            if (!text.trim()) {
+                alert("Message is empty.");
+                return;
+            }
+            if (!activeMessageLocked && activeMessagePaId) {
+                await saveClientMessage();
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast("Copied to clipboard.", "Success");
+            } catch (err) {
+                textarea.select();
+                document.execCommand("copy");
+                showToast("Copied to clipboard.", "Success");
+            }
         }
 
         // ========== CREATE DROPDOWN FOR TAX YEARS ========== //
@@ -1248,9 +1719,29 @@
                 return `<select class="form-select form-select-sm editable" data-model="product_assignment" data-field="payment_method">${options}</select>`;
             }
 
-            function generatePreparerSelectHTML(clientId, appointmentId) {
-                const options = getMainRowOptionsHTML(clientId, 'select[data-model="appointment"][data-field="preparer"]');
-                return `<select class="form-select form-select-sm editable" data-model="appointment" data-field="preparer" data-appointment-id="${appointmentId || ''}">${options}</select>`;
+            function generatePreparerSelectHTML(clientId, paId) {
+                const options = getMainRowOptionsHTML(clientId, 'select[data-model="product_assignment"][data-field="preparer"]');
+                return `<select class="form-select form-select-sm editable" data-model="product_assignment" data-field="preparer" data-product-assignment-id="${paId || ''}">${options}</select>`;
+            }
+
+            function generatePaStatusCellHTML(lifecycleState) {
+                const state = lifecycleState || "IN_CLEARING";
+                const label = LIFECYCLE_LABELS[state] || state;
+                let badgeClass = "lifecycle-other";
+                if (state === "IN_CLEARING") badgeClass = "lifecycle-in-clearing";
+                if (state === "CLEARING_COMPLETE") badgeClass = "lifecycle-clearing-complete";
+                return `
+                    <td class="completion-status-cell pa-status-cell">
+                        <div class="pa-status-actions">
+                            <span class="lifecycle-badge ${badgeClass} lifecycle-badge-label">${label}</span>
+                            <button type="button" class="btn btn-sm btn-success complete-clearing-btn" title="Complete clearing" ${state !== "IN_CLEARING" ? 'style="display:none;"' : ""}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-warning reopen-clearing-btn" title="Unlock for editing" ${state !== "CLEARING_COMPLETE" ? 'style="display:none;"' : ""}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
+                            </button>
+                        </div>
+                    </td>`;
             }
 
         function bindAddProductAssignmentButtons(container = document) {
@@ -1280,24 +1771,26 @@
                                 newSubRow.classList.add('sub-row');
                                 newSubRow.setAttribute('data-client-id', clientId);
                                 newSubRow.setAttribute('data-product-assignment-id', assignment.id);
-                                newSubRow.style.display = 'table-row';    // show immediately
+                                newSubRow.setAttribute('data-lifecycle-state', assignment.lifecycle_state || 'IN_CLEARING');
+                                newSubRow.setAttribute('data-fee', assignment.fee || '');
+                                newSubRow.style.display = 'table-row';
 
                                 newSubRow.innerHTML = `
                                     <td colspan = "3"></td>
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "filing_type">
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "filing_type" data-product-assignment-id="${assignment.id}">
                                             ${filingTypeOptions}
                                         </select>
                                     </td>
 
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "tax_year">
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "tax_year" data-product-assignment-id="${assignment.id}">
                                             ${taxYearOptions}
                                         </select>
                                     </td>
 
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "product">
+                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "product" data-product-assignment-id = "${assignment.id}">
                                             ${productOptions}
                                         </select>
                                     </td>
@@ -1311,27 +1804,19 @@
                                     </td>
 
                                     <td>
-                                        <input class = "form-control form-control-sm editable" data-model="product_assignment" data-field = "fee" value = "">
+                                        <input class = "form-control form-control-sm editable" data-model="product_assignment" data-field = "fee" data-product-assignment-id="${assignment.id}" value = "${assignment.fee || ''}">
                                     </td>
 
                                     <td>
-                                        ${generatePreparerSelectHTML(clientId, apptId)}
+                                        ${generatePreparerSelectHTML(clientId, assignment.id)}
                                     </td>
 
-                                    <td class="completion-status-cell">
-                                        <button class = "btn btn-dark toggle-completion-status-btn">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-incomplete" viewBox="0 0 16 16" style = "display:inline;">
-                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                <path d="M11.354 4.646a.5.5 0 0 0-.708 0l-6 6a.5.5 0 0 0 .708.708l6-6a.5.5 0 0 0 0-.708"/>
-                                            </svg>
-
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-status-complete" viewBox="0 0 16 16" style = "display:none;">
-                                                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
-                                            </svg>
-                                        </button>
-                                    </td>
+                                    ${generatePaStatusCellHTML(assignment.lifecycle_state)}
 
                                     <td class = "actions-cell text-center align-middle">
+                                        <button type="button" class="btn btn-dark client-message-btn" title="Client message">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>
+                                        </button>
                                         <button type = "button" class = "btn btn-dark removeProductAssignmentButton">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
@@ -1339,6 +1824,7 @@
                                             </svg>
                                         </button>
                                     </td>
+                                    <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                                 `;
 
                                 // Insert newly created subrow to the bottom of the Client's associated row section
@@ -1348,7 +1834,10 @@
                                     lastRow.after(newSubRow);
                                     bindAutosaveHandlers(newSubRow);
                                     bindRemoveProductAssignmentButtons(newSubRow);
-                                    bindCompletionToggleButtons(newSubRow);
+                                    bindCompleteClearingButtons(newSubRow);
+                                    bindReopenClearingButtons(newSubRow);
+                                    bindConfirmPaymentButtons(newSubRow);
+                                    bindClientMessageButtons(newSubRow);
                                 }
                             } else {
                                 alert(response.data.message);
@@ -1416,7 +1905,7 @@
             host.insertAdjacentHTML("beforeend", html);
             const el = document.getElementById(id);
             const t = new bootstrap.Toast(el, { delay: 3500 });
-            e1.addEventListener("hidden.bs.toast", () => el.remove());
+            el.addEventListener("hidden.bs.toast", () => el.remove());
             t.show();
         }
 
@@ -1449,11 +1938,27 @@
     <!-- ========== DOM CONTENT LOADED FUNCTIONS ========== -->
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            bindAutosaveHandlers();        // autosave table updates
-            bindExpandCollapseButtons();   // toggle expand/collpse buttons
-            bindCompletionToggleButtons();  // toggle completion status buttons
-            bindAddProductAssignmentButtons(); // create new product assignment subrow
-            bindRemoveProductAssignmentButtons(); // function to remove subrow
-        })
+            bindAutosaveHandlers();
+            bindExpandCollapseButtons();
+            bindCompleteClearingButtons();
+            bindReopenClearingButtons();
+            bindConfirmPaymentButtons();
+            bindClientMessageButtons();
+            bindParseUploadButtons();
+            bindParserDownloadButtons();
+            bindAddProductAssignmentButtons();
+            bindRemoveProductAssignmentButtons();
+
+            document.querySelectorAll("tr[data-product-assignment-id]").forEach((row) => {
+                const state = row.dataset.lifecycleState || "IN_CLEARING";
+                if (row.dataset.rowLocked === "true" || state !== "IN_CLEARING") {
+                    setRowLocked(row, state !== "IN_CLEARING");
+                }
+            });
+
+            document.getElementById("confirmReopenBtn")?.addEventListener("click", confirmReopenClearing);
+            document.getElementById("saveClientMessageBtn")?.addEventListener("click", saveClientMessage);
+            document.getElementById("copyClientMessageBtn")?.addEventListener("click", copyClientMessage);
+        });
     </script>
 {% endblock %}

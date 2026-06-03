@@ -26,6 +26,8 @@ from typing import Any
 
 from django.conf import settings
 
+from pdf_manager.apps.parser.drake_registry import load_drake_registry
+from pdf_manager.apps.parser.extraction_schema import finalize_extracted_fields
 from pdf_manager.apps.parser.ocr.ocr_engine import OCREngine, build_ocr_config_from_settings
 from pdf_manager.apps.parser.strategies.field_extraction_base import FieldExtractionStrategy
 from pdf_manager.apps.parser.types import TaggedPage, Template
@@ -134,38 +136,22 @@ def _normalize_date(m: re.Match[str]) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
+def _page_role(tp: TaggedPage) -> str:
+    if not tp.tags:
+        return ""
+    return str(tp.tags[0].label)
+
+
 def _is_client_letter_page(tp: TaggedPage) -> bool:
-    """
-    A page is a client letter if its structural metadata indicates 'CLIENT_LETTER'.
-
-    Treat any section_key containing 'CLIENT_LETTER' as a client letter page, e.g.:
-      - CLIENT_LETTER
-      - CLIENT_LETTER_PAGE_2
-    """
-    sk = (tp.section_key or "").upper()
-    if "CLIENT_LETTER" in sk:
-        return True
-
-    outline = tp.outline
-    title = (outline.title or "").lower() if outline and outline.title else ""
-    return "client letter" in title
+    return _page_role(tp) == "extract_client_letter"
 
 
 def _is_bill_page(tp: TaggedPage) -> bool:
-    """
-    A page is a bill page if its structural metadata indicates 'BILL_01'.
+    return _page_role(tp) == "extract_bill"
 
-    Treat any section_key starting with 'BILL_01' as a bill page:
-      - BILL_01
-      - BILL_01_PAGE_2
-    """
-    sk = (tp.section_key or "").upper()
-    if sk.startswith("BILL_01"):
-        return True
 
-    outline = tp.outline
-    title = (outline.title or "").lower() if outline and outline.title else ""
-    return "bill_01" in title or "bill 01" in title
+def _parser_debug_enabled() -> bool:
+    return bool(getattr(settings, "PARSER_DEBUG", False))
 
 
 def _extract_tax_year(source: str) -> str | None:
@@ -381,7 +367,7 @@ def _extract_name_and_address_from_client_letter(source: str) -> dict[str, Any]:
 
     # Prefer the LAST candidate on the page (taxpayer block),
     # so we skip the firm header address when present.
-    chosen_idx, chosen_match = candidates[1]
+    chosen_idx, chosen_match = candidates[-1]
 
     # City, state, zip
     city = chosen_match.group("city").strip()
@@ -481,141 +467,57 @@ def _run_extraction(
     template: Template,
     text_getter: Callable[[TaggedPage], str],
 ) -> dict[str, Any]:
-    """
-    Core extraction logic, parameterized by how we obtain text for a TaggedPage.
-    `text_getter` is backed by PyMuPDF in this module.
-    """
-    # -----------------------------------------------
-    # 1 ) Gather text and locate client letter page(s)
-    # -----------------------------------------------
-    all_texts: list[str] = []
-    texts_by_label: defaultdict[str, list[str]] = defaultdict(list)
-    cover_pages: list[TaggedPage] = []
-    cover_texts: list[str] = []
-    client_letter_pages: list[TaggedPage] = []
-    bill_pages: list[TaggedPage] = []
+    """Extract clearing fields from first client letter and first bill page only."""
+    client_letter_pages = [tp for tp in pages if _is_client_letter_page(tp)]
+    bill_pages = [tp for tp in pages if _is_bill_page(tp)]
 
-    for tp in pages:
-        text = text_getter(tp)
-        all_texts.append(text)
-
-        # group by tag label (backwards compatibility)
-        for tag in tp.tags:
-            texts_by_label[tag.label].append(text)
-
-        # ID pages tagged as COVER by page_classification_heuristic.py
-        is_cover = any(tag.label == "COVER" for tag in tp.tags)
-        if is_cover:
-            cover_pages.append(tp)
-            cover_texts.append(text)
-
-            # use structural metadata from original PDF to locate page
-            if _is_client_letter_page(tp):
-                client_letter_pages.append(tp)
-
-            if _is_bill_page(tp):
-                bill_pages.append(tp)
-
-    # primary text for extraction : COVER pages
-    cover_blob = "\n".join(cover_texts)
-    # fallback to all pages in case COVER tagging is missing
-    all_blob = "\n".join(all_texts)
-    blob = cover_blob or all_blob
-
-    # --------------------------------------------------------------------
-    # DEBUG: expose what is actually being seen TODO: remove in production
-    # --------------------------------------------------------------------
-    debug: dict[str, Any] = {
-        "__debug_page_count": len(pages),
-        "__debug_cover_indices": [tp.index for tp in cover_pages],
-        "__debug_client_letter_indices": [tp.index for tp in client_letter_pages],
-        "__debug_bill_indices": [tp.index for tp in bill_pages],
-    }
-
-    if pages:
-        debug["__debug_first_page_snippet"] = (text_getter(pages[0]) or "")[:300]
-    if client_letter_pages:
-        debug["__debug_client_letter_snippet"] = (text_getter(client_letter_pages[0]) or "")[:300]
-    if bill_pages:
-        debug["__debug_bill_snippet"] = (text_getter(bill_pages[0]) or "")[:300]
-
-    # prioritize pages tagged / identified as client letter
-    if client_letter_pages:
-        # OCR-2: use ONLY first client letter page for name/address extraction
-        # page 2 often has extra payment addresses (state, vouchers, etc)
-        primary_letter_page = client_letter_pages[0]
-        client_letter_text = text_getter(primary_letter_page)
-    else:
-        client_letter_text = cover_blob
-
-    # prioritize pages within COVER for bill
-    bill_text = "\n".join(text_getter(tp) for tp in bill_pages) if bill_pages else ""
+    client_letter_text = text_getter(client_letter_pages[0]) if client_letter_pages else ""
+    bill_text = text_getter(bill_pages[0]) if bill_pages else ""
 
     out: dict[str, Any] = {}
-    out.update(debug)
+    if _parser_debug_enabled():
+        out.update(
+            {
+                "__debug_page_count": len(pages),
+                "__debug_client_letter_indices": [tp.index for tp in client_letter_pages],
+                "__debug_bill_indices": [tp.index for tp in bill_pages],
+            }
+        )
+        if client_letter_text:
+            out["__debug_client_letter_snippet"] = client_letter_text[:300]
+            out["__debug_client_letter_full"] = client_letter_text[:4000]
+        if bill_text:
+            out["__debug_bill_snippet"] = bill_text[:300]
 
-    # --------------------------------------------------------
-    # 2 ) Backwards compatible generic extraction (COVER-wide)
-    # --------------------------------------------------------
-    # total_amount
-    m_amt = _CURRENCY_RE.search(blob)
-    if m_amt:
-        out["total_amount"] = _normalize_amount(m_amt.group(1))
+    source_for_letter = client_letter_text
 
-    # report_date
-    m_date = _DATE_RE.search(blob)
-    if m_date:
-        out["report_date"] = _normalize_date(m_date)
-
-    # ----------------------------------------------------------------------
-    # 3 ) Tax year, Name, Address, Last 4 of Bank Account from Client Letter
-    # ----------------------------------------------------------------------
-    source_for_letter = client_letter_text or blob or all_blob
-
-    # DEBUG: dump full client letter text (capped) so we can see the table
-    if source_for_letter:
-        debug["__debug_client_letter_full"] = source_for_letter[:4000]
-
-    # tax_year
     tax_year = _extract_tax_year(source_for_letter)
     if tax_year:
         out["tax_year"] = tax_year
 
-    # name + mailing address (from client letter)
     if client_letter_text:
-        name_addr_fields = _extract_name_and_address_from_client_letter(client_letter_text)
-        out.update(name_addr_fields)
+        out.update(_extract_name_and_address_from_client_letter(client_letter_text))
 
-    # last_4_of_account - from direct deposit / account lines
     m_last4 = ACCOUNT_LAST4_RE.search(source_for_letter)
     if m_last4:
         out["last_4_of_account"] = m_last4.group(1)
 
-    # ---------------------------------------------------
-    # 3b ) Federal + state amounts from the summary table
-    # ---------------------------------------------------
     federal_amount_val, states = _extract_summary_table(source_for_letter)
-
     if federal_amount_val is not None:
         out["federal_amount"] = federal_amount_val
-
     if states:
         out["states"] = states
 
-    # -----------------------------
-    # 4 ) Tax prep fee from BILL_01
-    # -----------------------------
     if bill_text:
         m_bill_amt = _CURRENCY_RE.search(bill_text)
         if m_bill_amt:
-            bill_amount = _normalize_amount(m_bill_amt.group(1))
-            out["tax_prep_fee"] = float(bill_amount)
+            out["tax_prep_fee"] = float(_normalize_amount(m_bill_amt.group(1)))
 
-    # ----------------------
-    # 5 ) has_tpg_pages flag
-    # ----------------------
-    # scan entire document text for TPG pages
-    has_tpg = bool(TPG_RE.search(all_blob))
+    has_tpg = any(
+        "tpg" in (getattr(tp.outline, "title", "") or "").lower()
+        for tp in pages
+        if tp.outline
+    )
     out["has_tpg_pages"] = has_tpg
 
     return out
@@ -641,133 +543,120 @@ class RegexFieldExtraction(FieldExtractionStrategy):
             ) from _IMPORT_ERROR
 
         if not pages:
-            return {"__debug_page_count": 0, "__debug_text_engine": "pymupdf"}
+            return {}
 
+        registry = load_drake_registry()
         pdf_path = _get_pdf_source_path(pages)
         doc = fitz.open(str(pdf_path))
 
-        # ----------------------------------------------
-        # OCR-1: instantiate ocr engine and read settings
-        # ----------------------------------------------
         ocr_config = build_ocr_config_from_settings()
         ocr_engine = OCREngine(ocr_config)
-        ocr_enabled: bool = bool(getattr(settings, "OCR_ENABLED", True))
-        ocr_candidate_labels: list[str] = list(
-            getattr(
-                settings,
-                "OCR_CANDIDATE_TAG_LABELS",
-                [
-                    # "COVER",
-                ],
-            )
-        )
-        pymupdf_min_length: int = int(getattr(settings, "OCR_PYMUPDF_MIN_LENGTH", 30))
-        force_client_letter_flag: bool = bool(getattr(settings, "OCR_FORCE_CLIENT_LETTER", True))
-        force_bill_flag: bool = bool(getattr(settings, "OCR_FORCE_BILL", True))
+        ocr_enabled = bool(getattr(settings, "OCR_ENABLED", True))
+        pymupdf_min_length = int(getattr(settings, "OCR_PYMUPDF_MIN_LENGTH", 30))
 
-        # debug metrics
+        extract_targets: list[TaggedPage] = []
+        client_letters = [tp for tp in pages if _is_client_letter_page(tp)]
+        bills = [tp for tp in pages if _is_bill_page(tp)]
+        if client_letters:
+            extract_targets.append(client_letters[0])
+        extract_bill = bool(getattr(settings, "OCR_EXTRACT_BILL", False))
+        if extract_bill and bills:
+            extract_targets.append(bills[0])
+        target_indices = {tp.index for tp in extract_targets}
+
         ocr_attempted_indices: set[int] = set()
         ocr_success_indices: set[int] = set()
-        ocr_debug: dict[int, dict[str, Any]] = {}  # more indepth debug
-        ocr_total_seconds: float = 0.0
+        ocr_total_seconds = 0.0
+        text_cache: dict[int, str] = {}
+        page_methods: dict[int, str] = {}
 
         try:
-
-            def text_getter(tp: TaggedPage) -> str:
-                nonlocal ocr_total_seconds
-                """
-                Obtain text for a page:
-                1) use PyMuPDF get-text("text")
-                2) if OCR enabled
-                    - use OCR on high value pages when configured ... or else do...
-                    - OCR pages with weak text & tagged w/ candidate labels
-                """
-                page_index = getattr(tp, "index", None)
-                if page_index is None:
-                    return ""
-
-                # -----------------------------
-                # STEP 1 : ATTEMPT PYMUPDF TEXT
-                # -----------------------------
+            for tp in extract_targets:
+                page_index = tp.index
+                role = _page_role(tp)
                 try:
-                    page = doc[page_index]  # 0-based index
-                    pymupdf_text = page.get_text("text") or ""
+                    pymupdf_text = doc[page_index].get_text("text") or ""
                 except Exception:
                     pymupdf_text = ""
 
-                # if OCR engine disabled globally, then return pymupdf text
-                if not ocr_enabled:
-                    return pymupdf_text
-
-                # ID page types and candidate status
-                is_client_letter = _is_client_letter_page(tp)
-                is_bill = _is_bill_page(tp)
-                labels = [tag.label for tag in tp.tags]
-                is_candidate_label = any(label in ocr_candidate_labels for label in labels)
-
-                # determine if force OCR needed
-                force_client_letter = force_client_letter_flag and is_client_letter
-                force_bill = force_bill_flag and is_bill
-                force_ocr = force_client_letter or force_bill
-
-                # decide if pymupdf text is usable
-                has_good_text = _has_meaningful_text(
-                    pymupdf_text,
-                    min_length=pymupdf_min_length,
+                text = pymupdf_text
+                method = "pymupdf"
+                has_good_text = _has_meaningful_text(pymupdf_text, min_length=pymupdf_min_length)
+                needs_ocr = (
+                    ocr_enabled
+                    and registry.ocr_required_if_no_text(role)
+                    and not has_good_text
                 )
 
-                # OCR triggers
-                # - forced for configured high value pages or
-                # - fall back for weak pymupdf text
-                needs_ocr = force_ocr or (not has_good_text and is_candidate_label)
+                if needs_ocr:
+                    ocr_attempted_indices.add(page_index)
+                    start = time.perf_counter()
+                    ocr_text = ocr_engine.ocr_page(doc, page_index)
+                    ocr_total_seconds += time.perf_counter() - start
+                    if ocr_text:
+                        ocr_success_indices.add(page_index)
+                        text = ocr_text
+                        method = "ocr"
 
-                if not needs_ocr:
-                    # good pymupf text and not forced OCR
-                    return pymupdf_text
+                text_cache[page_index] = text
+                page_methods[page_index] = method
 
-                # --------------------------------
-                # STEP 2 : USE OCR (IF APPLICABLE)
-                # --------------------------------
-                ocr_attempted_indices.add(page_index)
-
-                start = time.perf_counter()
-                ocr_text = ocr_engine.ocr_page(doc, page_index)
-                ocr_total_seconds += time.perf_counter() - start
-
-                # record debug for any OCR parsed pages
-                ocr_debug[page_index] = {
-                    "pymupdf_len": len(pymupdf_text.strip()),
-                    "ocr_len": len((ocr_text or "").strip()),
-                    "pymupdf_snippet": (pymupdf_text or "")[:200],
-                    "ocr_snippet": (ocr_text or "")[:200],
-                    "force_ocr": force_ocr,
-                    "labels": labels,
-                    "section_key": tp.section_key,
-                }
-
-                if ocr_text:
-                    ocr_success_indices.add(page_index)
-                    return ocr_text
-
-                # still nothing meaningful; fall back to pymupdf or return empty
-                return pymupdf_text.strip()
+            def text_getter(tp: TaggedPage) -> str:
+                if tp.index not in target_indices:
+                    return ""
+                return text_cache.get(tp.index, "")
 
             result = _run_extraction(pages, template, text_getter)
 
-            # OCR debug fields
-            result["__debug_text_engine"] = "pymupdf+ocr1" if ocr_attempted_indices else "pymupdf"
-            result["__debug_ocr_attempted-indices"] = sorted(ocr_attempted_indices)
-            result["__debug_ocr_fallback_indices"] = sorted(ocr_success_indices)
-            if ocr_debug:
-                result["__debug_ocr_pages"] = ocr_debug
+            field_sources: dict[str, dict[str, Any]] = {}
+            if client_letters:
+                cl_idx = client_letters[0].index
+                cl_method = page_methods.get(cl_idx, "pymupdf")
+                for key in (
+                    "taxpayer_first_name",
+                    "taxpayer_full_name",
+                    "tax_year",
+                    "federal_amount",
+                    "states",
+                    "last_4_of_account",
+                    "mailing_address",
+                    "mailing_address_line1",
+                    "mailing_city",
+                    "mailing_state",
+                    "mailing_zip",
+                ):
+                    if key in result:
+                        field_sources[key] = {
+                            "page_index": cl_idx,
+                            "method": cl_method,
+                            "role": "extract_client_letter",
+                        }
+            if extract_bill and bills and "tax_prep_fee" in result:
+                bill_idx = bills[0].index
+                field_sources["tax_prep_fee"] = {
+                    "page_index": bill_idx,
+                    "method": page_methods.get(bill_idx, "pymupdf"),
+                    "role": "extract_bill",
+                }
+            if result.get("has_tpg_pages") is not None:
+                field_sources["has_tpg_pages"] = {
+                    "page_index": None,
+                    "method": "outline",
+                    "role": "outline",
+                }
 
-            # high level OCR stats for audit / metrics
+            result["_field_sources"] = field_sources
             result["ocr_enabled"] = ocr_enabled
             result["ocr_attempted_count"] = len(ocr_attempted_indices)
             result["ocr_success_count"] = len(ocr_success_indices)
             result["ocr_total_ms"] = int(ocr_total_seconds * 1000)
 
-            return result
+            if _parser_debug_enabled():
+                result["__debug_text_engine"] = (
+                    "pymupdf+ocr" if ocr_attempted_indices else "pymupdf"
+                )
+
+            return finalize_extracted_fields(result)
 
         finally:
             doc.close()

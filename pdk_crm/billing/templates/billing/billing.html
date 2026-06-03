@@ -1,15 +1,165 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Billing - {{ page_title|default:"Module" }}{% endblock %}
+{% block title %}Billing{% endblock %}
 
 {% block content %}
-<div class="container py-5">
-    <div class="text-center">
-        <h1 class="mb-4">{{ page_title|default:"Billing" }}</h1>
-        <p class="lead">This page is under development.</p>
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+        <div>
+            <h1 class="h3 mb-1">Billing</h1>
+            <p class="text-muted mb-0 small">Draft invoices, outbound sends, and QBO payment status.</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if qbo_connected %}
+                <span class="badge bg-success">QBO connected</span>
+            {% else %}
+                <span class="badge bg-secondary">QBO not connected</span>
+                <a href="{% url 'billing:qbo_connect' %}" class="btn btn-sm btn-outline-light">Connect QBO</a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if quiet_period_minutes %}
+    <p class="small text-muted">Auto-send quiet period: {{ quiet_period_minutes }} min
+        {% if auto_send_enabled %}(auto-send <strong>enabled</strong>){% else %}(auto-send disabled){% endif %}
+    </p>
+    {% endif %}
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Draft invoices</span>
+                    <span class="badge bg-secondary">{{ draft_rows|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if draft_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Lines</th>
+                                    <th>Status</th>
+                                    <th>Ready</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in draft_rows %}
+                                <tr>
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.line_count }}</td>
+                                    <td>{{ row.invoice.status }}</td>
+                                    <td>
+                                        {% if row.eligible_to_send %}
+                                            <span class="badge bg-success">Yes</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Quiet period</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if row.line_count > 0 %}
+                                        <form method="post" action="{% url 'billing:send_draft_invoice' row.invoice.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-primary" {% if not row.eligible_to_send %}disabled title="Quiet period not elapsed"{% endif %}>Send now</button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No open draft invoices.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Sent / awaiting payment</span>
+                    <span class="badge bg-warning text-dark">{{ open_rows|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if open_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Invoice #</th>
+                                    <th>Status</th>
+                                    <th>Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in open_rows %}
+                                <tr>
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.invoice.qbo_invoice_number|default:"—" }}</td>
+                                    <td>{{ row.invoice.status }}</td>
+                                    <td>${{ row.balance_display }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No unpaid sent invoices.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">Recently paid</div>
+                <div class="card-body p-0">
+                    {% if paid_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm mb-0">
+                            <thead><tr><th>Client</th><th>Invoice #</th><th>Synced</th></tr></thead>
+                            <tbody>
+                                {% for row in paid_rows %}
+                                <tr>
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.invoice.qbo_invoice_number|default:"—" }}</td>
+                                    <td>{{ row.invoice.last_synced_at|date:"Y-m-d H:i"|default:"—" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No recent paid invoices.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header text-danger">QBO sync errors</div>
+                <div class="card-body p-0">
+                    {% if recent_errors %}
+                    <ul class="list-group list-group-flush">
+                        {% for evt in recent_errors %}
+                        <li class="list-group-item bg-dark text-light small">
+                            <strong>{{ evt.entity_name }}</strong> #{{ evt.entity_id }} — {{ evt.error_message|truncatechars:120 }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No recent webhook processing errors.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 </div>
-
-
 {% endblock %}
