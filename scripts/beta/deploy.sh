@@ -10,6 +10,9 @@ if [ ! -f pdk_crm/.env.docker ]; then
   exit 1
 fi
 
+# Compose substitutes ${DB_NAME} etc. from project-root .env only (not crm_web env_file).
+ln -sf pdk_crm/.env.docker .env
+
 git pull --ff-only
 docker compose -f compose.yaml -f compose.beta.yaml up --build -d
 

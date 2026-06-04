@@ -6,6 +6,7 @@ venv/
 .env
 .env.*
 !.env.example
+!.env.beta.example
 
 # python
 __pycache__/

@@ -129,6 +129,7 @@
 </script>
 
 <body class="bg-dark text-light">
+    {% if not request.resolver_match or request.resolver_match.view_name != 'accounts:login' %}
     <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="{% url 'core:home' %}">PDK ENTRUST</a>
@@ -144,8 +145,9 @@
             {% endif %}
         </div>
     </nav>
+    {% endif %}
 
-    <main class="mt-5">
+    <main class="{% if request.resolver_match and request.resolver_match.view_name == 'accounts:login' %}login-main{% else %}mt-5{% endif %}">
         {% if messages %}
             <div class="container">
                 {% for message in messages %}

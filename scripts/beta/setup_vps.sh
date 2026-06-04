@@ -9,8 +9,15 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/pdk/pdk_crm_postgresql}"
 
 echo "==> apt update + base packages"
 export DEBIAN_FRONTEND=noninteractive
-apt update && apt upgrade -y
-apt install -y git ca-certificates curl ufw postgresql-client gzip awscli
+apt update
+apt install -y git ca-certificates curl ufw postgresql-client gzip
+
+echo "==> AWS CLI (optional — for B2 backups later; not in Ubuntu 24.04 apt)"
+if ! command -v aws >/dev/null 2>&1; then
+  apt install -y python3-pip >/dev/null 2>&1 || true
+  pip3 install --break-system-packages awscli 2>/dev/null \
+    || echo "Skip aws CLI for now; install before enabling backup_beta.sh (pip3 install awscli)"
+fi
 
 echo "==> Docker Engine + Compose v2"
 if ! command -v docker >/dev/null 2>&1; then

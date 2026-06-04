@@ -33,7 +33,7 @@ Off-VPS backups (e.g. B2) — pg_dump + media archives
 
 | Hostname (fill in) | Points to | Exposed publicly? |
 |--------------------|-----------|-------------------|
-| `crm.godelta.us` | Tunnel → `crm_web` | Yes (via Cloudflare; gate with **Access**) |
+| `pdk.godelta.us` | Tunnel → `crm_web` | Yes (via Cloudflare; gate with **Access**) |
 | `godelta.us` / `www` | Optional marketing later | Your choice |
 | Postgres `5432` / `5433` | — | **Never** |
 
@@ -47,7 +47,7 @@ Fill in **your price** and **renewal date** as you purchase. Typical ranges are 
 
 | Service | Provider | Billing | Your price | Typical range | Purpose in architecture | Status |
 |---------|----------|---------|------------|---------------|-------------------------|--------|
-| **Domain** `godelta.us` | Cloudflare Registrar | Prepaid multi-year | **$13 / 2 yr** | ~$10–15/yr (.us/.com); you paid ~$13/2yr | **Identity** for `crm.godelta.us`; stable Intuit OAuth/webhook URLs | ☑ |
+| **Domain** `godelta.us` | Cloudflare Registrar | Prepaid multi-year | **$13 / 2 yr** | ~$10–15/yr (.us/.com); you paid ~$13/2yr | **Identity** for `pdk.godelta.us`; stable Intuit OAuth/webhook URLs | ☑ |
 | **DNS + Tunnel + Access** | Cloudflare (Free plan) | $0 / ongoing | **$0** | $0 | **DNS** for hostname; **Tunnel** = HTTPS to VPS without exposing CRM port to internet; **Access** = email allowlist before Django | ☐ |
 | **VPS** (Linux, 8 GB RAM, US region) | **DigitalOcean** | Monthly recurring | **$48 /mo** | ~$48/mo (DO Basic 8 GiB) | **Compute host** for entire Compose stack (CRM, parser, 3× Postgres, workers) | ☐ |
 
@@ -69,7 +69,7 @@ Fill in **your price** and **renewal date** as you purchase. Typical ranges are 
 
 | Service | Provider | Billing | Your price | Typical range | Purpose in architecture | Status |
 |---------|----------|---------|------------|---------------|-------------------------|--------|
-| **Intuit Developer** (sandbox app) | Intuit | $0 | $0 | $0 | **OAuth + webhooks** — redirect/webhook URLs on `https://crm.godelta.us/...` | ☐ |
+| **Intuit Developer** (sandbox app) | Intuit | $0 | $0 | $0 | **OAuth + webhooks** — redirect/webhook URLs on `https://pdk.godelta.us/...` | ☐ |
 | **QuickBooks Online** | Intuit | Firm subscription (existing) | $ | (existing) | **Live or sandbox** invoicing when `FEATURE_QBO=true`, `BILLING_PROVIDER=qbo` | ☐ |
 
 ### Explicitly not required for beta
@@ -106,12 +106,12 @@ Prepare before or during VPS setup. **Do not commit secrets to git.**
 | Cloudflare account (zone `godelta.us` active) | Registrar + DNS + Zero Trust | ☐ |
 | VPS SSH key | Ed25519; no password-only root login | ☐ |
 | `SECRET_KEY` (Django) | Long random string in `pdk_crm/.env.docker` on VPS | ☐ |
-| `ALLOWED_HOSTS` | `crm.godelta.us` | ☐ |
+| `ALLOWED_HOSTS` | `pdk.godelta.us` | ☐ |
 | `PDF_MANAGER_BASE_URL` | `http://pdf_web:8000` (inside Compose network) | ☐ |
 | Cloudflare Access allowlist | Shareholder/staff emails (5) | ☐ |
 | Django users + roles | preparer, reviewer, manager/owner | ☐ |
 | Organization + tax season + products | Admin or `seed_mvp_demo` — see `docs/MVP_TRIAL.md` | ☐ |
-| Tunnel hostname | `crm.godelta.us` → `http://127.0.0.1:8000` | ☐ |
+| Tunnel hostname | `pdk.godelta.us` → `http://127.0.0.1:8000` | ☐ |
 | 2FA | Cloudflare, registrar, VPS provider | ☐ |
 | WISP / vendor note | Document **Cloudflare + DigitalOcean** as subprocessors for beta PII | ☐ |
 
@@ -124,7 +124,7 @@ FEATURE_AUTO_SEND_INVOICES=false
 FEATURE_PARSER_PATH_A=true
 ```
 
-Enable QBO later per `docs/BILLING.md` (Intuit redirect + webhook on `https://crm.godelta.us/...`).
+Enable QBO later per `docs/BILLING.md` (Intuit redirect + webhook on `https://pdk.godelta.us/...`).
 
 ---
 
@@ -217,6 +217,7 @@ Deploy steps continue in **Deployment sequence** below (`.env.docker`, `compose 
 ```bash
 # On VPS after clone:
 cp pdk_crm/.env.beta.example pdk_crm/.env.docker   # edit secrets
+ln -sf pdk_crm/.env.docker .env                    # required for crm_db ${DB_*} vars
 docker compose -f compose.yaml -f compose.beta.yaml up --build -d
 ```
 
@@ -334,13 +335,13 @@ Use this order in a new thread; check off as you go.
 
 1. ☐ **DigitalOcean Droplet** — 8 GiB Basic, Ubuntu 24.04, US region; DO Cloud Firewall (SSH from your IP only)  
 2. ☐ **Droplet software** — `bash scripts/beta/setup_vps.sh` (Docker + clone)  
-3. ☐ **Cloudflare Tunnel** — `bash scripts/beta/install_cloudflared.sh`; publish `crm.godelta.us` → `http://127.0.0.1:8000`  
-4. ☐ **Cloudflare Access** — policy on `crm.godelta.us` (allowed emails only)  
-5. ☐ **`.env.docker`** — `cp pdk_crm/.env.beta.example pdk_crm/.env.docker`; set `SECRET_KEY`, `DB_PASSWORD`, `ALLOWED_HOSTS=crm.godelta.us`  
+3. ☐ **Cloudflare Tunnel** — `bash scripts/beta/install_cloudflared.sh`; publish `pdk.godelta.us` → `http://127.0.0.1:8000`  
+4. ☐ **Cloudflare Access** — policy on `pdk.godelta.us` (allowed emails only)  
+5. ☐ **`.env.docker`** — `cp pdk_crm/.env.beta.example pdk_crm/.env.docker`; set `SECRET_KEY`, `DB_PASSWORD`, `ALLOWED_HOSTS=pdk.godelta.us`  
 6. ☐ **`docker compose -f compose.yaml -f compose.beta.yaml up --build -d`** — or `bash scripts/beta/deploy.sh`  
 7. ☐ **Migrations** — CRM auto via entrypoint; `docker compose exec pdf_web python manage.py migrate`  
 8. ☐ **Seed** — auto via `SEED_MVP_DEMO=true`; verify `check_mvp_ready` (`docs/MVP_TRIAL.md`)  
-9. ☐ **Smoke test** — `https://crm.godelta.us/health/` → login → intake → clearing upload (one PDF)  
+9. ☐ **Smoke test** — `https://pdk.godelta.us/health/` → login → intake → clearing upload (one PDF)  
 10. ☐ **Backups** — B2 bucket + `scripts/beta/backup_beta.sh` cron + one restore test  
 11. ☐ **Shareholder beta** — send URL + Access invite; collect feedback  
 
@@ -358,7 +359,7 @@ Infrastructure up ≠ beta ready to pitch. Complete product checks separately:
 | **`docs/PARSER_EXTRACTION.md`** | Parser expectations, `message_ready`, sample PDFs |
 | **`docs/LIFECYCLE.md`** | Payment-method → billing → review gates |
 
-**10.Beta exit criteria** (from roadmap): five users complete intake → clearing → billing gate → review on `https://crm.godelta.us`; backups verified; feedback captured.
+**10.Beta exit criteria** (from roadmap): five users complete intake → clearing → billing gate → review on `https://pdk.godelta.us`; backups verified; feedback captured.
 
 ### Product readiness checklist (before shareholder pitch)
 
@@ -370,7 +371,7 @@ docker compose exec crm_web python manage.py check_mvp_ready
 
 | Check | Command / action | Doc |
 |-------|------------------|-----|
-| Health | `curl -sf https://crm.godelta.us/health/` | — |
+| Health | `curl -sf https://pdk.godelta.us/health/` | — |
 | Demo users | `preparer@demo.pdk.local`, `reviewer@`, `manager@` — password from `MVP_DEMO_PASSWORD` | `MVP_TRIAL.md` |
 | Full workflow once | Intake → clearing (path A PDF) → fake billing → review → acks | `MVP_TRIAL.md` demo script |
 | Analytics | Log in as `manager@demo.pdk.local` → `/analytics/` | `MVP_TRIAL.md` |
@@ -399,7 +400,7 @@ Replace demo passwords before inviting external shareholders (`MVP_DEMO_PASSWORD
 | Item | Value |
 |------|--------|
 | Domain | `godelta.us` |
-| CRM URL | `https://crm.godelta.us` |
+| CRM URL | `https://pdk.godelta.us` |
 | Git remote | `https://github.com/thericktenorio/PDK-DataManagementSystem.git` |
 | VPS provider | **DigitalOcean** |
 | VPS plan | **Basic Droplet — 8 GiB / 4 vCPU / 160 GiB SSD ($48/mo)** |
