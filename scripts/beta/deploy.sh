@@ -14,6 +14,11 @@ fi
 ln -sf pdk_crm/.env.docker .env
 
 git pull --ff-only
+
+# Pass commit SHA as BUILD_VERSION so Docker invalidates COPY layers after git pull.
+export GIT_SHA="$(git rev-parse HEAD)"
+echo "Deploying GIT_SHA=${GIT_SHA}"
+
 docker compose -f compose.yaml -f compose.beta.yaml up --build -d
 
 echo "Waiting for CRM health..."
@@ -30,3 +35,31 @@ docker compose exec -T pdf_web python manage.py migrate --noinput
 
 echo "Smoke: curl http://127.0.0.1:8000/health/"
 curl -sf http://127.0.0.1:8000/health/ && echo ""
+
+echo "Smoke: parser disposition route..."
+if ! docker compose exec -T pdf_web grep -q 'disposition/' /app/pdf_manager/apps/ui/urls_api.py; then
+  echo "ERROR: pdf_web image missing disposition route in urls_api.py." >&2
+  exit 1
+fi
+
+docker compose exec -T crm_web python - <<'PY'
+import json
+import urllib.error
+import urllib.request
+import uuid
+
+url = f"http://pdfmgr:8000/api/jobs/{uuid.uuid4()}/disposition/"
+req = urllib.request.Request(
+    url,
+    data=json.dumps({"status": "APPLIED"}).encode(),
+    method="POST",
+    headers={"Content-Type": "application/json"},
+)
+try:
+    urllib.request.urlopen(req)
+except urllib.error.HTTPError as exc:
+    body = exc.read().decode("utf-8", errors="replace")
+    if "Page not found at /api/jobs/" in body:
+        raise SystemExit(f"disposition route not mounted: HTTP {exc.code} {body[:200]}")
+print("disposition route OK")
+PY

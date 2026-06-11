@@ -51,6 +51,11 @@ RUN groupadd -r app && useradd -r -g app app && \
     mkdir -p /home/app && chown -R app:app /home/app
 
 COPY --from=builder /opt/venv /opt/venv
+
+# Cache bust: rebuild app layers when GIT_SHA changes (see compose.yaml / deploy.sh).
+ARG BUILD_VERSION=unknown
+ENV APP_BUILD_VERSION=$BUILD_VERSION
+
 COPY . /app/
 
 # Create data dirs inside image (helps even without volume)

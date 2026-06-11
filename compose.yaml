@@ -36,6 +36,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.crm
+      args:
+        BUILD_VERSION: ${GIT_SHA:-unknown}
     ports:
       - "8000:8000"
     env_file:
@@ -78,6 +80,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.crm
+      args:
+        BUILD_VERSION: ${GIT_SHA:-unknown}
     env_file:
       - pdk_crm/.env.docker
     environment:
@@ -102,6 +106,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.crm
+      args:
+        BUILD_VERSION: ${GIT_SHA:-unknown}
     env_file:
       - pdk_crm/.env.docker
     environment:
@@ -127,6 +133,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.crm
+      args:
+        BUILD_VERSION: ${GIT_SHA:-unknown}
     env_file:
       - pdk_crm/.env.docker
     environment:
@@ -193,6 +201,8 @@ services:
     build:
       context: ./pdf_manager
       dockerfile: docker/Dockerfile
+      args:
+        BUILD_VERSION: ${GIT_SHA:-unknown}
     ports:
       - "8001:8000"
     depends_on:
