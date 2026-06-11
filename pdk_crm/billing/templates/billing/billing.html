@@ -4,22 +4,18 @@
 {% block title %}Billing{% endblock %}
 
 {% block content %}
-<div class="app-page">
-<div class="container-fluid app-page-body pb-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
-        <div>
-            <h1 class="h3 mb-1">Billing</h1>
-            <p class="text-muted mb-0 small">Draft invoices, outbound sends, and QBO payment status.</p>
-        </div>
-        <div class="d-flex gap-2 align-items-center">
-            {% if qbo_connected %}
-                <span class="badge bg-success">QBO connected</span>
-            {% else %}
-                <span class="badge bg-secondary">QBO not connected</span>
-                <a href="{% url 'billing:qbo_connect' %}" class="btn btn-sm btn-outline-light">Connect QBO</a>
-            {% endif %}
-        </div>
+<div class="app-page billing-page">
+    <h1 class="app-page-title">Billing</h1>
+    <p class="app-page-subtitle mb-0">Draft invoices, outbound sends, and QBO payment status.</p>
+    <div class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-4">
+        {% if qbo_connected %}
+            <span class="badge bg-success">QBO connected</span>
+        {% else %}
+            <span class="badge bg-secondary">QBO not connected</span>
+            <a href="{% url 'billing:qbo_connect' %}" class="btn btn-sm btn-outline-light">Connect QBO</a>
+        {% endif %}
     </div>
+<div class="container-fluid app-page-body pb-4">
 
     {% if quiet_period_minutes %}
     <p class="small text-muted">Auto-send quiet period: {{ quiet_period_minutes }} min

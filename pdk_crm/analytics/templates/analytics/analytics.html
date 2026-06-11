@@ -4,26 +4,22 @@
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
-<div class="app-page">
+<div class="app-page analytics-page">
+    <h1 class="app-page-title">Operations analytics</h1>
+    <p class="app-page-subtitle mb-0">KPIs from the analytics warehouse — not live operational data.</p>
+    {% if dashboard.warehouse_enabled and dashboard.seasons %}
+    <form method="get" class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-4">
+        <label for="season" class="form-label mb-0 small text-muted">Tax season</label>
+        <select name="season" id="season" class="form-select form-select-sm" onchange="this.form.submit()">
+            {% for s in dashboard.seasons %}
+            <option value="{{ s.year }}" {% if s.year == dashboard.selected_season_year %}selected{% endif %}>
+                {{ s.label }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+    {% endif %}
 <div class="container-fluid app-page-body pb-4">
-    <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 gap-3">
-        <div>
-            <h1 class="h3 mb-1">Operations analytics</h1>
-            <p class="text-muted mb-0 small">KPIs from the analytics warehouse — not live operational data.</p>
-        </div>
-        {% if dashboard.warehouse_enabled and dashboard.seasons %}
-        <form method="get" class="d-flex align-items-center gap-2">
-            <label for="season" class="form-label mb-0 small text-muted">Tax season</label>
-            <select name="season" id="season" class="form-select form-select-sm" onchange="this.form.submit()">
-                {% for s in dashboard.seasons %}
-                <option value="{{ s.year }}" {% if s.year == dashboard.selected_season_year %}selected{% endif %}>
-                    {{ s.label }}
-                </option>
-                {% endfor %}
-            </select>
-        </form>
-        {% endif %}
-    </div>
 
     {% if dashboard.last_etl_finished_at %}
     <div class="alert alert-secondary py-2 small mb-4" role="status">
