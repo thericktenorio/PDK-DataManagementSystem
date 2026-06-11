@@ -515,8 +515,8 @@ def job_disposition_api(request, job_id):
 
     try:
         job = ParseJob.objects.get(job_uuid=job_id)
-    except ParseJob.DoesNotExist as err:
-        raise Http404("Job not found") from err
+    except ParseJob.DoesNotExist:
+        return JsonResponse({"status": "error", "error": "Job not found."}, status=404)
 
     if job.status != ParseJob.Status.SUCCESS:
         return JsonResponse(

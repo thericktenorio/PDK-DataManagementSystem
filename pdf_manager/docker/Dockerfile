@@ -54,6 +54,7 @@ COPY --from=builder /opt/venv /opt/venv
 
 # Cache bust: rebuild app layers when GIT_SHA changes (see compose.yaml / deploy.sh).
 ARG BUILD_VERSION=unknown
+RUN test -n "$BUILD_VERSION"
 ENV APP_BUILD_VERSION=$BUILD_VERSION
 
 COPY . /app/

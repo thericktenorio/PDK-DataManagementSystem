@@ -37,29 +37,13 @@ echo "Smoke: curl http://127.0.0.1:8000/health/"
 curl -sf http://127.0.0.1:8000/health/ && echo ""
 
 echo "Smoke: parser disposition route..."
-if ! docker compose exec -T pdf_web grep -q 'disposition/' /app/pdf_manager/apps/ui/urls_api.py; then
-  echo "ERROR: pdf_web image missing disposition route in urls_api.py." >&2
-  exit 1
-fi
+# Use Django URL resolution — HTTP POST with a random UUID hits the view and, with
+# DJANGO_DEBUG=1, returns the same debug 404 page as an unregistered route.
+docker compose exec -T pdf_web python manage.py shell -c "
+from django.urls import resolve
 
-docker compose exec -T crm_web python - <<'PY'
-import json
-import urllib.error
-import urllib.request
-import uuid
-
-url = f"http://pdfmgr:8000/api/jobs/{uuid.uuid4()}/disposition/"
-req = urllib.request.Request(
-    url,
-    data=json.dumps({"status": "APPLIED"}).encode(),
-    method="POST",
-    headers={"Content-Type": "application/json"},
-)
-try:
-    urllib.request.urlopen(req)
-except urllib.error.HTTPError as exc:
-    body = exc.read().decode("utf-8", errors="replace")
-    if "Page not found at /api/jobs/" in body:
-        raise SystemExit(f"disposition route not mounted: HTTP {exc.code} {body[:200]}")
-print("disposition route OK")
-PY
+match = resolve('/api/jobs/00000000-0000-0000-0000-000000000001/disposition/')
+if match.url_name != 'job_disposition':
+    raise SystemExit(f'unexpected view: {match.url_name!r}')
+print('disposition route OK')
+"
