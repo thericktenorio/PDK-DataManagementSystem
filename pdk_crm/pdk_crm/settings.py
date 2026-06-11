@@ -203,6 +203,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.NavRoleAccessMiddleware',
     'core.middleware.AppBackgroundMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -222,6 +223,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.nav_apps',
                 'core.context_processors.app_background',
+                'accounts.context_processors.login_surface',
             ],
         },
     },
@@ -280,6 +282,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
+    },
+    {
+        'NAME': 'accounts.validators.SpecialCharacterValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
@@ -331,6 +337,26 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'accounts:login'                # where @login_required redirects if not logged in
 LOGOUT_REDIRECT_URL = 'accounts:login'      # where LogoutView redirects
 LOGIN_REDIRECT_URL = 'core:home'            # where to go after login
+
+# Password reset notifications (developer + owner); comma-separated override
+_password_reset_notify = os.getenv("PASSWORD_RESET_NOTIFY_EMAILS", "").strip()
+PASSWORD_RESET_NOTIFY_EMAILS = [
+    email.strip()
+    for email in _password_reset_notify.split(",")
+    if email.strip()
+]
+
+# Email (console backend in dev; configure SMTP on beta/prod)
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "true").lower() in ("true", "1", "yes")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@pdkentrust.com")
 
 
 # Session & security options

@@ -12,39 +12,25 @@ def app_background(request):
 
 
 def nav_apps(request):
-    '''
-    Provides the pp dock items to all templates.
-    Update list everytime the home screen list changes too
-    '''
-
-    apps = [
-        {"name": "Home", "icon": "icons/home.svg", "url": "core:home"},
-        {"name": "Calendar", "icon": "icons/calendar.svg", "url": "pdk_calendar:pdk_calendar"},
-        {"name": "Intake", "icon": "icons/intake.svg", "url": "intake:intake"},
-        {"name": "Clearing", "icon": "icons/clearing.svg", "url": "clearing:clearing"},
-        {"name": "Billing", "icon": "icons/billing.svg", "url": "billing:billing"},
-        {"name": "Review", "icon": "icons/review.svg", "url": "review:review", "badge_key": "review"},
-        {"name": "Acknowledgments", "icon": "icons/acknowledgments.svg", "url": "acknowledgments:acknowledgments"},
-        {"name": "Client Portfolio", "icon": "icons/client_portfolio.svg", "url": "client_portfolio:client_portfolio"},
-    ]
-
+    """Dock items and navbar welcome message — filtered by role (see core.nav_permissions)."""
+    apps: list = []
     review_queue_count = 0
+    nav_welcome_message = ""
+
     if request.user.is_authenticated:
-        from review.permissions import user_can_access_review
+        from core.nav_permissions import nav_apps_for_user, nav_welcome_message as build_welcome
+
+        apps = nav_apps_for_user(request.user)
+        nav_welcome_message = build_welcome(request.user)
+
         from review.selectors import review_queue_count as _review_queue_count
 
-        if user_can_access_review(request.user):
+        review_urls = {app["url"] for app in apps if app.get("badge_key") == "review"}
+        if review_urls:
             review_queue_count = _review_queue_count()
-
-        from analytics.permissions import user_can_access_analytics
-
-        if user_can_access_analytics(request.user):
-            apps.insert(
-                -1,
-                {"name": "Analytics", "icon": "icons/analytics.svg", "url": "analytics:analytics"},
-            )
 
     return {
         "apps": apps,
         "review_queue_count": review_queue_count,
+        "nav_welcome_message": nav_welcome_message,
     }

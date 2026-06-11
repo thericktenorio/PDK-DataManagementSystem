@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import InternalUser
+from .models import AuthenticatorDevice, InternalUser, PasswordResetChallenge
 
 
 @admin.register(InternalUser)

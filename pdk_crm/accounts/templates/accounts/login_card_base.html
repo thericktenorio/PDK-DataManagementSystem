@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+{% include "accounts/_login_card_styles.html" %}
+<div class="login-hero">
+    <div class="login-stage">
+        <div class="login-composition">
+            <div class="login-logo-wrap">
+                <div class="login-logo-mask">
+                    <img
+                        class="login-hero-logo"
+                        src="{% static 'images/pdk-entrust-logo.png' %}"
+                        width="905"
+                        height="768"
+                        alt="PDK ENTRUST — Financial &amp; Corporate Services, San Diego, CA"
+                        decoding="async"
+                    >
+                </div>
+                <div class="login-logo-vignette" aria-hidden="true"></div>
+            </div>
+
+            <div class="login-card-glass">
+                {% block login_card %}{% endblock %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

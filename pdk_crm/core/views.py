@@ -39,25 +39,10 @@ import re
 
 @login_required
 @cache_control(no_cache = True, must_revalidate = True, no_store = True)
-def home_view(request): # order of dictionary determines order in which icon buttons appear on home page
-    apps = [
-        {"name": "Home", "icon": "icons/home.svg", "url": "core:home"},
-        {"name": "Calendar", "icon": "icons/calendar.svg", "url": "pdk_calendar:pdk_calendar"},
-        {"name": "Intake", "icon": "icons/intake.svg", "url": "intake:intake"},
-        {"name": "Clearing", "icon": "icons/clearing.svg", "url": "clearing:clearing"},
-        {"name": "Billing", "icon": "icons/billing.svg", "url": "billing:billing"},
-        {"name": "Review", "icon": "icons/review.svg", "url": "review:review"},
-        {"name": "Acknowledgments", "icon": "icons/acknowledgments.svg", "url": "acknowledgments:acknowledgments"},
-        {"name": "Client Portfolio", "icon": "icons/client_portfolio.svg", "url": "client_portfolio:client_portfolio"},
-    ]
-    from analytics.permissions import user_can_access_analytics
+def home_view(request):
+    from core.nav_permissions import nav_apps_for_user
 
-    if user_can_access_analytics(request.user):
-        apps.insert(
-            -1,
-            {"name": "Analytics", "icon": "icons/analytics.svg", "url": "analytics:analytics"},
-        )
-    return render(request, "core/home.html", {"apps": apps})
+    return render(request, "core/home.html", {"apps": nav_apps_for_user(request.user)})
 
 
 @login_required

@@ -1,0 +1,37 @@
+{% extends "accounts/login_card_base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Confirm Authenticator — PDK ENTRUST{% endblock %}
+
+{% block login_card %}
+<h1 class="card-title text-center">Scan QR Code</h1>
+<p class="login-card-help text-center">Add this account to Google Authenticator, Authy, or 1Password.</p>
+<div class="text-center mb-2">
+    <canvas id="authenticatorQr" width="160" height="160" role="img" aria-label="Authenticator QR code"></canvas>
+</div>
+<p class="login-card-help text-center mb-2">
+    Manual key: <code>{{ secret }}</code>
+</p>
+<form method="post" novalidate>
+    {% csrf_token %}
+    {{ form|crispy }}
+    <button type="submit" class="btn btn-primary w-100 mt-1">Confirm Authenticator</button>
+</form>
+<div class="login-card-links">
+    <a href="{% url 'accounts:login' %}">Back to Sign In</a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+    (function () {
+        const uri = "{{ provisioning_uri|escapejs }}";
+        const canvas = document.getElementById("authenticatorQr");
+        if (canvas && window.QRCode) {
+            QRCode.toCanvas(canvas, uri, { width: 160, margin: 1 });
+        }
+    })();
+</script>
+{% endblock %}

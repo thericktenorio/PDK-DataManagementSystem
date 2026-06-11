@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% load static %}
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
     <style>
         html, body {
             background-color: #121212;
@@ -282,22 +285,104 @@
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
         }
 
-        .navbar-brand {
+        .navbar-brand-lockup {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
             font-weight: bold;
+            margin-right: 0;
+        }
+
+        .navbar-brand-text {
+            letter-spacing: 0.04em;
+        }
+
+        .navbar-beta-badge {
+            font-family: "Bungee", cursive;
+            font-size: 0.82rem;
+            font-weight: 400;
+            line-height: 1;
+            padding: 0.22rem 0.5rem;
+            border-radius: 0.5rem;
+            color: #86efac;
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.38), rgba(74, 222, 128, 0.22));
+            border: 1px solid rgba(74, 222, 128, 0.55);
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.28);
+            letter-spacing: 0.08em;
+            transform: translateY(1px);
+        }
+
+        .navbar-app-bar {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            position: relative;
+        }
+
+        .navbar-start {
+            flex: 0 0 auto;
+            z-index: 2;
+        }
+
+        .navbar-end {
+            flex: 0 0 auto;
+            margin-left: auto;
+            z-index: 2;
+        }
+
+        .navbar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1;
+            max-width: min(50vw, 520px);
+            pointer-events: none;
+        }
+
+        .navbar-welcome {
+            color: rgba(255, 255, 255, 0.92);
+            font-size: 0.92rem;
+            letter-spacing: 0.01em;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+        }
+
+        @media (max-width: 767.98px) {
+            .navbar-center {
+                max-width: 46vw;
+            }
+
+            .navbar-welcome {
+                font-size: 0.76rem;
+            }
+
+            .navbar-beta-badge {
+                font-size: 0.72rem;
+                padding: 0.18rem 0.4rem;
+            }
         }
 
         .navbar-settings-btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 2rem;
-            height: 2rem;
+            width: 2.125rem;
+            height: 2.125rem;
             padding: 0;
             border: 0;
             border-radius: 0.5rem;
             background: transparent;
-            color: rgba(168, 172, 180, 0.95);
+            color: rgba(220, 224, 232, 0.95);
             transition: color 0.16s ease, background-color 0.16s ease;
+        }
+
+        .navbar-settings-icon {
+            width: 1.25rem;
+            height: 1.25rem;
+            display: block;
         }
 
         .navbar-settings-btn:hover,
@@ -498,15 +583,26 @@
     </style>
 </head>
 
-<body class="bg-dark text-light{% if request.resolver_match and request.resolver_match.view_name == 'accounts:login' %} login-page{% else %} has-app-bg{% if request.resolver_match and request.resolver_match.view_name == 'core:home' %} home-page{% else %} has-dock{% endif %}{% endif %}">
-    {% if not request.resolver_match or request.resolver_match.view_name != 'accounts:login' %}
+<body class="bg-dark text-light{% if is_login_surface %} login-page{% else %} has-app-bg{% if request.resolver_match and request.resolver_match.view_name == 'core:home' %} home-page{% else %} has-dock{% endif %}{% endif %}">
+    {% if not is_login_surface %}
         {% include "partials/app_background.html" %}
     {% endif %}
-    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top{% if not request.resolver_match or request.resolver_match.view_name != 'accounts:login' %} navbar-glass{% endif %}">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{% url 'core:home' %}">PDK ENTRUST</a>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top{% if not is_login_surface %} navbar-glass{% endif %}">
+        <div class="container-fluid navbar-app-bar">
+            <div class="navbar-start">
+                <a class="navbar-brand navbar-brand-lockup" href="{% url 'core:home' %}">
+                    <span class="navbar-brand-text">PDK ENTRUST</span>
+                    <span class="navbar-beta-badge" aria-label="Beta testing release">BETA</span>
+                </a>
+            </div>
+            {% if user.is_authenticated and nav_welcome_message %}
+                <div class="navbar-center">
+                    <p class="navbar-welcome mb-0">{{ nav_welcome_message }}</p>
+                </div>
+            {% endif %}
             {% if user.is_authenticated %}
-                <ul class="navbar-nav ms-auto align-items-center gap-1">
+                <div class="navbar-end">
+                <ul class="navbar-nav align-items-center gap-1">
                     <li class="nav-item dropdown">
                         <button
                             type="button"
@@ -518,9 +614,9 @@
                             aria-label="Settings"
                             title="Settings"
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                            <svg class="navbar-settings-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                                 <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
-                                <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319z"/>
+                                <path d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311a1.464 1.464 0 0 1-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
                             </svg>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end navbar-settings-menu" aria-labelledby="navbarSettingsDropdown">
@@ -545,11 +641,12 @@
                         </form>
                     </li>
                 </ul>
+                </div>
             {% endif %}
         </div>
     </nav>
 
-    <main class="{% if request.resolver_match and request.resolver_match.view_name == 'accounts:login' %}login-main{% elif request.resolver_match and request.resolver_match.view_name == 'core:home' %}home-main{% else %}app-main{% endif %}">
+    <main class="{% if is_login_surface %}login-main{% elif request.resolver_match and request.resolver_match.view_name == 'core:home' %}home-main{% else %}app-main{% endif %}">
         {% if messages %}
             <div class="container">
                 {% for message in messages %}
@@ -560,7 +657,7 @@
         {% block content %}{% endblock %}
     </main>
 
-    {% if request.resolver_match and request.resolver_match.view_name != 'core:home' and request.resolver_match.view_name != 'accounts:login' %}
+    {% if request.resolver_match and request.resolver_match.view_name != 'core:home' and not is_login_surface %}
         {% include "partials/dock.html" %}
     {% endif %}
 

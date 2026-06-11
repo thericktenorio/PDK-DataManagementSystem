@@ -1,5 +1,8 @@
+import uuid
+
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
+from django.utils import timezone
 
 
 class InternalUserManager(BaseUserManager):
@@ -119,3 +122,57 @@ class InternalUser(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.email} ({self.get_role_display()})"
+
+
+class AuthenticatorDevice(models.Model):
+    """TOTP authenticator enrolled for password reset verification."""
+
+    user = models.OneToOneField(
+        InternalUser,
+        on_delete=models.CASCADE,
+        related_name="authenticator_device",
+    )
+    secret = models.CharField(max_length=64)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def is_confirmed(self) -> bool:
+        return self.confirmed_at is not None
+
+    def __str__(self) -> str:
+        status = "confirmed" if self.is_confirmed else "pending"
+        return f"TOTP for {self.user.email} ({status})"
+
+
+class PasswordResetChallenge(models.Model):
+    """Multi-step password reset: email code + authenticator TOTP."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        InternalUser,
+        on_delete=models.CASCADE,
+        related_name="password_reset_challenges",
+    )
+    email_code_hash = models.CharField(max_length=128)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    email_verified_at = models.DateTimeField(null=True, blank=True)
+    totp_verified_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["expires_at"]),
+        ]
+
+    @property
+    def is_expired(self) -> bool:
+        return timezone.now() >= self.expires_at
+
+    @property
+    def is_completed(self) -> bool:
+        return self.completed_at is not None
+
+    def __str__(self) -> str:
+        return f"Password reset for {self.user.email} ({self.id})"
