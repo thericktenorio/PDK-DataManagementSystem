@@ -66,6 +66,28 @@ EXTENSION_FORM_TYPES = frozenset({
     "4868", "7004", "7004-09", "8868", "8868-01",
 })
 
+# Federal e-file forms (state forms live in PERSONAL/CORPORATE sets minus this bucket).
+FEDERAL_FORM_TYPES = frozenset({
+    "1040", "1040SR", "1040NR", "1040X",
+    "1120", "1120S", "1120X", "1120SX",
+    "1065", "1065X",
+    "1041", "1041X",
+    "990", "990EZ", "990PF", "990T", "990X",
+    *EXTENSION_FORM_TYPES,
+})
+
+
+def ack_jurisdiction_bucket(form_type: str) -> str | None:
+    """Return ``federal``, ``state``, or None for clearing status columns."""
+    if not form_type:
+        return None
+    ft = form_type.strip().upper()
+    if ft in FEDERAL_FORM_TYPES:
+        return "federal"
+    if ft in PERSONAL_FORM_TYPES or ft in CORPORATE_FORM_TYPES:
+        return "state"
+    return None
+
 
 def map_form_to_family(form_type: str) -> str | None:
     if not form_type:

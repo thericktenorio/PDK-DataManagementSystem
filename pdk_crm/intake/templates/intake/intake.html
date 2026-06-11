@@ -8,6 +8,49 @@
 
 <!-- Intake Page Styling -->
 <style>
+    main.app-main:has(.intake-page) {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        overflow: hidden;
+        height: 100dvh;
+        max-height: 100dvh;
+        box-sizing: border-box;
+    }
+
+    body.has-app-bg:has(.intake-page) {
+        overflow: hidden;
+    }
+
+    .intake-page {
+        flex: 0 1 auto;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .intake-page .app-page-title {
+        margin-bottom: 0.65rem;
+        flex-shrink: 0;
+    }
+
+    .intake-page .app-page-subtitle {
+        margin: -0.35rem 0 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .intake-page-toolbar {
+        position: relative;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+        flex-shrink: 0;
+    }
+
     .button-container {
         display: flex;
         justify-content: center;
@@ -20,55 +63,346 @@
 
     .table-container {
         display: block;
-        border: 3px solid gray;
         border-radius: 20px;
         overflow: hidden;
     }
 
-    .table-scroll {
-        max-height: 800px;
+    .intake-page .table-scroll {
         overflow: auto;
+        -webkit-overflow-scrolling: touch;
+        max-height: min(800px, calc(100dvh - 18rem));
     }
 
-    .table-scroll thead th {
+    .intake-page .table-scroll thead th {
         position: sticky;
         top: 0;
         z-index: 2;
-        background-color: #212529 !important;
+        font-weight: 600;
+        letter-spacing: 0.2px;
     }
 
-    .table-header {
-        flex-shrink: 0;
-        background-color: dark;
-        color: dark;
+    .intake-table-region {
+        display: flex;
+        justify-content: center;
+        width: 100%;
     }
 
-    .table-body {
-        flex-grow: 1;
-        overflow-y: auto;
+    .intake-table-shell {
+        width: max-content;
+        max-width: 100%;
     }
 
-    /* Removes margin at bottom of stripped table */
-    .table-body table {
+    .intake-table {
+        table-layout: fixed;
+        width: max-content;
         margin: 0;
         border-collapse: collapse;
+        font-size: 0.70rem;
+        line-height: 1;
     }
 
-    th, td {
+    .intake-page .intake-table th,
+    .intake-page .intake-table td {
         text-align: center;
-        padding: 8px;
+        padding: 4px 6px;
         vertical-align: middle;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
-    .actions-cell {
-        min-width: 180px;
+    .intake-table.table-hover > tbody > tr {
+        transition: background-color 0.16s ease, box-shadow 0.16s ease;
     }
 
-    .form-select.form-select-sm {
-        min-width: 100%;
+    .intake-table.table-hover > tbody > tr:hover > * {
+        --bs-table-accent-bg: rgba(255, 255, 255, 0.2) !important;
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+    }
+
+    .intake-table .form-select,
+    .intake-table .form-select:focus {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 2px 8px rgba(0, 0, 0, 0.1);
+        font-weight: 500;
+        transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .intake-table .form-select:hover {
+        background-color: rgba(255, 255, 255, 0.14) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .intake-table .form-select:focus {
+        background-color: rgba(255, 255, 255, 0.16) !important;
+        border-color: rgba(255, 255, 255, 0.48) !important;
+        box-shadow:
+            0 0 0 0.15rem rgba(255, 255, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .intake-table .form-control,
+    .intake-table .form-control:focus {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 2px 8px rgba(0, 0, 0, 0.1);
+        font-weight: 500;
+        transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .intake-table .form-control:hover {
+        background-color: rgba(255, 255, 255, 0.14) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .intake-table .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.16) !important;
+        border-color: rgba(255, 255, 255, 0.48) !important;
+        box-shadow:
+            0 0 0 0.15rem rgba(255, 255, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .intake-table .form-control {
+        font-size: 0.78rem;
+        padding: 2px 6px;
+        height: 28px;
+    }
+
+    .intake-table .form-select {
+        font-size: 0.78rem;
+        padding: 2px 1.75rem 2px 6px;
+        height: 28px;
+        background-position: right 0.4rem center;
+        background-size: 10px 8px;
+    }
+
+    .intake-table .btn {
+        padding: 2px 6px;
+    }
+
+    .intake-page .btn-dark,
+    .intake-page .toggle-all-rows-btn {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.12s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .intake-page .btn-dark:hover,
+    .intake-page .btn-dark:focus-visible,
+    .intake-page .toggle-all-rows-btn:hover,
+    .intake-page .toggle-all-rows-btn:focus-visible {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.48) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            0 4px 12px rgba(0, 0, 0, 0.14);
+    }
+
+    .intake-page .intake-actions-overflow-menu.dropdown-menu-dark {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.28) !important;
+        box-shadow:
+            0 16px 32px rgba(0, 0, 0, 0.22),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .intake-page .intake-actions-overflow-menu .dropdown-item {
+        color: rgba(255, 255, 255, 0.92);
+    }
+
+    .intake-page .intake-actions-overflow-menu .dropdown-item:hover,
+    .intake-page .intake-actions-overflow-menu .dropdown-item:focus {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+    }
+
+    .intake-search-input {
+        width: 250px;
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 2px solid rgba(255, 255, 255, 0.38) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.14),
+            0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .intake-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.58);
+    }
+
+    .intake-search-input:focus {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(255, 255, 255, 0.52) !important;
+        box-shadow:
+            0 0 0 0.2rem rgba(255, 255, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .intake-add-client-btn {
+        border: 2px solid rgba(255, 255, 255, 0.38) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            0 4px 14px rgba(0, 0, 0, 0.14);
+        font-weight: 600;
+    }
+
+    .intake-add-client-btn:hover,
+    .intake-add-client-btn:focus-visible {
+        border-color: rgba(255, 255, 255, 0.52) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 6px 18px rgba(0, 0, 0, 0.18);
+    }
+
+    .actions-cell,
+    .actions-header-cell {
+        padding-left: 4px;
+        padding-right: 4px;
+        text-align: center;
+        overflow: hidden;
+        text-overflow: clip;
+        white-space: nowrap;
+    }
+
+    .actions-header-cell .toggle-all-rows-btn {
+        vertical-align: middle;
+    }
+
+    .actions-header-label {
+        white-space: nowrap;
+        justify-content: center;
+    }
+
+    .toggle-all-rows-btn {
+        line-height: 1;
+        vertical-align: middle;
+        text-decoration: none;
+    }
+
+    .toggle-all-rows-btn:hover,
+    .toggle-all-rows-btn:focus {
+        color: #fff !important;
+        opacity: 0.85;
+    }
+
+    .toggle-all-rows-btn svg {
+        display: block;
+    }
+
+    .intake-actions-wrap.is-compact .intake-actions-ellipsis {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        min-width: 2rem;
+        padding: 0.25rem 0.5rem;
+        line-height: 1;
+        font-weight: 700;
+    }
+
+    .intake-actions-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        display: flex;
+        justify-content: center;
+    }
+
+    .intake-actions-toolbar {
+        display: inline-flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        gap: 0.15rem;
+        max-width: 100%;
+        min-width: 0;
+        vertical-align: middle;
+    }
+
+    .intake-actions-toolbar .btn,
+    .actions-cell > .removeProductAssignmentButton {
+        flex-shrink: 0;
+    }
+
+    /* Full width: all icon buttons visible, ellipsis hidden */
+    .intake-actions-wrap:not(.is-compact) .intake-actions-ellipsis {
+        display: none !important;
+    }
+
+    .intake-actions-wrap:not(.is-compact) .intake-actions-overflow-menu {
+        display: none !important;
+    }
+
+    /* Compact: pinned toolbar actions + ellipsis; rest in menu */
+    .intake-actions-wrap.is-compact .intake-actions-toolbar .toolbar-action {
+        display: none !important;
+    }
+
+    .intake-actions-wrap.is-compact[data-multi-entry="true"] .intake-actions-toolbar .toolbar-action.toolbar-action-pinned {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .intake-actions-wrap.is-compact[data-multi-entry="true"] .intake-actions-overflow-menu .overflow-add-product-item,
+    .intake-actions-wrap.is-compact[data-multi-entry="true"] .intake-actions-overflow-menu .overflow-remove-product-item {
+        display: none;
+    }
+
+    .intake-actions-overflow-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 2px);
+        z-index: 2000;
+        min-width: 13rem;
+        padding: 0.35rem 0;
+        list-style: none;
+        margin: 0;
+    }
+
+    .intake-actions-overflow-menu.show {
+        display: block;
+    }
+
+    /* Floated to document.body so table overflow does not clip the menu */
+    .intake-actions-overflow-menu.intake-actions-menu-floating {
+        position: fixed;
+        right: auto;
+        top: auto;
+    }
+
+    .intake-table .form-select.form-select-sm {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        text-align: left;
+        text-align-last: left;
     }
 
     .search-wrapper {
@@ -133,21 +467,23 @@
 
 </style>
 
+<div class="app-page intake-page">
+
 <!-- Header -->
-<h1 class="text-center text-light">Intake</h1>
+<h1 class="app-page-title">Intake</h1>
 {% if active_tax_season %}
-<p class="text-center text-light-50 mb-0">Tax Season {{ active_tax_season.year }}</p>
+<p class="app-page-subtitle mb-0">Tax Season {{ active_tax_season.year }}</p>
 {% else %}
-<p class="text-center text-warning">No active tax season — intake is unavailable.</p>
+<p class="app-page-subtitle text-warning">No active tax season — intake is unavailable.</p>
 {% endif %}
 
 
 <!-- Search + Buttons -->
 <!-- ⚙️ New wrapper to align input and results correctly -->
-<div class="search-wrapper" style="position: relative; display: flex; justify-content: center; margin-bottom: 20px;">
-    <input type="text" id="searchInput" class="form-control bg-dark text-light border-3" placeholder="Search Existing Clients" style="width: 250px;">
+<div class="search-wrapper intake-page-toolbar">
+    <input type="text" id="searchInput" class="form-control intake-search-input" placeholder="Search Existing Clients">
 
-    <button type="button" class="btn btn-primary ms-3" data-bs-toggle="modal" data-bs-target="#addClientModal">Add New Client</button>
+    <button type="button" class="btn btn-primary intake-add-client-btn" data-bs-toggle="modal" data-bs-target="#addClientModal">Add New Client</button>
     <input type="file" id="clientFileInput" accept=".xls, .xlsx, .xlsm, .csv" style="display: none;">
     
     <!-- ⚙️ Search dropdown now *inside* search-wrapper but *outside* flex-flow -->
@@ -156,32 +492,46 @@
 
 
 <!-- Intake Table -->
-<div class="container-fluid mt-3 mb-3">
-    <div class="table-container">
-        <div class = "table-scroll">
-            <table class="table table-dark table-striped table-hover text-center align-middle" style = "table-layout: fixed; width: 100%; margin: 0;">
-                
-                <!-- lock column widths so header and body always match -->
+<div class="container-fluid mt-3 mb-3 intake-table-region">
+    <div class="table-container intake-table-shell">
+        <div class="table-scroll">
+            <table class="table table-dark table-striped table-hover text-center align-middle intake-table">
+
                 <colgroup>
-                    <col style = "width: 5%;"> <!-- ID -->
-                    <col style = "width: 10%;"> <!-- TIN-->
-                    <col style = "width: 20%;"> <!-- name -->
-                    <col style = "width: 15%;"> <!-- filing type -->
-                    <col style = "width: 10%;"> <!-- tax year -->
-                    <col style = "width: 20%;"> <!-- product -->
-                    <col style = "width: 20%;"> <!-- actions -->
+                    <col style="width: 64px;">  <!-- ID -->
+                    <col style="width: 100px;"> <!-- TIN -->
+                    <col style="width: 130px;"> <!-- Name -->
+                    <col style="width: 120px;"> <!-- Filing Type -->
+                    <col style="width: 88px;">  <!-- Tax Year -->
+                    <col style="width: 130px;"> <!-- Product -->
+                    <col style="width: 200px;"> <!-- Actions -->
                 </colgroup>
 
-                <!-- table headers -->
                 <thead>
                     <tr>
-                        <th scope = "col" class = "text-center align-middle">ID</th>
-                        <th scope = "col" class = "text-center align-middle">TIN</th>
-                        <th scope = "col" class = "text-center align-middle">Name</th>
-                        <th scope = "col" class = "text-center align-middle">Filing Type</th>
-                        <th scope = "col" class = "text-center align-middle">Tax Year</th>
-                        <th scope = "col" class = "text-center align-middle">Product</th>
-                        <th scope = "col" class = "text-center align-middle">Actions</th>
+                        <th scope="col" class="text-center align-middle">ID</th>
+                        <th scope="col" class="text-center align-middle">TIN</th>
+                        <th scope="col" class="text-center align-middle">Name</th>
+                        <th scope="col" class="text-center align-middle">Filing Type</th>
+                        <th scope="col" class="text-center align-middle">Tax Year</th>
+                        <th scope="col" class="text-center align-middle">Product</th>
+                        <th scope="col" class="text-center align-middle actions-header-cell">
+                            <span class="actions-header-label d-inline-flex align-items-center justify-content-center gap-1">
+                                Actions
+                                <button type="button"
+                                    class="btn btn-sm btn-link text-light p-0 border-0 toggle-all-rows-btn"
+                                    title="Expand all entries"
+                                    aria-label="Expand or collapse all entries"
+                                    aria-expanded="false">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="toggle-all-icon-left" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
+                                    </svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="toggle-all-icon-down" viewBox="0 0 16 16" style="display: none;" aria-hidden="true">
+                                        <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                    </svg>
+                                </button>
+                            </span>
+                        </th>
                     </tr>
                 </thead>
 
@@ -199,10 +549,10 @@
                                     <!-- ========== ID, TIN, and Name only for main row ========== -->
                                     {% if forloop.first %}
                                         <td>{{ client.id }}</td>
-                                        <td contenteditable = "true" class = "editable" data-field = "TIN">{{ client.TIN }}</td>
-                                        <td contenteditable = "true" class = "editable" data-field = "name">{{ client.name }}</td>
+                                        <td contenteditable="true" class="editable" data-field="TIN">{{ client.TIN }}</td>
+                                        <td contenteditable="true" class="editable" data-field="name">{{ client.name }}</td>
                                     {% else %}
-                                        <td colspan = "3"></td>
+                                        <td colspan="3"></td>
                                     {% endif %}
 
                                     <!-- ========== Filing Type ========== -->
@@ -240,56 +590,62 @@
                                     </td>
 
                                     <!-- =========== Actions =========== -->
-                                    <td class = "actions-cell">
+                                    <td class="actions-cell">
                                         {% if forloop.first %}
-
-                                            <!-- Toggle Subrows -->
-                                            <button class = "btn btn-dark toggle-row-btn">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16">
-                                                    <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
-                                                </svg>
-
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style = "display: none;">
-                                                    <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
-                                                </svg>
-                                            </button>
-
-                                            
-                                            <!-- Add Product Assignment Row Button -->
-                                            <button class = "btn btn-dark addProductAssignmentButton">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
-                                                </svg>
-                                            </button>
-
-                                            <!-- View Client Details/Info Button -->
-                                            <button type="button" class="btn btn-dark infoBtn">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
-                                                </svg>
-                                            </button>
-
-                                            <!-- Remove Client from Intake Table Button -->
-                                            <button type="button" class="btn btn-dark removeClientBtn" onclick="removeClientFromIntake({{ client.id }})">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
-                                                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
-                                                </svg>
-                                            </button>
-
+                                            {% with entry_count=client.product_assignments_list.count %}
+                                            <div class="intake-actions-wrap" data-client-id="{{ client.id }}" data-multi-entry="{% if entry_count > 1 %}true{% else %}false{% endif %}">
+                                                <div class="intake-actions-toolbar">
+                                                    {% if entry_count > 1 %}
+                                                    <button type="button" class="btn btn-dark toggle-row-btn" title="Show / hide entries">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
+                                                        </svg>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style="display: none;" aria-hidden="true">
+                                                            <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                                        </svg>
+                                                    </button>
+                                                    {% endif %}
+                                                    <button type="button" class="btn btn-dark toolbar-action addProductAssignmentButton{% if entry_count > 1 %} toolbar-action-pinned{% endif %}" title="Add entry">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton{% if entry_count > 1 %} toolbar-action-pinned{% endif %}" title="Remove this entry">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                            <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action infoBtn" title="Client info">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                            <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action removeClientBtn" data-client-id="{{ client.id }}" title="Remove client from intake">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark btn-sm intake-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
+                                                </div>
+                                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end intake-actions-overflow-menu" data-owner-client-id="{{ client.id }}">
+                                                    <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
+                                                    <li class="overflow-remove-product-item"><button type="button" class="dropdown-item removeProductAssignmentButton">Remove this entry</button></li>
+                                                    <li><button type="button" class="dropdown-item infoBtn">Client info</button></li>
+                                                    <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="{{ client.id }}">Remove client from intake</button></li>
+                                                </ul>
+                                            </div>
+                                            {% endwith %}
                                         {% else %}
-
-                                            <!-- Remove Product Assingment Row Button -->
-                                            <button class = "btn btn-dark removeProductAssignmentButton">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
+                                            <button type="button" class="btn btn-dark removeProductAssignmentButton" title="Remove this entry">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
                                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                     <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
                                                 </svg>
                                             </button>
-
                                         {% endif %}
-
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -306,12 +662,10 @@
 <!-- Add New Client Modal -->
 <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-        
-        <div class = 'modal-content bg-dark text-light'>
+        <div class="modal-content bg-dark text-light">
             <div class="modal-header">
                 <h5 class="modal-title">Add New Client</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="close"></button>
             </div>
             <div class="modal-body">
                 <form id="addClientForm">
@@ -342,14 +696,15 @@
                             <option value = "Sole Proprietor">Sole Proprietor</option>
                             <option value = "Corporation">Corporation</option>
                         </select>
-                    
+
                     </div>
                     <button type="submit" class="btn btn-primary">Submit</button>
                 </form>
             </div>
         </div>
-        </div>
     </div>
+</div>
+
 </div>
 
 {% else %}
@@ -377,36 +732,388 @@
 
 
    <script>
+        const DUPLICATE_PA_MESSAGE = "An active entry with this tax year and product already exists for this client.";
+
+        function showIntakeMessage(message) {
+            alert(message || DUPLICATE_PA_MESSAGE);
+        }
+
+        function intakeResponseErrorMessage(err) {
+            const data = err.response && err.response.data;
+            if (data && data.message) return data.message;
+            return err.message || "Something went wrong.";
+        }
+
+        function intakeRowSortKey(row) {
+            const taxYearEl = row.querySelector('select[data-field="tax_year"]');
+            const filingEl = row.querySelector('select[data-field="filing_type"]');
+            const productEl = row.querySelector('select[data-field="product"]');
+            const taxYear = taxYearEl ? parseInt(taxYearEl.value, 10) || 0 : 0;
+            const filing = filingEl ? (filingEl.options[filingEl.selectedIndex]?.textContent || "").trim().toLowerCase() : "";
+            const product = productEl ? (productEl.options[productEl.selectedIndex]?.textContent || "").trim().toLowerCase() : "";
+            return [-taxYear, filing, product];
+        }
+
+        function compareIntakeRowKeys(a, b) {
+            for (let i = 0; i < 3; i++) {
+                if (a[i] < b[i]) return -1;
+                if (a[i] > b[i]) return 1;
+            }
+            return 0;
+        }
+
+        function reorderClientIntakeRows(clientId) {
+            const tbody = document.querySelector(".table-scroll tbody");
+            if (!tbody) return;
+
+            const rows = Array.from(tbody.querySelectorAll(`tr[data-client-id="${clientId}"]`));
+            const mainRow = rows.find((r) => r.classList.contains("main-row"));
+            if (!mainRow) return;
+
+            const subRows = rows.filter((r) => r.classList.contains("sub-row"));
+            if (subRows.length === 0) return;
+
+            const subRowsExpanded = subRows.some((r) => r.style.display === "table-row");
+
+            subRows.sort((left, right) =>
+                compareIntakeRowKeys(intakeRowSortKey(left), intakeRowSortKey(right))
+            );
+
+            let anchor = mainRow;
+            subRows.forEach((sub) => {
+                anchor.after(sub);
+                anchor = sub;
+            });
+
+            subRows.forEach((sub) => {
+                sub.style.display = subRowsExpanded ? "table-row" : "none";
+            });
+        }
+
+        function markIntakeRowPendingReorder(row) {
+            if (!row) return;
+            row.dataset.pendingIntakeReorder = "1";
+            // Autosave may finish after focus already left the row.
+            setTimeout(() => {
+                const active = document.activeElement;
+                if (!active || !row.contains(active)) {
+                    tryReorderClientAfterRowComplete(row);
+                }
+            }, 0);
+        }
+
+        function tryReorderClientAfterRowComplete(row) {
+            if (!row || row.dataset.pendingIntakeReorder !== "1") return;
+            const clientId = row.dataset.clientId;
+            if (!clientId) return;
+            delete row.dataset.pendingIntakeReorder;
+            reorderClientIntakeRows(clientId);
+        }
+
+        function bindIntakeRowReorderOnComplete(container = document) {
+            container.querySelectorAll("tr[data-client-id][data-product-assignment-id]").forEach((row) => {
+                if (row.dataset.reorderOnCompleteBound === "true") return;
+                row.dataset.reorderOnCompleteBound = "true";
+
+                row.addEventListener("focusout", (event) => {
+                    const related = event.relatedTarget;
+                    if (related && row.contains(related)) return;
+
+                    setTimeout(() => {
+                        const active = document.activeElement;
+                        if (active && row.contains(active)) return;
+                        tryReorderClientAfterRowComplete(row);
+                    }, 0);
+                });
+            });
+        }
+
+        function setClientIntakeSubrowsExpanded(clientId, expanded) {
+            if (!clientId) return;
+            const subRows = document.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+            subRows.forEach((sub) => {
+                sub.style.display = expanded ? 'table-row' : 'none';
+            });
+
+            document.querySelectorAll(`tr.main-row[data-client-id="${clientId}"] .toggle-row-btn`).forEach((button) => {
+                const iconLeft = button.querySelector('.toggle-icon-left');
+                const iconDown = button.querySelector('.toggle-icon-down');
+                if (!iconLeft || !iconDown) return;
+                iconLeft.style.display = expanded ? 'none' : 'inline';
+                iconDown.style.display = expanded ? 'inline' : 'none';
+            });
+        }
+
+        function expandClientIntakeSubrows(clientId) {
+            setClientIntakeSubrowsExpanded(clientId, true);
+        }
+
+        function updateIntakeToggleAllButton(expanded) {
+            const btn = document.querySelector('.intake-page .toggle-all-rows-btn');
+            if (!btn) return;
+
+            btn.dataset.allExpanded = expanded ? 'true' : 'false';
+            btn.title = expanded ? 'Collapse all entries' : 'Expand all entries';
+            btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+
+            const iconLeft = btn.querySelector('.toggle-all-icon-left');
+            const iconDown = btn.querySelector('.toggle-all-icon-down');
+            if (iconLeft && iconDown) {
+                iconLeft.style.display = expanded ? 'none' : 'inline';
+                iconDown.style.display = expanded ? 'inline' : 'none';
+            }
+        }
+
+        function areAllIntakeSubrowsExpanded() {
+            const subRows = document.querySelectorAll('.table-scroll tbody .sub-row');
+            if (subRows.length === 0) return false;
+            return Array.from(subRows).every((row) => row.style.display !== 'none');
+        }
+
+        function setAllIntakeSubrowsExpanded(expanded) {
+            document.querySelectorAll('.table-scroll tbody .sub-row').forEach((sub) => {
+                sub.style.display = expanded ? 'table-row' : 'none';
+            });
+
+            document.querySelectorAll('tr.main-row .toggle-row-btn').forEach((button) => {
+                const iconLeft = button.querySelector('.toggle-icon-left');
+                const iconDown = button.querySelector('.toggle-icon-down');
+                if (!iconLeft || !iconDown) return;
+                iconLeft.style.display = expanded ? 'none' : 'inline';
+                iconDown.style.display = expanded ? 'inline' : 'none';
+            });
+
+            updateIntakeToggleAllButton(expanded);
+        }
+
+        function bindToggleAllIntakeRowsButton() {
+            const btn = document.querySelector('.intake-page .toggle-all-rows-btn');
+            if (!btn || btn.dataset.bound === 'true') return;
+            btn.dataset.bound = 'true';
+            btn.dataset.allExpanded = 'false';
+
+            btn.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                const shouldExpand = !areAllIntakeSubrowsExpanded();
+                setAllIntakeSubrowsExpanded(shouldExpand);
+            });
+        }
+
+        function resolveClientIdFromAddEntryButton(button) {
+            const row = button.closest('tr');
+            if (row?.dataset.clientId) return row.dataset.clientId;
+
+            const menu = button.closest('.intake-actions-overflow-menu');
+            if (menu?.dataset.ownerClientId) return menu.dataset.ownerClientId;
+
+            const wrap = button.closest('.intake-actions-wrap');
+            if (wrap?.dataset.clientId) return wrap.dataset.clientId;
+
+            return null;
+        }
+
         // ========== Toggle Visibility of sub-rows ========== 
         function bindExpandCollapseButtons(container = document) {
-            console.log("Binding toggle-row-btns");
+            container.querySelectorAll('.toggle-row-btn').forEach(button => {
+                if (button.dataset.bound === "true") return;
+                button.dataset.bound = "true";
 
-            container.querySelectorAll('.toggle-row-btn').forEach(button => {    
                 button.addEventListener('click', () => {
-
                     const row = button.closest('tr');
                     if (!row) return;
 
                     const clientId = row.getAttribute('data-client-id');
-                    console.log("Toggle button clicked for client ID:", clientId);
+                    const subRows = document.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+                    const isCurrentlyCollapsed = subRows.length === 0
+                        || subRows[0].style.display === 'none';
 
-                    const subRows = container.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+                    setClientIntakeSubrowsExpanded(clientId, isCurrentlyCollapsed);
+                });
+            });
+        }
 
-                    subRows.forEach(sub => {
-                        sub.style.display = (sub.style.display === 'none') ? 'table-row' : 'none';
-                    });
+        function getIntakeActionsMenuForWrap(wrap) {
+            if (!wrap) return null;
+            const clientId = wrap.dataset.clientId;
+            if (!clientId) return null;
+            return (
+                wrap.querySelector('.intake-actions-overflow-menu')
+                || document.querySelector(
+                    `.intake-actions-overflow-menu[data-owner-client-id="${clientId}"]`
+                )
+            );
+        }
 
-                    // Toggle expandable row svg icon
-                    const iconLeft = button.querySelector('.toggle-icon-left');
-                    const iconDown = button.querySelector('.toggle-icon-down');
+        function isIntakeActionsMenuOpen(menu) {
+            return Boolean(menu && menu.classList.contains('show'));
+        }
 
-                    if(iconLeft && iconDown) {
-                        const isExpanding = subRows.length > 0 && subRows[0].style.display === 'table-row';
-                        iconLeft.style.display = isExpanding ? 'none' : 'inline';
-                        iconDown.style.display = isExpanding ? 'inline' : 'none';
+        function restoreIntakeActionsMenuToWrap(menu) {
+            if (!menu) return;
+            const clientId = menu.dataset.ownerClientId;
+            if (!clientId) return;
+
+            const wrap = document.querySelector(
+                `.intake-actions-wrap[data-client-id="${clientId}"]`
+            );
+            if (!wrap) return;
+
+            menu.classList.remove('show', 'intake-actions-menu-floating');
+            menu.style.display = '';
+            menu.style.position = '';
+            menu.style.left = '';
+            menu.style.top = '';
+            menu.style.right = '';
+            menu.style.zIndex = '';
+            menu.style.visibility = '';
+
+            if (!wrap.contains(menu)) {
+                wrap.appendChild(menu);
+            }
+            delete menu.dataset.portaled;
+        }
+
+        function positionIntakeActionsMenu(menu, ellipsis) {
+            document.body.appendChild(menu);
+            menu.classList.add('intake-actions-menu-floating', 'show');
+            menu.dataset.portaled = 'true';
+
+            menu.style.visibility = 'hidden';
+            menu.style.display = 'block';
+            const menuRect = menu.getBoundingClientRect();
+            const anchor = ellipsis.getBoundingClientRect();
+
+            let top = anchor.bottom + 2;
+            if (top + menuRect.height > window.innerHeight - 8) {
+                top = Math.max(8, anchor.top - menuRect.height - 2);
+            }
+
+            let left = anchor.right - menuRect.width;
+            left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+
+            menu.style.position = 'fixed';
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            menu.style.right = 'auto';
+            menu.style.zIndex = '2000';
+            menu.style.visibility = 'visible';
+        }
+
+        function openIntakeActionsMenu(wrap) {
+            const menu = getIntakeActionsMenuForWrap(wrap);
+            const ellipsis = wrap.querySelector('.intake-actions-ellipsis');
+            if (!menu || !ellipsis) return;
+
+            menu.dataset.ownerClientId = wrap.dataset.clientId || '';
+            closeAllIntakeOverflowMenus();
+            positionIntakeActionsMenu(menu, ellipsis);
+        }
+
+        function closeAllIntakeOverflowMenus() {
+            document.querySelectorAll('.intake-actions-overflow-menu').forEach((menu) => {
+                restoreIntakeActionsMenuToWrap(menu);
+            });
+        }
+
+        function measureIntakeToolbarFullWidth(toolbar) {
+            let total = 0;
+            toolbar.querySelectorAll('.btn').forEach((btn) => {
+                if (btn.classList.contains('intake-actions-ellipsis')) return;
+                total += btn.offsetWidth;
+            });
+            const gap = 2;
+            return total + gap * Math.max(0, toolbar.querySelectorAll('.btn:not(.intake-actions-ellipsis)').length - 1);
+        }
+
+        const INTAKE_ACTIONS_MAX_VISIBLE_BUTTONS = 4;
+
+        function countIntakeToolbarButtons(toolbar) {
+            return toolbar.querySelectorAll('.btn:not(.intake-actions-ellipsis)').length;
+        }
+
+        function updateIntakeActionsCompactState(wrap) {
+            const toolbar = wrap.querySelector('.intake-actions-toolbar');
+            const actionsCell = wrap.closest('.actions-cell');
+            if (!toolbar || !actionsCell) return;
+
+            wrap.classList.remove('is-compact');
+
+            const availableWidth = actionsCell.clientWidth;
+            if (availableWidth <= 0) return;
+
+            const buttonCount = countIntakeToolbarButtons(toolbar);
+            const multiEntry = wrap.dataset.multiEntry === 'true';
+
+            // Multi-entry main rows always carry 5 controls; keep 4 visible max
+            // (expand + add + remove + ellipsis) and tuck info/remove-client into the menu.
+            let needsCompact = multiEntry || buttonCount > INTAKE_ACTIONS_MAX_VISIBLE_BUTTONS;
+
+            if (!needsCompact) {
+                const fullToolbarWidth = measureIntakeToolbarFullWidth(toolbar);
+                needsCompact = fullToolbarWidth > (availableWidth - 6);
+            }
+
+            wrap.classList.toggle('is-compact', needsCompact);
+            if (!needsCompact && isIntakeActionsMenuOpen(getIntakeActionsMenuForWrap(wrap))) {
+                closeAllIntakeOverflowMenus();
+            }
+        }
+
+        const intakeActionsCompactResizeListener = () => {
+            document.querySelectorAll('.intake-actions-wrap').forEach(updateIntakeActionsCompactState);
+        };
+
+        function bindIntakeActionsCompact(container = document) {
+            container.querySelectorAll('.intake-actions-wrap').forEach((wrap) => {
+                if (wrap.dataset.compactBound === 'true') return;
+                wrap.dataset.compactBound = 'true';
+
+                const ellipsis = wrap.querySelector('.intake-actions-ellipsis');
+                const menu = wrap.querySelector('.intake-actions-overflow-menu');
+                if (menu && wrap.dataset.clientId) {
+                    menu.dataset.ownerClientId = wrap.dataset.clientId;
+                }
+
+                ellipsis?.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!wrap.classList.contains('is-compact')) return;
+
+                    const activeMenu = getIntakeActionsMenuForWrap(wrap);
+                    if (!activeMenu || !ellipsis) return;
+
+                    if (isIntakeActionsMenuOpen(activeMenu)) {
+                        closeAllIntakeOverflowMenus();
+                        return;
+                    }
+                    openIntakeActionsMenu(wrap);
+                });
+
+                menu?.addEventListener('click', (event) => {
+                    if (event.target.closest('.dropdown-item')) {
+                        setTimeout(closeAllIntakeOverflowMenus, 0);
                     }
                 });
             });
+        }
+
+        function stopIntakeActionClickPropagation(container = document) {
+            container.querySelectorAll(
+                '.intake-actions-wrap button, .actions-cell > .removeProductAssignmentButton'
+            ).forEach((button) => {
+                button.addEventListener('click', (event) => event.stopPropagation());
+            });
+        }
+
+        function initIntakeRowActionBindings(container = document) {
+            bindExpandCollapseButtons(container);
+            bindAddProductAssignmentButtons(container);
+            bindRemoveProductAssignmentButtons(container);
+            bindRemoveClientButtons(container);
+            bindIntakeActionsCompact(container);
+            stopIntakeActionClickPropagation(container);
+            container.querySelectorAll('.intake-actions-wrap').forEach(updateIntakeActionsCompactState);
         }
 
         
@@ -551,50 +1258,24 @@
             const newRow = `
                 <tr class="main-row" data-client-id="${client.id}" data-product-assignment-id="${product_assignment.id}">
                     <td>${client.id}</td>
-                    <td contenteditable="true" class="editable text-center align-middle" data-field="TIN">${client.TIN || ""}</td>
-                    <td contenteditable="true" class="editable text-center align-middle" data-field="name">${client.name || ""}</td>
-                    <td class="text-center align-middle">
+                    <td contenteditable="true" class="editable" data-field="TIN">${client.TIN || ""}</td>
+                    <td contenteditable="true" class="editable" data-field="name">${client.name || ""}</td>
+                    <td>
                         <select class="form-select form-select-sm editable" data-model="product_assignment" data-field="filing_type">
                             ${filingTypeOptions}
                         </select>
                     </td>
-                    <td class="text-center align-middle">
+                    <td>
                         <select class="form-select form-select-sm editable" data-model="product_assignment" data-field="tax_year">
                             ${taxYearOptions}
                         </select>
                     </td>
-                    <td class="text-center align-middle">
+                    <td>
                         <select class="form-select form-select-sm editable" data-model="product_assignment" data-field="product">
                             ${productOptions}
                         </select>
                     </td>
-                    <td class="actions-cell text-center align-middle">
-                        <button class="btn btn-dark toggle-row-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16">
-                                <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
-                            </svg>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style="display: none;">
-                                <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
-                            </svg>
-                        </button>
-                        <button class="btn btn-dark addProductAssignmentButton">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
-                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
-                            </svg>
-                        </button>
-                        <button type="button" class="btn btn-dark infoBtn">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
-                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
-                            </svg>
-                        </button>
-                        <button type="button" class="btn btn-dark removeClientBtn" onclick="removeClientFromIntake(${client.id})">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
-                                <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
-                            </svg>
-                        </button>
-                    </td>
+                    <td class="actions-cell"></td>
                 </tr>
             `;
 
@@ -603,9 +1284,13 @@
 
             const newRowEl = tbody.querySelector(`tr[data-product-assignment-id="${product_assignment.id}"]`);
             if (newRowEl) {
+                const actionsCell = newRowEl.querySelector(".actions-cell");
+                if (actionsCell) {
+                    actionsCell.innerHTML = buildIntakeMainRowActionsCell(client.id, 1);
+                }
                 bindAutosaveHandlers(newRowEl);
-                bindExpandCollapseButtons();
-                bindAddProductAssignmentButtons(newRowEl);
+                bindIntakeRowReorderOnComplete(newRowEl);
+                initIntakeRowActionBindings(newRowEl);
             }
 
             document.getElementById("searchResults").classList.remove("show");
@@ -670,6 +1355,129 @@
         }
         
         
+        function buildIntakeMainRowActionsCell(clientId, entryCount) {
+            const multiEntry = entryCount > 1;
+            const pinnedClass = multiEntry ? " toolbar-action-pinned" : "";
+            const toggleBtn = multiEntry
+                ? `<button type="button" class="btn btn-dark toggle-row-btn" title="Show / hide entries">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
+                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style="display: none;" aria-hidden="true">
+                            <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                        </svg>
+                   </button>`
+                : "";
+            return `
+                <div class="intake-actions-wrap" data-client-id="${clientId}" data-multi-entry="${multiEntry ? "true" : "false"}">
+                    <div class="intake-actions-toolbar">
+                        ${toggleBtn}
+                        <button type="button" class="btn btn-dark toolbar-action addProductAssignmentButton${pinnedClass}" title="Add entry">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton${pinnedClass}" title="Remove this entry">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn btn-dark toolbar-action infoBtn" title="Client info">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn btn-dark toolbar-action removeClientBtn" data-client-id="${clientId}" title="Remove client from intake">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                            </svg>
+                        </button>
+                        <button type="button" class="btn btn-dark btn-sm intake-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end intake-actions-overflow-menu" data-owner-client-id="${clientId}">
+                        <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
+                        <li class="overflow-remove-product-item"><button type="button" class="dropdown-item removeProductAssignmentButton">Remove this entry</button></li>
+                        <li><button type="button" class="dropdown-item infoBtn">Client info</button></li>
+                        <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="${clientId}">Remove client from intake</button></li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function refreshMainRowActionsMenu(clientId) {
+            closeAllIntakeOverflowMenus();
+            const mainRow = document.querySelector(`tr.main-row[data-client-id="${clientId}"]`);
+            if (!mainRow) return;
+            const entryCount = document.querySelectorAll(`tr[data-client-id="${clientId}"]`).length;
+            const actionsCell = mainRow.querySelector(".actions-cell");
+            if (!actionsCell) return;
+            actionsCell.innerHTML = buildIntakeMainRowActionsCell(clientId, entryCount);
+            initIntakeRowActionBindings(mainRow);
+        }
+
+        function promoteSubRowToMain(clientId, clientMeta) {
+            const next = document.querySelector(`tr.sub-row[data-client-id="${clientId}"]`);
+            if (!next) return;
+
+            const remainingCount = document.querySelectorAll(`tr[data-client-id="${clientId}"]`).length;
+
+            next.classList.remove("sub-row");
+            next.classList.add("main-row");
+            next.style.display = "table-row";
+
+            const placeholder = next.querySelector("td[colspan]");
+            if (placeholder) {
+                placeholder.outerHTML = `
+                    <td>${clientMeta.id}</td>
+                    <td contenteditable="true" class="editable" data-field="TIN">${clientMeta.tin || ""}</td>
+                    <td contenteditable="true" class="editable" data-field="name">${clientMeta.name || ""}</td>
+                `;
+            }
+
+            const actionsCell = next.querySelector(".actions-cell");
+            if (actionsCell) {
+                actionsCell.innerHTML = buildIntakeMainRowActionsCell(clientId, remainingCount);
+            }
+
+            bindAutosaveHandlers(next);
+            bindIntakeRowReorderOnComplete(next);
+            initIntakeRowActionBindings(next);
+        }
+
+        function handleProductAssignmentRowRemoved(row) {
+            const clientId = row.dataset.clientId;
+            const wasMain = row.classList.contains("main-row");
+            let clientMeta = null;
+            if (wasMain) {
+                clientMeta = {
+                    id: clientId,
+                    tin: row.querySelector('[data-field="TIN"]')?.textContent?.trim() || "",
+                    name: row.querySelector('[data-field="name"]')?.textContent?.trim() || "",
+                };
+            }
+            row.remove();
+            if (wasMain && clientMeta) {
+                promoteSubRowToMain(clientId, clientMeta);
+            } else if (clientId) {
+                refreshMainRowActionsMenu(clientId);
+            }
+        }
+
+        function bindRemoveClientButtons(container = document) {
+            container.querySelectorAll(".removeClientBtn").forEach((btn) => {
+                if (btn.dataset.bound === "true") return;
+                btn.dataset.bound = "true";
+                btn.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    const clientId = btn.dataset.clientId;
+                    if (clientId) removeClientFromIntake(clientId);
+                });
+            });
+        }
+
          // ========== Remove client from intake ==========
         function removeClientFromIntake(clientId) {
             if (confirm("Are you sure you want to remove this client from the intake? All associated products will be lost.")) {
@@ -825,7 +1633,10 @@
                     })
                     .then(response => {
                         if (response.data.status !== 'success') {
-                            console.warn('Auto-save warning:', response.data.message);
+                            showIntakeMessage(response.data.message);
+                            if (!isContentEditable && el.dataset.previousValue !== undefined) {
+                                el.value = el.dataset.previousValue;
+                            }
                             return;
                         }
 
@@ -839,15 +1650,32 @@
                                 if (newPid) productSelect.value = String(newPid);
                             }
                         }
+
+                        if (
+                            model === "product_assignment"
+                            && (field === "tax_year" || field === "product" || field === "filing_type")
+                        ) {
+                            markIntakeRowPendingReorder(row);
+                        }
                     })
                     .catch(error => {
                         console.error("Auto-save error:", error);
+                        showIntakeMessage(intakeResponseErrorMessage(error));
+                        if (!isContentEditable && el.dataset.previousValue !== undefined) {
+                            el.value = el.dataset.previousValue;
+                        }
                     });
                 };
 
                 // Remove previous event listener before binding (in case of rebinding)
                 el.removeEventListener('blur', handler);
                 el.removeEventListener('change', handler);
+
+                if (!isContentEditable) {
+                    el.addEventListener('focus', function () {
+                        el.dataset.previousValue = el.value;
+                    });
+                }
 
                 if (isContentEditable) {
                     el.addEventListener('blur', handler); // Fires when user exits the cell
@@ -864,9 +1692,12 @@
                     button.dataset.bound = "true";    // mark this button as already bound
 
                     button.addEventListener('click', () => {
-                        const row = button.closest('tr');
-                        const clientId = row.dataset.clientId;
-                        
+                        const clientId = resolveClientIdFromAddEntryButton(button);
+                        if (!clientId) {
+                            console.error('Add entry: could not resolve client id.');
+                            return;
+                        }
+
                         axios.post("{% url 'intake:add_product_assignment' %}", { client_id : clientId }, {
                         headers: { "X-CSRFToken": "{{ csrf_token }}" }
                         })
@@ -874,6 +1705,11 @@
                             if (response.data.status === 'success') {
                                 const tbody = document.querySelector(".table-scroll tbody");
                                 const assignment = response.data.product_assignment;
+
+                                if (document.querySelector(`tr[data-product-assignment-id="${assignment.id}"]`)) {
+                                    showIntakeMessage(DUPLICATE_PA_MESSAGE);
+                                    return;
+                                }
 
                                 const filingTypeOptions = generateFilingTypeDropdown(response.data.filing_type_options, assignment.filing_type.id);
                                 const taxYearOptions = generateTaxYearDropdown(assignment.tax_year);
@@ -886,28 +1722,27 @@
                                 newSubRow.style.display = 'table-row';  // show immediately
 
                                 newSubRow.innerHTML = `
-                                    <td colspan = "3"></td>
+                                    <td colspan="3"></td>
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "filing_type">
+                                        <select class="form-select form-select-sm editable" data-model="product_assignment" data-field="filing_type">
                                             ${filingTypeOptions}
                                         </select>
                                     </td>
 
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "tax_year">
+                                        <select class="form-select form-select-sm editable" data-model="product_assignment" data-field="tax_year">
                                             ${taxYearOptions}
                                         </select>
                                     </td>
 
                                     <td>
-                                        <select class = "form-select form-select-sm editable" data-model = "product_assignment" data-field = "product">
+                                        <select class="form-select form-select-sm editable" data-model="product_assignment" data-field="product">
                                             ${productOptions}
                                         </select>
                                     </td>
 
-
-                                    <td class = "actions-cell text-center align-middle">
-                                        <button type = "button" class = "btn btn-dark removeProductAssignmentButton">
+                                    <td class="actions-cell">
+                                        <button type="button" class="btn btn-dark removeProductAssignmentButton">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                 <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -916,21 +1751,20 @@
                                     </td>
                                 `;
 
-                                // Insert row after last row with matching clientId
-                                let lastRow = null;
-                                document.querySelectorAll(`tr[data-client-id = "${clientId}"]`).forEach(r => lastRow = r);
-                                if (lastRow) {
-                                    lastRow.after(newSubRow);
-                                    bindAutosaveHandlers(newSubRow);
-                                    bindRemoveProductAssignmentButtons(newSubRow);
-                                }
+                                tbody.appendChild(newSubRow);
+                                bindAutosaveHandlers(newSubRow);
+                                bindIntakeRowReorderOnComplete(newSubRow);
+                                bindRemoveProductAssignmentButtons(newSubRow);
+                                markIntakeRowPendingReorder(newSubRow);
+                                refreshMainRowActionsMenu(clientId);
+                                expandClientIntakeSubrows(clientId);
                             } else {
-                                alert(response.data.message);
+                                showIntakeMessage(response.data.message);
                             }
                         })
                         .catch(err => {
                             console.error("Error adding product assignment:", err);
-                            alert("Failed to add product assignment.");
+                            showIntakeMessage(intakeResponseErrorMessage(err));
                         });
 
                     })
@@ -954,7 +1788,7 @@
                             })
                             .then(response => {
                                 if (response.data.status === 'success') {
-                                    row.remove() // remove subrow from DOM
+                                    handleProductAssignmentRowRemoved(row);
                                 } else {
                                     alert("Error removing product assignment: " + response.data.message);
                                 }
@@ -970,12 +1804,67 @@
         }
 
         // Add Product Assignment to Client's row as a subRow
+        document.addEventListener("click", (event) => {
+            if (
+                !event.target.closest('.intake-actions-wrap')
+                && !event.target.closest('.intake-actions-overflow-menu')
+            ) {
+                closeAllIntakeOverflowMenus();
+            }
+        });
+
+        function syncIntakeTableMaxHeight() {
+            const scroll = document.querySelector('.intake-page .table-scroll');
+            if (!scroll) return;
+
+            const top = scroll.getBoundingClientRect().top;
+            const rootStyles = getComputedStyle(document.documentElement);
+            const dockClearance = parseFloat(rootStyles.getPropertyValue('--app-dock-clearance')) || 104;
+            const maxHeight = Math.max(140, Math.floor(window.innerHeight - top - dockClearance));
+
+            scroll.style.maxHeight = `${maxHeight}px`;
+        }
+
         document.addEventListener("DOMContentLoaded", function () {
             bindAutosaveHandlers();
-            bindExpandCollapseButtons();
-            bindAddProductAssignmentButtons();
-            bindRemoveProductAssignmentButtons();
+            bindIntakeRowReorderOnComplete();
+            initIntakeRowActionBindings();
+            bindToggleAllIntakeRowsButton();
+            syncIntakeTableMaxHeight();
 
+            const tableScroll = document.querySelector('.intake-page .table-scroll');
+            if (tableScroll) {
+                tableScroll.addEventListener('scroll', closeAllIntakeOverflowMenus, { passive: true });
+                if (typeof ResizeObserver !== 'undefined') {
+                    const tableObserver = new ResizeObserver(() => {
+                        requestAnimationFrame(intakeActionsCompactResizeListener);
+                    });
+                    tableObserver.observe(tableScroll);
+
+                    const intakePage = document.querySelector('.intake-page');
+                    if (intakePage) {
+                        const layoutObserver = new ResizeObserver(() => {
+                            requestAnimationFrame(syncIntakeTableMaxHeight);
+                        });
+                        layoutObserver.observe(intakePage);
+                    }
+
+                    const tbody = tableScroll.querySelector('tbody');
+                    if (tbody) {
+                        const rowObserver = new ResizeObserver(() => {
+                            requestAnimationFrame(syncIntakeTableMaxHeight);
+                        });
+                        rowObserver.observe(tbody);
+                    }
+                }
+            }
+            window.addEventListener('resize', () => {
+                closeAllIntakeOverflowMenus();
+                intakeActionsCompactResizeListener();
+                syncIntakeTableMaxHeight();
+            });
+            requestAnimationFrame(intakeActionsCompactResizeListener);
+            requestAnimationFrame(syncIntakeTableMaxHeight);
         });
 
 

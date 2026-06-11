@@ -30,8 +30,13 @@ from clearing.services.parser_schema import (
     build_parser_output_refs,
     build_quality,
     suggest_pa_field_updates,
+    sync_client_name_from_parse_fields,
 )
-from clearing.services.parse_upload import ParseUploadError, apply_parser_pdf
+from clearing.services.parse_upload import (
+    ParseUploadError,
+    apply_parser_from_job,
+    apply_parser_pdf,
+)
 
 User = get_user_model()
 
@@ -84,10 +89,31 @@ class ParserSchemaTests(TestCase):
         self.assertEqual(refs[0]["job_id"], SAMPLE_JOB_ID)
         self.assertNotIn("download_url", refs[0])
 
+    def test_build_parse_result_snapshot_includes_ack_hints(self):
+        detail = {
+            **SAMPLE_DETAIL,
+            "fields": {
+                **SAMPLE_DETAIL["fields"],
+                "expected_ack_count": 2,
+                "expected_transmissions": [
+                    {"jurisdiction": "federal", "form_type": "1040", "source": "client_letter"},
+                    {"jurisdiction": "state", "form_type": "CA540", "source": "client_letter"},
+                ],
+            },
+        }
+        snapshot = build_parse_result_snapshot(job_id=SAMPLE_JOB_ID, detail=detail)
+        self.assertEqual(snapshot["fields"]["expected_ack_count"], 2)
+        self.assertEqual(len(snapshot["fields"]["expected_transmissions"]), 2)
+
     def test_suggest_pa_field_updates_tpg(self):
         updates = suggest_pa_field_updates(SAMPLE_DETAIL["fields"])
         self.assertEqual(updates["fee"], "275.0")
         self.assertEqual(updates["payment_method"], ProductAssignment.PAYMENT_METHOD_TPG)
+
+    def test_suggest_pa_field_updates_qbo_when_not_tpg(self):
+        fields = {**SAMPLE_DETAIL["fields"], "has_tpg_pages": False}
+        updates = suggest_pa_field_updates(fields)
+        self.assertEqual(updates["payment_method"], ProductAssignment.PAYMENT_METHOD_QBO)
 
 
 class ApplyParserPdfTests(TestCase):
@@ -146,7 +172,11 @@ class ApplyParserPdfTests(TestCase):
         self.pa.closing_message_text = "Existing draft"
         self.pa.save(update_fields=["closing_message_text"])
 
-        apply_parser_pdf(self.pa, BytesIO(b"%PDF-1.4 fake"), client=mock_client)
+        apply_parser_from_job(self.pa, SAMPLE_JOB_ID, client=mock_client, detail={
+            **SAMPLE_DETAIL,
+            "fields": {"tax_year": "2024", "message_ready": False, "message_ready_reason": "missing_taxpayer_first_name"},
+            "message": "Hi ,\n\nShould not apply.",
+        })
 
         self.pa.refresh_from_db()
         self.assertEqual(self.pa.closing_message_text, "Existing draft")
@@ -154,10 +184,9 @@ class ApplyParserPdfTests(TestCase):
 
     def test_apply_parser_pdf_stores_snapshot_on_pa(self):
         mock_client = MagicMock()
-        mock_client.upload_and_fetch_detail.return_value = SAMPLE_DETAIL
-        uploaded = BytesIO(b"%PDF-1.4 fake")
+        mock_client.get_job.return_value = SAMPLE_DETAIL
 
-        result = apply_parser_pdf(self.pa, uploaded, client=mock_client)
+        result = apply_parser_from_job(self.pa, SAMPLE_JOB_ID, client=mock_client, detail=SAMPLE_DETAIL)
 
         self.pa.refresh_from_db()
         self.assertEqual(str(self.pa.parse_job_uuid), SAMPLE_JOB_ID)
@@ -177,6 +206,64 @@ class ApplyParserPdfTests(TestCase):
 
         with self.assertRaises(ParseUploadError):
             apply_parser_pdf(self.pa, BytesIO(b"%PDF-1.4 fake"), client=MagicMock())
+
+    def test_apply_parser_pdf_syncs_entity_client_name(self):
+        self.client_obj.name = "Formatted UI"
+        self.client_obj.save(update_fields=["name"])
+
+        mock_client = MagicMock()
+        mock_client.upload_and_fetch_detail.return_value = {
+            **SAMPLE_DETAIL,
+            "fields": {
+                **SAMPLE_DETAIL["fields"],
+                "taxpayer_full_name": "Test S Corp",
+                "taxpayer_first_name": "Test S Corp",
+                "taxpayer_tin": "123456789",
+            },
+            "message": "Hi Test S Corp,\n\nYour return is ready.",
+        }
+
+        result = apply_parser_from_job(
+            self.pa,
+            SAMPLE_JOB_ID,
+            client=mock_client,
+            detail=mock_client.upload_and_fetch_detail.return_value,
+        )
+
+        self.client_obj.refresh_from_db()
+        self.assertEqual(self.client_obj.name, "Test S Corp")
+        self.assertEqual(result["client_name"], "Test S Corp")
+
+    def test_apply_parser_pdf_requires_conflict_flow_on_board(self):
+        with self.assertRaises(ParseUploadError) as ctx:
+            apply_parser_pdf(self.pa, BytesIO(b"%PDF-1.4 fake"), client=MagicMock())
+        self.assertIn("already on clearing", str(ctx.exception))
+
+    def test_sync_client_name_skips_individual_returns(self):
+        updated = sync_client_name_from_parse_fields(
+            self.client_obj,
+            {"taxpayer_full_name": "John & Jane Doe", "taxpayer_first_name": "John"},
+        )
+        self.assertFalse(updated)
+        self.assertEqual(self.client_obj.name, "Parser Client")
+
+    def test_apply_parser_from_job_rejects_tin_mismatch(self):
+        detail = {
+            **SAMPLE_DETAIL,
+            "fields": {
+                **SAMPLE_DETAIL["fields"],
+                "taxpayer_tin": "999999999",
+            },
+        }
+
+        with self.assertRaises(ParseUploadError) as ctx:
+            apply_parser_from_job(
+                self.pa,
+                SAMPLE_JOB_ID,
+                client=MagicMock(),
+                detail=detail,
+            )
+        self.assertIn("does not match", str(ctx.exception))
 
 
 @override_settings(FEATURE_PARSER_PATH_A=True)
@@ -223,6 +310,16 @@ class ParsePdfUploadViewTests(TestCase):
             is_active=True,
         )
         cmd_enter_clearing(pa_id=self.pa.id, actor=self.user)
+
+    def test_parse_pdf_upload_view_requires_conflict_flow_on_board(self):
+        url = reverse("clearing:parse_pdf_upload", kwargs={"pa_id": self.pa.id})
+        resp = self.http.post(
+            url,
+            {"file": SimpleUploadedFile("return.pdf", b"%PDF-1.4 fake content", content_type="application/pdf")},
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("already on clearing", resp.json()["message"])
 
     @patch("clearing.views.apply_parser_pdf")
     def test_parse_pdf_upload_view_success(self, mock_apply):

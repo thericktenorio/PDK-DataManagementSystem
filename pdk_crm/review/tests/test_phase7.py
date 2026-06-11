@@ -1,4 +1,4 @@
-"""Review Phase 7 tests."""
+"""Review Phase 7 tests — four-table workflow (W2)."""
 import datetime
 import uuid
 from decimal import Decimal
@@ -24,10 +24,19 @@ from core.workflows.lifecycle import (
     cmd_confirm_payment_received,
     cmd_enter_clearing,
     cmd_mark_ready_for_review,
+    cmd_set_pending_reject_correction,
+    cmd_start_ack_reconciling,
 )
 from review.models import ReviewEntry
-from review.selectors import payment_status_label, review_queue_count
-from review.services.queue import mark_filed_for_pa, start_review_for_pa
+from review.selectors import (
+    payment_status_label,
+    review_queue_count,
+    review_table_queryset,
+)
+from review.services.queue import (
+    complete_reject_correction_for_pa,
+    complete_review_for_pa,
+)
 
 User = get_user_model()
 
@@ -93,26 +102,40 @@ class ReviewPhase7Tests(TestCase):
         self.pa.refresh_from_db()
         self.assertEqual(self.pa.lifecycle_state, LifecycleState.READY_FOR_REVIEW)
 
-    def test_review_entry_created_on_start_review(self):
+    def test_complete_review_from_ready_advances_to_filed(self):
         self._advance_to_ready_for_review()
-        pa, entry = start_review_for_pa(pa_id=self.pa.id, actor=self.reviewer)
-        self.assertEqual(pa.lifecycle_state, LifecycleState.IN_REVIEW)
-        self.assertTrue(ReviewEntry.objects.filter(product_assignment=self.pa).exists())
-        self.assertEqual(entry.assigned_reviewer, self.reviewer)
-        self.assertIsNotNone(entry.review_started_at)
-
-    def test_mark_filed_advances_lifecycle(self):
-        self._advance_to_ready_for_review()
-        start_review_for_pa(pa_id=self.pa.id, actor=self.reviewer)
-        pa, entry = mark_filed_for_pa(
+        pa, entry = complete_review_for_pa(
             pa_id=self.pa.id,
-            actor=self.preparer,
-            notes="Filed via Drake",
+            actor=self.reviewer,
+            notes="Looks good",
+            expected_ack_count=2,
         )
         self.assertEqual(pa.lifecycle_state, LifecycleState.FILED)
-        self.assertEqual(entry.filed_by, self.preparer)
-        self.assertEqual(entry.notes, "Filed via Drake")
+        self.assertEqual(pa.expected_ack_count, 2)
+        self.assertEqual(entry.notes, "Looks good")
         self.assertIsNotNone(entry.filed_at)
+
+    def test_four_table_querysets(self):
+        self._advance_to_ready_for_review()
+        self.assertEqual(review_table_queryset(table="ready").count(), 1)
+
+        complete_review_for_pa(pa_id=self.pa.id, actor=self.reviewer, expected_ack_count=1)
+        self.assertEqual(review_table_queryset(table="ready").count(), 0)
+        self.assertEqual(review_table_queryset(table="pending_acks").count(), 1)
+
+        cmd_start_ack_reconciling(pa_id=self.pa.id)
+        cmd_set_pending_reject_correction(pa_id=self.pa.id)
+        self.pa.refresh_from_db()
+        self.assertEqual(review_table_queryset(table="pending_reject").count(), 1)
+
+        complete_reject_correction_for_pa(pa_id=self.pa.id, actor=self.reviewer)
+        self.pa.refresh_from_db()
+        self.assertEqual(self.pa.lifecycle_state, LifecycleState.ACK_RECONCILING)
+        self.assertEqual(review_table_queryset(table="pending_acks").count(), 1)
+
+        self.pa.lifecycle_state = LifecycleState.CLOSED
+        self.pa.save(update_fields=["lifecycle_state"])
+        self.assertEqual(review_table_queryset(table="filed").count(), 1)
 
     def test_queue_count_scoped_to_active_season(self):
         self._advance_to_ready_for_review()
@@ -150,30 +173,37 @@ class ReviewPhase7Tests(TestCase):
         resp = http.get(reverse("review:review"))
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Review Test Client")
-        self.assertContains(resp, "Start review")
+        self.assertContains(resp, "Review Complete")
+        self.assertNotContains(resp, "Start review")
 
-    def test_start_review_endpoint(self):
+    def test_complete_review_endpoint(self):
         self._advance_to_ready_for_review()
         http = DjangoClient()
         http.login(email=self.reviewer.email, password="testpass123")
-        resp = http.post(reverse("review:start_review", args=[self.pa.id]))
-        self.assertEqual(resp.status_code, 200)
-        self.pa.refresh_from_db()
-        self.assertEqual(self.pa.lifecycle_state, LifecycleState.IN_REVIEW)
-
-    def test_mark_filed_endpoint(self):
-        self._advance_to_ready_for_review()
-        start_review_for_pa(pa_id=self.pa.id, actor=self.reviewer)
-        http = DjangoClient()
-        http.login(email=self.preparer.email, password="testpass123")
         resp = http.post(
-            reverse("review:mark_filed", args=[self.pa.id]),
-            data='{"notes": "Done"}',
+            reverse("review:complete_review", args=[self.pa.id]),
+            data='{"expected_ack_count": 1}',
             content_type="application/json",
         )
         self.assertEqual(resp.status_code, 200)
         self.pa.refresh_from_db()
         self.assertEqual(self.pa.lifecycle_state, LifecycleState.FILED)
+
+    def test_complete_reject_correction_endpoint(self):
+        self._advance_to_ready_for_review()
+        complete_review_for_pa(pa_id=self.pa.id, actor=self.reviewer, expected_ack_count=1)
+        cmd_start_ack_reconciling(pa_id=self.pa.id)
+        cmd_set_pending_reject_correction(pa_id=self.pa.id)
+        http = DjangoClient()
+        http.login(email=self.reviewer.email, password="testpass123")
+        resp = http.post(
+            reverse("review:complete_reject_correction", args=[self.pa.id]),
+            data="{}",
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.pa.refresh_from_db()
+        self.assertEqual(self.pa.lifecycle_state, LifecycleState.ACK_RECONCILING)
 
     def test_queue_count_api(self):
         self._advance_to_ready_for_review()
@@ -183,13 +213,7 @@ class ReviewPhase7Tests(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["count"], 1)
 
-    def test_cannot_mark_filed_from_ready_for_review(self):
+    def test_review_entry_created_on_complete_review(self):
         self._advance_to_ready_for_review()
-        http = DjangoClient()
-        http.login(email=self.reviewer.email, password="testpass123")
-        resp = http.post(
-            reverse("review:mark_filed", args=[self.pa.id]),
-            data="{}",
-            content_type="application/json",
-        )
-        self.assertEqual(resp.status_code, 400)
+        complete_review_for_pa(pa_id=self.pa.id, actor=self.reviewer)
+        self.assertTrue(ReviewEntry.objects.filter(product_assignment=self.pa).exists())

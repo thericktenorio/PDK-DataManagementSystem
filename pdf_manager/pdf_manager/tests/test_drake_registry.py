@@ -17,12 +17,18 @@ def test_client_letter_and_bill_roles(registry):
     assert registry.role_for_title("Client Letter") == "extract_client_letter"
     assert registry.role_for_title("Client Letter page 2") == "extract_client_letter"
     assert registry.role_for_title("BILL_01") == "extract_bill"
-    assert registry.role_for_title("BILL_01 page 2") == "extract_bill"
+    assert registry.role_for_title("BILL_01 page 2") == "extract_bill_fee"
+
+
+def test_fee_extraction_roles(registry):
+    assert registry.role_for_title("TPG_INFO") == "extract_tpg_fee"
+    assert registry.role_for_title("Diagnostic Summary") == "extract_diagnostic_invoice"
 
 
 def test_signature_and_voucher_roles(registry):
     assert registry.role_for_title("8879") == "signature"
     assert registry.role_for_title("Engagement Letter") == "signature"
+    assert registry.role_for_title("TPG_RT") == "signature"
     assert registry.role_for_title("1040V - Payment Voucher") == "payment_voucher"
     assert registry.role_for_title("California 3582-V") == "payment_voucher"
 
@@ -30,12 +36,16 @@ def test_signature_and_voucher_roles(registry):
 def test_remove_and_cover_roles(registry):
     assert registry.role_for_title("EF Messages") == "remove"
     assert registry.role_for_title("Notes") == "remove"
+    assert registry.role_for_title("Comparison") == "extract_tin_comparison"
     assert registry.role_for_title("Folder Page") == "cover"
     assert registry.role_for_title("FILEINST") == "cover"
 
 
 def test_packet_mapping(registry):
     assert registry.packet_for_role("signature") == "signature"
+    assert registry.packet_for_role("extract_tpg_fee") == "signature"
+    assert registry.packet_for_role("extract_diagnostic_invoice") == "exclude"
+    assert registry.packet_for_role("extract_tin_comparison") == "exclude"
     assert registry.packet_for_role("payment_voucher") == "payment_voucher"
     assert registry.packet_for_role("remove") == "exclude"
     assert registry.packet_for_role("form_federal") == "main"
@@ -43,7 +53,9 @@ def test_packet_mapping(registry):
 
 def test_ocr_roles(registry):
     assert registry.ocr_required_if_no_text("extract_client_letter")
-    assert registry.ocr_required_if_no_text("extract_bill")
+    assert registry.ocr_required_if_no_text("extract_bill_fee")
+    assert not registry.ocr_required_if_no_text("extract_tpg_fee")
+    assert not registry.ocr_required_if_no_text("extract_diagnostic_invoice")
     assert not registry.ocr_required_if_no_text("form_federal")
 
 

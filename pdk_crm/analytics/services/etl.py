@@ -24,6 +24,7 @@ from analytics.models import (
     FactLifecycleEvent,
 )
 from billing.models import AssignmentInvoiceLink, Invoice
+from acknowledgments.selectors import compute_tp_comp_date
 from core.models import (
     Acknowledgment,
     Client,
@@ -399,6 +400,7 @@ def _build_assignment_row(pa: ProductAssignment) -> dict[str, Any]:
         "closed_at": transitions.get("closed_at"),
         "review_started_at": review.review_started_at if review else None,
         "expected_ack_count": pa.expected_ack_count,
+        "tp_comp_date": compute_tp_comp_date(pa),
         "intake_created_at": intake.added_at if intake else None,
         **snapshot,
         **acks,

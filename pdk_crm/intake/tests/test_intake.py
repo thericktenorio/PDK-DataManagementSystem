@@ -9,6 +9,7 @@ from django.urls import reverse
 from core.models import (
     Client,
     DailyClearing,
+    FilingType,
     Intake,
     Organization,
     Product,
@@ -16,6 +17,7 @@ from core.models import (
     TaxSeason,
     TaxYear,
 )
+from core.utils import INTAKE_PRODUCT_ASSIGNMENT_ORDERING
 from intake.services.enrollment import enroll_client_in_intake, NoActiveTaxSeasonError
 
 User = get_user_model()
@@ -93,7 +95,7 @@ class IntakeViewTests(TestCase):
         self.client_a = Client.objects.create(TIN="222222222", name="Active Season Client")
         self.client_b = Client.objects.create(TIN="333333333", name="Old Season Client")
 
-        Intake.objects.create(
+        self.intake_a = Intake.objects.create(
             client=self.client_a,
             tax_season=self.active_season,
             is_active=True,
@@ -162,6 +164,67 @@ class IntakeViewTests(TestCase):
         self.assertEqual(response.status_code, 200)
         intake.refresh_from_db()
         self.assertFalse(intake.is_active)
+
+    def test_intake_page_orders_product_assignments(self):
+        filing_joint, _ = FilingType.objects.get_or_create(filing_type="Joint")
+        filing_single, _ = FilingType.objects.get_or_create(filing_type="Single")
+
+        def make_pa(year, product_type, filing_type):
+            tax_year = TaxYear.objects.create(client=self.client_a, year=year)
+            product = Product.objects.create(
+                tax_year=tax_year,
+                product_type=product_type,
+                is_product_active=False,
+            )
+            return ProductAssignment.objects.create(
+                client=self.client_a,
+                intake=self.intake_a,
+                tax_year=tax_year,
+                product=product,
+                filing_type=filing_type,
+                is_active=True,
+            )
+
+        make_pa(2023, Product.PRODUCT_TYPE_DEFAULT, filing_single)
+        make_pa(2025, "Advisory", filing_joint)
+        make_pa(2024, "Bookkeeping", filing_single)
+
+        response = self.http.get(reverse("intake:intake"))
+        client_ctx = next(c for c in response.context["intake_clients"] if c.id == self.client_a.id)
+        ordered_ids = list(
+            client_ctx.product_assignments_list.order_by(*INTAKE_PRODUCT_ASSIGNMENT_ORDERING).values_list(
+                "id", flat=True
+            )
+        )
+        rendered_ids = [pa.id for pa in client_ctx.product_assignments_list]
+        self.assertEqual(rendered_ids, ordered_ids)
+        self.assertEqual(
+            [pa.tax_year.year for pa in client_ctx.product_assignments_list],
+            [2025, 2024, 2023],
+        )
+
+    def test_add_product_assignment_rejects_duplicate_tax_year_product(self):
+        tax_year = TaxYear.objects.create(client=self.client_a, year=2024)
+        product = Product.objects.create(
+            tax_year=tax_year,
+            product_type=Product.PRODUCT_TYPE_DEFAULT,
+            is_product_active=False,
+        )
+        ProductAssignment.objects.create(
+            client=self.client_a,
+            intake=self.intake_a,
+            tax_year=tax_year,
+            product=product,
+            is_active=True,
+        )
+
+        response = self.http.post(
+            reverse("intake:add_product_assignment"),
+            data=json.dumps({"client_id": self.client_a.id}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.json()["code"], "DUPLICATE_PA")
 
     def test_search_marks_in_intake_for_active_season_only(self):
         response = self.http.get(

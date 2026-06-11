@@ -147,6 +147,43 @@ class PDFManagerClient:
         detail.setdefault("job_id", str(job_id))
         return detail
 
+    def set_job_disposition(
+        self,
+        job_id: UUID | str,
+        *,
+        status: str,
+    ) -> dict[str, Any]:
+        """
+        Mark a completed parse job as CANCELLED or APPLIED (Path A global upload).
+        """
+        url = f"{self.base_url}/api/jobs/{job_id}/disposition/"
+        try:
+            resp = requests.post(
+                url,
+                json={"status": status},
+                headers={**self._headers(), "Content-Type": "application/json"},
+                timeout=self.timeout,
+            )
+        except requests.RequestException as exc:
+            raise PDFManagerError(f"Parser service unreachable: {exc}") from exc
+
+        try:
+            payload = resp.json()
+        except ValueError as exc:
+            raise PDFManagerError(
+                f"Parser returned non-JSON response ({resp.status_code})",
+                status_code=resp.status_code,
+            ) from exc
+
+        if resp.status_code >= 400 or payload.get("status") == "error":
+            message = payload.get("error") or payload.get("message") or resp.text
+            raise PDFManagerError(
+                str(message),
+                status_code=resp.status_code,
+                payload=payload,
+            )
+        return payload
+
     def download_output(self, job_id: UUID | str, *, bundle: bool = False) -> requests.Response:
         """
         Stream a parser output PDF (main packet) or ZIP bundle (signature + vouchers).

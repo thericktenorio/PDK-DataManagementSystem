@@ -55,9 +55,13 @@ class ClearingPhase3Tests(TestCase):
             is_active=True,
         )
         self.tax_year = TaxYear.objects.create(client=self.client_obj, year=2024)
-        self.filing_type = FilingType.objects.create(
+        self.filing_type = FilingType.objects.filter(
             filing_type=FilingType.FILING_TYPE_DEFAULT
-        )
+        ).order_by("id").first()
+        if self.filing_type is None:
+            self.filing_type = FilingType.objects.create(
+                filing_type=FilingType.FILING_TYPE_DEFAULT
+            )
         self.product = Product.objects.create(
             tax_year=self.tax_year,
             product_type=Product.PRODUCT_TYPE_DEFAULT,
@@ -179,3 +183,74 @@ class ClearingPhase3Tests(TestCase):
             confirmed_fee="150.00",
         )
         self.assertEqual(pa.lifecycle_state, LifecycleState.IN_CLEARING)
+
+    def test_add_product_assignment_creates_second_entry(self):
+        url = reverse("clearing:add_product_assignment")
+        resp = self.http.post(
+            url,
+            data=json.dumps({"client_id": self.client_obj.id}),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+        new_pa_id = data["product_assignment"]["id"]
+        self.assertNotEqual(new_pa_id, self.pa.id)
+
+        active_count = ProductAssignment.objects.filter(
+            client=self.client_obj,
+            intake=self.intake,
+            is_active=True,
+        ).count()
+        self.assertEqual(active_count, 2)
+
+    def test_create_new_client_enrolls_intake_and_clearing(self):
+        resp = self.http.post(
+            reverse("clearing:create_new_client"),
+            data=json.dumps(
+                {
+                    "TIN": "555555555",
+                    "name": "Clearing New Client",
+                    "email": "new@example.com",
+                    "phone": "5555555555",
+                    "filing_type": "Simple",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+
+        client = Client.objects.get(pk=data["client_id"])
+        intake = Intake.objects.get(client=client, tax_season=self.tax_season, is_active=True)
+        self.assertTrue(
+            DailyClearing.objects.filter(
+                client=client, tax_season=self.tax_season, is_active=True
+            ).exists()
+        )
+        self.assertTrue(
+            ProductAssignment.objects.filter(client=client, intake=intake, is_active=True).exists()
+        )
+
+    def test_create_new_client_accepts_formatted_tin_and_phone(self):
+        resp = self.http.post(
+            reverse("clearing:create_new_client"),
+            data=json.dumps(
+                {
+                    "TIN": "123-45-6789",
+                    "name": "Formatted Input Client",
+                    "email": "formatted@example.com",
+                    "phone": "(555) 123-4567",
+                    "filing_type": "Simple",
+                }
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        data = resp.json()
+        self.assertEqual(data["status"], "success")
+
+        client = Client.objects.get(pk=data["client_id"])
+        self.assertEqual(client.TIN, "123456789")
+        self.assertEqual(client.phone, "5551234567")

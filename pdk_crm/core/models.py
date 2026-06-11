@@ -151,6 +151,7 @@ class Product(models.Model):
     PRODUCT_TYPE_WITHHOLDINGS_ADJUSTMENT = 'Withholdings Adjustment'
     PRODUCT_TYPE_ADVISORY = 'Advisory'
     PRODUCT_TYPE_REJECT_CORRECTION = 'Reject Correction'
+    PRODUCT_TYPE_PAPER_FILING = 'Paper Filing'
     PRODUCT_TYPE_CHOICES = [
         (PRODUCT_TYPE_DEFAULT, 'TBD'),
         (PRODUCT_TYPE_PERSONAL_TAXES, 'Personal Taxes'),
@@ -163,6 +164,7 @@ class Product(models.Model):
         (PRODUCT_TYPE_WITHHOLDINGS_ADJUSTMENT, 'Withholdings Adjustment'),
         (PRODUCT_TYPE_ADVISORY, 'Advisory'),
         (PRODUCT_TYPE_REJECT_CORRECTION, 'Reject Correction'),
+        (PRODUCT_TYPE_PAPER_FILING, 'Paper Filing'),
     ]
 
     
@@ -260,6 +262,9 @@ class Acknowledgment(models.Model):
     type = models.CharField(max_length = 15, null = True, blank = True, help_text = "Form being acknowledged")
     date = models.DateField(null = True, blank = True, help_text = "Official date of acknowledgment from government")
     status = models.CharField(max_length = 15, choices = STATUS_CHOICES, default = STATUS_DEFAULT, null = True, blank = True) # Shows status of acknowledgment (recall that every acknowledgment object will have its own ID as well)
+    submission_id = models.CharField(max_length = 64, null = True, blank = True, help_text = "Drake MEF SubmissionId for this transmission.")
+    reject_code = models.CharField(max_length = 32, null = True, blank = True, help_text = "Drake reject code from the data row or Error Detail block.")
+    reject_reason = models.TextField(null = True, blank = True, help_text = "Reject message from the Drake Error Detail block.")
     product_assignment = models.ForeignKey("ProductAssignment", on_delete = models.PROTECT, related_name = "acknowledgments", null = True, blank = True)
 
     # TODO: deprecate the Acknowledgment.product attribute when Acknowledgment.ProductAssignment is stable during Ack : PA matching
@@ -458,6 +463,11 @@ class ProductAssignment(models.Model):
         blank = True,
         help_text = "Staff-set count of expected Drake acks (federal + state forms). Required before CLOSED.",
     )
+    force_completed_at = models.DateTimeField(
+        null = True,
+        blank = True,
+        help_text = "When set, PA was force-closed despite reject acks; counts as A for TP Comp Dt.",
+    )
     completed_at = models.DateTimeField(null = True, blank = True)
     completed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete = models.SET_NULL, null = True, blank = True, related_name = "completed_product_assignments") # TODO: make sure this points to my InternalUser model in Accounts module
     closing_message_text = models.TextField(null = True, blank = True)
@@ -470,6 +480,31 @@ class ProductAssignment(models.Model):
         null = True,
         blank = True,
         help_text='List of {"kind": "main_packet"|..., "path": "..."} references to parser output files.',
+    )
+
+    class VoidReason(models.TextChoices):
+        PDF_REPLACED = "PDF_REPLACED", "PDF replaced via global upload"
+
+    voided_at = models.DateTimeField(null = True, blank = True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.SET_NULL,
+        null = True,
+        blank = True,
+        related_name = "voided_product_assignments",
+    )
+    void_reason = models.CharField(
+        max_length = 32,
+        choices = VoidReason.choices,
+        null = True,
+        blank = True,
+    )
+    superseded_by = models.ForeignKey(
+        "self",
+        on_delete = models.SET_NULL,
+        null = True,
+        blank = True,
+        related_name = "supersedes",
     )
 
     # for product assignment manager
@@ -558,6 +593,50 @@ class ProductAssignment(models.Model):
         return f"{self.client.name} - Product Assignment : {self.intake.tax_season} {self.product.product_type} {self.tax_year.year} [{status}]"
 
 
+class PaperFilingDetail(models.Model):
+    """Manual paper-filing metadata per jurisdiction (W5)."""
+
+    JURISDICTION_FEDERAL = "federal"
+    JURISDICTION_STATE = "state"
+    JURISDICTION_CHOICES = [
+        (JURISDICTION_FEDERAL, "Federal"),
+        (JURISDICTION_STATE, "State"),
+    ]
+
+    MAILED_BY_FIRM = "firm"
+    MAILED_BY_CLIENT = "client"
+    MAILED_BY_CHOICES = [
+        (MAILED_BY_FIRM, "Firm"),
+        (MAILED_BY_CLIENT, "Client"),
+    ]
+
+    product_assignment = models.ForeignKey(
+        ProductAssignment,
+        on_delete=models.CASCADE,
+        related_name="paper_filing_details",
+    )
+    jurisdiction = models.CharField(max_length=16, choices=JURISDICTION_CHOICES)
+    form_type = models.CharField(max_length=15, help_text="Form code (1040, CA540, …)")
+    mailed_by = models.CharField(max_length=16, choices=MAILED_BY_CHOICES)
+    sent_date = models.DateField()
+    tracking = models.CharField(max_length=64, blank=True, default="")
+    notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="paper_filing_details",
+    )
+
+    class Meta:
+        ordering = ["sent_date", "id"]
+
+    def __str__(self):
+        return f"{self.form_type} paper filed {self.sent_date}"
+
+
 class Appointment(models.Model):
 
     # Tuple for appointment types
@@ -627,6 +706,9 @@ class AckStaging(models.Model):
     type = models.CharField(max_length = 15, null = True, blank = True)
     date = models.DateField(null = True, blank = True)
     status = models.CharField(max_length = 15, null = True, blank = True)
+    submission_id = models.CharField(max_length = 64, null = True, blank = True)
+    reject_code = models.CharField(max_length = 32, null = True, blank = True)
+    reject_reason = models.TextField(null = True, blank = True)
 
     # matching / resolution
     match_state = models.CharField(max_length = 30, choices = MATCH_CHOICES, default = MATCH_UNMATCHED)
@@ -694,6 +776,7 @@ class ProductAssignmentEvent(models.Model):
         READY_FOR_REVIEW = "READY_FOR_REVIEW", "READY_FOR_REVIEW"
         FILED = "FILED", "FILED"
         CLOSED = "CLOSED", "CLOSED"
+        PARSE_SUPERSEDED = "PARSE_SUPERSEDED", "PARSE_SUPERSEDED"
 
     product_assignment = models.ForeignKey(
         "ProductAssignment",

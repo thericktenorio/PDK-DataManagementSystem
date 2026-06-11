@@ -15,10 +15,12 @@ SCHEMA_VERSION = 1
 EXTRACTED_FIELD_KEYS: tuple[str, ...] = (
     "taxpayer_first_name",
     "taxpayer_full_name",
+    "taxpayer_tin",
     "tax_year",
     "federal_amount",
     "states",
     "last_4_of_account",
+    "bank_name",
     "mailing_address",
     "mailing_address_line1",
     "mailing_city",
@@ -26,6 +28,10 @@ EXTRACTED_FIELD_KEYS: tuple[str, ...] = (
     "mailing_zip",
     "tax_prep_fee",
     "has_tpg_pages",
+    "enrollment_signals",
+    "expected_transmissions",
+    "expected_ack_count",
+    "expected_ack_source",
 )
 
 INTERNAL_FIELD_KEYS = frozenset({
@@ -35,8 +41,45 @@ INTERNAL_FIELD_KEYS = frozenset({
     "ocr_total_ms",
     "message_ready",
     "message_ready_reason",
+    "taxpayer_is_entity",
     "_field_sources",
 })
+
+ENTITY_NAME_MARKERS: tuple[str, ...] = (
+    " CORP",
+    " LLC",
+    " INC",
+    " LP",
+    " LLP",
+    " LTD",
+    " PLLC",
+    " CO.",
+    " COMPANY",
+    " S CORP",
+    " SCORP",
+    " L.L.C.",
+    " L.P.",
+)
+
+
+def is_entity_taxpayer(fields: dict[str, Any]) -> bool:
+    full = (fields.get("taxpayer_full_name") or "").strip()
+    if not full:
+        return False
+    upper = full.upper()
+    return any(marker in upper for marker in ENTITY_NAME_MARKERS)
+
+
+def sync_client_name_from_parse_fields(client, fields: dict[str, Any]) -> bool:
+    """Update CRM Client.name from entity return legal name when extracted."""
+    full = (fields.get("taxpayer_full_name") or "").strip()
+    if not full or not is_entity_taxpayer(fields):
+        return False
+    if client.name != full:
+        client.name = full
+        client.save(update_fields=["name"])
+        return True
+    return False
 
 
 def _public_fields(fields: dict[str, Any]) -> dict[str, Any]:
@@ -123,9 +166,43 @@ def suggest_pa_field_updates(fields: dict[str, Any]) -> dict[str, Any]:
     if tax_prep_fee is not None:
         updates["fee"] = str(tax_prep_fee)
 
-    if fields.get("has_tpg_pages"):
-        from core.models import ProductAssignment
+    from core.models import ProductAssignment
 
+    if fields.get("has_tpg_pages"):
         updates["payment_method"] = ProductAssignment.PAYMENT_METHOD_TPG
+    else:
+        updates["payment_method"] = ProductAssignment.PAYMENT_METHOD_QBO
+
+    signals = fields.get("enrollment_signals") or {}
+    if isinstance(signals, dict):
+        from clearing.services.enrollment_inference import match_preparer_id
+
+        preparer_id = match_preparer_id(signals)
+        if preparer_id:
+            updates["preparer_id"] = preparer_id
 
     return updates
+
+
+def parse_result_fields(pa) -> dict[str, Any]:
+    """Return extracted field map from PA parse_result_json, or empty dict."""
+    snapshot = pa.parse_result_json or {}
+    fields = snapshot.get("fields") or {}
+    return fields if isinstance(fields, dict) else {}
+
+
+def suggested_expected_ack_count(pa) -> int | None:
+    """
+    Parser-derived expected ack count for Review Complete modal prefill.
+
+    Staff can override; returns None when no parser hint (default modal value 1).
+    """
+    fields = parse_result_fields(pa)
+    count = fields.get("expected_ack_count")
+    if count is None:
+        return None
+    try:
+        parsed = int(count)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 1 else None

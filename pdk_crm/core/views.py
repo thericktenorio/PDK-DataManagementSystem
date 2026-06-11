@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.shortcuts import render, get_object_or_404
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required
@@ -26,7 +26,12 @@ from .workflows.completion import (
     can_autosave_pa_field,
 )
 
-from .utils import get_or_create_intake, get_or_create_product_assignment_for_tax_year
+from .utils import (
+    DUPLICATE_ACTIVE_PA_MESSAGE,
+    active_product_assignment_conflict,
+    get_or_create_intake,
+    get_or_create_product_assignment_for_tax_year,
+)
 from accounts.models import InternalUser
 
 import json
@@ -53,6 +58,47 @@ def home_view(request): # order of dictionary determines order in which icon but
             {"name": "Analytics", "icon": "icons/analytics.svg", "url": "analytics:analytics"},
         )
     return render(request, "core/home.html", {"apps": apps})
+
+
+@login_required
+@require_POST
+def update_rotate_background(request):
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON."}, status=400)
+
+    if "rotate_background" not in data:
+        return JsonResponse({"status": "error", "message": "Missing rotate_background."}, status=400)
+
+    rotate_background = bool(data["rotate_background"])
+    user = request.user
+    user.rotate_background = rotate_background
+    user.save(update_fields=["rotate_background"])
+
+    from core.backgrounds import (
+        FIXED_BACKGROUND_KEY,
+        SESSION_BACKGROUND_KEY,
+        SESSION_DATE_KEY,
+        get_background,
+        sync_session_background,
+    )
+
+    if not rotate_background:
+        request.session.pop(SESSION_DATE_KEY, None)
+        request.session.pop(SESSION_BACKGROUND_KEY, None)
+
+    key = sync_session_background(request)
+    background = get_background(key)
+    return JsonResponse(
+        {
+            "status": "success",
+            "rotate_background": rotate_background,
+            "app_background_key": background.key,
+            "app_background_static": background.static_path,
+            "fixed_background_key": FIXED_BACKGROUND_KEY,
+        }
+    )
 
 
 # Auto Save : general autosave feature
@@ -263,6 +309,22 @@ def auto_save_product_assignment(request):
 
                 product_assignment.product = matching_product
 
+                if active_product_assignment_conflict(
+                    client=product_assignment.client,
+                    intake=product_assignment.intake,
+                    tax_year=tax_year,
+                    product=matching_product,
+                    exclude_pa_id=product_assignment.id,
+                ):
+                    return JsonResponse(
+                        {
+                            "status": "error",
+                            "code": "DUPLICATE_PA",
+                            "message": DUPLICATE_ACTIVE_PA_MESSAGE,
+                        },
+                        status=409,
+                    )
+
                 _activate_new_deactivate_old(
                     old_product = old_product,
                     new_product = matching_product,
@@ -316,6 +378,22 @@ def auto_save_product_assignment(request):
                     new_product, _ = Product.objects.get_or_create(tax_year = tax_year, product_type = selected_product_type, defaults = {"is_product_active": False})
 
                     product_assignment.product = new_product
+
+                    if active_product_assignment_conflict(
+                        client=product_assignment.client,
+                        intake=product_assignment.intake,
+                        tax_year=tax_year,
+                        product=new_product,
+                        exclude_pa_id=product_assignment.id,
+                    ):
+                        return JsonResponse(
+                            {
+                                "status": "error",
+                                "code": "DUPLICATE_PA",
+                                "message": DUPLICATE_ACTIVE_PA_MESSAGE,
+                            },
+                            status=409,
+                        )
 
                     _activate_new_deactivate_old(
                         old_product = old_product,
@@ -432,6 +510,15 @@ def auto_save_product_assignment(request):
     
     except ProductAssignment.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'ProductAssignment not found'}, status = 404)
+    except IntegrityError:
+        return JsonResponse(
+            {
+                "status": "error",
+                "code": "DUPLICATE_PA",
+                "message": DUPLICATE_ACTIVE_PA_MESSAGE,
+            },
+            status=409,
+        )
     except ValidationError as ve:
         return JsonResponse({'status': 'error', 'message': ve.message_dict}, status = 400)
     except Exception as e:

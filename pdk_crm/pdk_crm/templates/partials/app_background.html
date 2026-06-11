@@ -1,0 +1,19 @@
+{% load static %}
+<div class="app-bg" aria-hidden="true" data-background-key="{{ app_background_key }}">
+    <img
+        class="app-bg-fill"
+        src="{% static app_background_static %}"
+        alt=""
+        decoding="async"
+        aria-hidden="true"
+    >
+    <img
+        class="app-bg-photo"
+        src="{% static app_background_static %}"
+        alt=""
+        decoding="async"
+        fetchpriority="high"
+        aria-hidden="true"
+    >
+</div>
+<div class="app-bg-overlay" aria-hidden="true"></div>

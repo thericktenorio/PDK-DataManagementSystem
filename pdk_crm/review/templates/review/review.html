@@ -4,13 +4,14 @@
 {% block title %}Review{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="app-page">
+<div class="container-fluid app-page-body pb-4">
     {% csrf_token %}
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
         <div>
             <h1 class="h3 mb-1">Review</h1>
             <p class="text-muted mb-0 small">
-                Paid assignments ready for Drake review and filing.
+                Paid assignments ready for Drake review, filing, and acknowledgments.
                 {% if tax_season %}
                     Active season: {{ tax_season.year }}.
                 {% else %}
@@ -22,8 +23,8 @@
     </div>
 
     <div class="row g-4">
-        <div class="col-lg-6">
-            <div class="card h-100">
+        <div class="col-12">
+            <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span>Ready for review</span>
                     <span class="badge bg-secondary">{{ ready_rows|length }}</span>
@@ -34,7 +35,9 @@
                         <table class="table table-dark table-sm table-hover mb-0 align-middle">
                             <thead>
                                 <tr>
+                                    <th>TIN</th>
                                     <th>Client</th>
+                                    <th>Year</th>
                                     <th>Product</th>
                                     <th>Preparer</th>
                                     <th>Payment</th>
@@ -44,25 +47,35 @@
                             </thead>
                             <tbody>
                                 {% for row in ready_rows %}
-                                <tr id="pa-row-{{ row.pa_id }}">
+                                <tr id="pa-row-ready-{{ row.pa_id }}">
+                                    <td>{{ row.client_tin }}</td>
                                     <td>{{ row.client_name }}</td>
+                                    <td>{{ row.tax_year }}</td>
                                     <td>{{ row.product_type }}</td>
                                     <td>{{ row.preparer }}</td>
                                     <td>
                                         <div>{{ row.payment_method }}</div>
                                         <small class="text-muted">{{ row.payment_status }}</small>
-                                        {% if row.invoice_number %}
-                                            <small class="d-block text-muted">#{{ row.invoice_number }}</small>
-                                        {% endif %}
                                     </td>
                                     <td>{% if row.fee is not None %}${{ row.fee }}{% else %}—{% endif %}</td>
-                                    <td>
+                                    <td class="text-end">
                                         <button type="button"
-                                                class="btn btn-sm btn-primary btn-start-review"
+                                                class="btn btn-sm btn-primary btn-complete-review"
                                                 data-pa-id="{{ row.pa_id }}"
-                                                data-url="{% url 'review:start_review' row.pa_id %}">
-                                            Start review
+                                                data-url="{% url 'review:complete_review' row.pa_id %}"
+                                                {% if row.suggested_expected_ack_count %}
+                                                data-suggested-ack="{{ row.suggested_expected_ack_count }}"
+                                                {% endif %}>
+                                            Review Complete
                                         </button>
+                                        {% if row.can_paper_file %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-info btn-paper-file"
+                                                data-pa-id="{{ row.pa_id }}"
+                                                data-url="{% url 'review:paper_filing' row.pa_id %}">
+                                            Paper File
+                                        </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -79,46 +92,44 @@
         <div class="col-lg-6">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>In review</span>
-                    <span class="badge bg-warning text-dark">{{ in_review_rows|length }}</span>
+                    <span>Pending acknowledgments</span>
+                    <span class="badge bg-info text-dark">{{ pending_ack_rows|length }}</span>
                 </div>
                 <div class="card-body p-0">
-                    {% if in_review_rows %}
+                    {% if pending_ack_rows %}
                     <div class="table-responsive">
                         <table class="table table-dark table-sm table-hover mb-0 align-middle">
                             <thead>
                                 <tr>
                                     <th>Client</th>
                                     <th>Product</th>
-                                    <th>Reviewer</th>
+                                    <th>Acks</th>
                                     <th>Payment</th>
-                                    <th>Notes</th>
                                     <th></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for row in in_review_rows %}
-                                <tr id="pa-row-{{ row.pa_id }}">
+                                {% for row in pending_ack_rows %}
+                                <tr id="pa-row-pending-{{ row.pa_id }}">
                                     <td>{{ row.client_name }}</td>
                                     <td>{{ row.product_type }}</td>
-                                    <td>{{ row.assigned_reviewer }}</td>
                                     <td>
-                                        <div>{{ row.payment_method }}</div>
+                                        {% if row.ack_summary.show_badge %}
+                                        <span class="badge {{ row.ack_summary.badge_class }}">{{ row.ack_summary.badge_text }}</span>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                    <td>
                                         <small class="text-muted">{{ row.payment_status }}</small>
                                     </td>
-                                    <td>
-                                        <textarea class="form-control form-control-sm review-notes"
-                                                  rows="2"
-                                                  data-pa-id="{{ row.pa_id }}"
-                                                  data-url="{% url 'review:review_notes' row.pa_id %}">{{ row.notes }}</textarea>
-                                    </td>
-                                    <td>
+                                    <td class="text-end">
+                                        {% if row.can_force_complete %}
                                         <button type="button"
-                                                class="btn btn-sm btn-success btn-mark-filed"
+                                                class="btn btn-sm btn-outline-warning btn-force-complete"
                                                 data-pa-id="{{ row.pa_id }}"
-                                                data-url="{% url 'review:mark_filed' row.pa_id %}">
-                                            Mark filed
+                                                data-url="{% url 'review:force_complete_review' row.pa_id %}">
+                                            Force Complete
                                         </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -126,14 +137,110 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted p-3 mb-0">No assignments currently in review.</p>
+                    <p class="text-muted p-3 mb-0">No assignments pending acknowledgments.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Pending reject correction</span>
+                    <span class="badge bg-danger">{{ pending_reject_rows|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if pending_reject_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Product</th>
+                                    <th>Acks</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in pending_reject_rows %}
+                                <tr id="pa-row-reject-{{ row.pa_id }}">
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.product_type }}</td>
+                                    <td>
+                                        <span class="badge {{ row.ack_summary.badge_class }}">{{ row.ack_summary.badge_text }}</span>
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button"
+                                                class="btn btn-sm btn-warning text-dark btn-complete-reject"
+                                                data-pa-id="{{ row.pa_id }}"
+                                                data-url="{% url 'review:complete_reject_correction' row.pa_id %}">
+                                            Review Complete
+                                        </button>
+                                        {% if row.can_force_complete %}
+                                        <button type="button"
+                                                class="btn btn-sm btn-outline-warning btn-force-complete"
+                                                data-pa-id="{{ row.pa_id }}"
+                                                data-url="{% url 'review:force_complete_review' row.pa_id %}">
+                                            Force Complete
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No reject corrections pending.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Filed</span>
+                    <span class="badge bg-success">{{ filed_rows|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if filed_rows %}
+                    <div class="table-responsive">
+                        <table class="table table-dark table-sm table-hover mb-0 align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Product</th>
+                                    <th>Tax year</th>
+                                    <th>Acks</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in filed_rows %}
+                                <tr id="pa-row-filed-{{ row.pa_id }}">
+                                    <td>{{ row.client_name }}</td>
+                                    <td>{{ row.product_type }}</td>
+                                    <td>{{ row.tax_year }}</td>
+                                    <td>
+                                        <span class="badge {{ row.ack_summary.badge_class }}">{{ row.ack_summary.badge_text }}</span>
+                                    </td>
+                                    <td>{{ row.lifecycle_label }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted p-3 mb-0">No filed assignments yet.</p>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="review-status" class="alert mt-3 d-none" role="alert"></div>
+    <div id="review-status" class="alert mt-3 d-none" role="alert">    </div>
+</div>
 </div>
 {% endblock %}
 
@@ -169,12 +276,28 @@
         return data;
     }
 
-    document.querySelectorAll(".btn-start-review").forEach((btn) => {
+    document.querySelectorAll(".btn-complete-review").forEach((btn) => {
         btn.addEventListener("click", async () => {
+            const suggested = btn.dataset.suggestedAck;
+            const defaultCount = suggested && parseInt(suggested, 10) >= 1 ? suggested : "1";
+            const hintNote = suggested
+                ? " (from parser — override if needed)"
+                : "";
+            const expectedRaw = prompt(
+                "Expected acknowledgment count (federal + state forms)" + hintNote + ":",
+                defaultCount
+            );
+            if (expectedRaw === null) return;
+            const expected = parseInt(expectedRaw, 10);
+            if (!Number.isFinite(expected) || expected < 1) {
+                showStatus("Expected ack count must be at least 1.", "danger");
+                return;
+            }
+            if (!confirm("Mark review complete and move to pending acknowledgments?")) return;
             btn.disabled = true;
             try {
-                const data = await postJson(btn.dataset.url);
-                showStatus(data.message || "Review started.", "success");
+                const data = await postJson(btn.dataset.url, { expected_ack_count: expected });
+                showStatus(data.message || "Review complete.", "success");
                 window.location.reload();
             } catch (err) {
                 showStatus(err.message, "danger");
@@ -183,30 +306,14 @@
         });
     });
 
-    document.querySelectorAll(".btn-mark-filed").forEach((btn) => {
+    document.querySelectorAll(".btn-complete-reject").forEach((btn) => {
         btn.addEventListener("click", async () => {
-            const expectedRaw = prompt(
-                "Expected acknowledgment count (federal + state forms):",
-                "1"
-            );
-            if (expectedRaw === null) return;
-            const expected = parseInt(expectedRaw, 10);
-            if (!Number.isFinite(expected) || expected < 1) {
-                showStatus("Expected ack count must be at least 1.", "danger");
-                return;
-            }
-            if (!confirm("Mark this return as filed in Drake?")) return;
+            if (!confirm("Return this assignment to pending acknowledgments?")) return;
             btn.disabled = true;
-            const row = btn.closest("tr");
-            const notesEl = row?.querySelector(".review-notes");
-            const notes = notesEl ? notesEl.value : "";
             try {
-                const data = await postJson(btn.dataset.url, {
-                    notes,
-                    expected_ack_count: expected,
-                });
-                showStatus(data.message || "Marked filed.", "success");
-                row?.remove();
+                const data = await postJson(btn.dataset.url, {});
+                showStatus(data.message || "Review complete.", "success");
+                window.location.reload();
             } catch (err) {
                 showStatus(err.message, "danger");
                 btn.disabled = false;
@@ -214,17 +321,76 @@
         });
     });
 
-    let notesTimer = null;
-    document.querySelectorAll(".review-notes").forEach((textarea) => {
-        textarea.addEventListener("input", () => {
-            clearTimeout(notesTimer);
-            notesTimer = setTimeout(async () => {
-                try {
-                    await postJson(textarea.dataset.url, { notes: textarea.value });
-                } catch (_err) {
-                    /* silent autosave failure */
-                }
-            }, 800);
+    document.querySelectorAll(".btn-force-complete").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const note = prompt("Force completion note (required):");
+            if (note === null) return;
+            if (!note.trim()) {
+                showStatus("A note is required for force completion.", "danger");
+                return;
+            }
+            if (!confirm("Force complete and file despite reject acks?")) return;
+            btn.disabled = true;
+            try {
+                const data = await postJson(btn.dataset.url, { note: note.trim() });
+                showStatus(data.message || "Force completed.", "success");
+                window.location.reload();
+            } catch (err) {
+                showStatus(err.message, "danger");
+                btn.disabled = false;
+            }
+        });
+    });
+
+    document.querySelectorAll(".btn-paper-file").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+            const formType = prompt("Form type (e.g. 1040, CA540):", "1040");
+            if (formType === null) return;
+            if (!formType.trim()) {
+                showStatus("Form type is required.", "danger");
+                return;
+            }
+            const jurisdictionRaw = prompt("Jurisdiction (federal or state):", "federal");
+            if (jurisdictionRaw === null) return;
+            const jurisdiction = jurisdictionRaw.trim().toLowerCase();
+            if (!["federal", "state"].includes(jurisdiction)) {
+                showStatus("Jurisdiction must be federal or state.", "danger");
+                return;
+            }
+            const mailedByRaw = prompt("Mailed by (firm or client):", "firm");
+            if (mailedByRaw === null) return;
+            const mailedBy = mailedByRaw.trim().toLowerCase();
+            if (!["firm", "client"].includes(mailedBy)) {
+                showStatus("Mailed by must be firm or client.", "danger");
+                return;
+            }
+            const sentDate = prompt("Date sent (YYYY-MM-DD):");
+            if (sentDate === null) return;
+            if (!sentDate.trim()) {
+                showStatus("Mail date is required.", "danger");
+                return;
+            }
+            const tracking = prompt("Tracking number (optional):", "") || "";
+            const notes = prompt("Notes (optional):", "") || "";
+            if (!confirm("Record paper filing and create synthetic ack rows?")) return;
+            btn.disabled = true;
+            try {
+                const data = await postJson(btn.dataset.url, {
+                    filings: [{
+                        jurisdiction,
+                        form_type: formType.trim(),
+                        mailed_by: mailedBy,
+                        sent_date: sentDate.trim(),
+                        tracking: tracking.trim(),
+                        notes: notes.trim(),
+                    }],
+                });
+                showStatus(data.message || "Paper filing recorded.", "success");
+                window.location.reload();
+            } catch (err) {
+                showStatus(err.message, "danger");
+                btn.disabled = false;
+            }
         });
     });
 })();

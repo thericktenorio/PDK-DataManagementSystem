@@ -9,9 +9,18 @@ ANALYTICS_ACCESS_ROLES = frozenset({
     "developer",
 })
 
+AGENT_ACCESS_ROLES = frozenset({
+    "owner",
+    "developer",
+})
+
 
 def user_can_access_analytics(user) -> bool:
     return user.is_authenticated and getattr(user, "role", None) in ANALYTICS_ACCESS_ROLES
+
+
+def user_can_access_agent(user) -> bool:
+    return user.is_authenticated and getattr(user, "role", None) in AGENT_ACCESS_ROLES
 
 
 def analytics_access_required(view_func):
@@ -20,6 +29,17 @@ def analytics_access_required(view_func):
     def wrapper(request, *args, **kwargs):
         if not user_can_access_analytics(request.user):
             return HttpResponseForbidden("You do not have access to analytics.")
+        return view_func(request, *args, **kwargs)
+
+    return wrapper
+
+
+def agent_access_required(view_func):
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not user_can_access_agent(request.user):
+            return HttpResponseForbidden("You do not have access to the analytics agent.")
         return view_func(request, *args, **kwargs)
 
     return wrapper

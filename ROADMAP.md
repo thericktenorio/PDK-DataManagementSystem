@@ -146,6 +146,8 @@ Implemented: lifecycle status per PA row, `validate_pa_ready_for_clearing`, comp
 
 **Exit criteria:** Path A works for at least one template; path B still available; both paths end at `CLEARING_COMPLETE`.
 
+**Resume / backlog:** `docs/PARSER_ROADMAP.md`, `docs/PATH_A_TESTING.md`, `docs/PATH_A_PDF_UPLOAD.md`.
+
 ---
 
 ## Phase 5 — Parser quality & speed (in progress)
@@ -153,6 +155,8 @@ Implemented: lifecycle status per PA row, `validate_pa_ready_for_clearing`, comp
 **Goal:** Sub-5s for text-native PDFs; hybrid extraction behind same API contract.
 
 **Started:** `docs/PARSER_EXTRACTION.md`, extraction schema + `message_ready` gate, optional BILL OCR (`OCR_EXTRACT_BILL`), DRAKE template catalog seed, `ExtractedField` lineage per job, corpus benchmark test.
+
+**Resume / backlog:** `docs/PARSER_ROADMAP.md` (Phase 5.4–5.6, corpus tests, Path A validation).
 
 | Step | Action |
 |------|--------|
@@ -168,6 +172,8 @@ Implemented: lifecycle status per PA row, `validate_pa_ready_for_clearing`, comp
 ---
 
 ## Phase 6 — Billing (QBO)
+
+**Status:** Code + tests implemented; formal ✅ pending MVP trial sign-off. Full workflow spec: **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`** (W1).
 
 **Goal:** Clearing complete triggers billing; paid invoice advances lifecycle.
 
@@ -187,6 +193,8 @@ Implemented: lifecycle status per PA row, `validate_pa_ready_for_clearing`, comp
 
 ## Phase 7 — Review
 
+**Status:** Two-table queue shipped (`READY_FOR_REVIEW`, `IN_REVIEW`); **four-table review model** (Ready / Pending acks / Reject correction / Filed) planned in **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`** (W2).
+
 **Goal:** Human-in-the-loop after payment; gate before ack upload.
 
 | Step | Action |
@@ -198,7 +206,7 @@ Implemented: lifecycle status per PA row, `validate_pa_ready_for_clearing`, comp
 | 7.5 | Replace empty `review/review.html` stub with functional queue |
 | 7.6 | Optional: in-app notifications when PA enters review queue |
 
-**Exit criteria:** Reviewer can process paid assignment through filing; PA reaches `FILED`.
+**Exit criteria:** Reviewer can process paid assignment through filing; PA reaches `FILED`. Four-table UI, parser ack hint prefill, force complete, and paper file — see **`docs/REVIEW.md`** and **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`** (W2, W5).
 
 ---
 
@@ -206,7 +214,7 @@ Implemented: lifecycle status per PA row, `validate_pa_ready_for_clearing`, comp
 
 **Goal:** Post-filing ack upload, reconcile to PA, reject code workflow.
 
-Implemented: lifecycle-gated ack matching (`FILED`/`ACK_RECONCILING`/`PENDING_REJECT_CORRECTION`), `expected_ack_count` at filing, auto-transitions (`ACK_RECONCILING` → `CLOSED` / `PENDING_REJECT_CORRECTION`), expanded form taxonomy, clearing ack badges, unmatched staging banner, `ACK_ALLOW_AUTO_CREATE_PA` flag (default off). **Remaining:** 8.6 — remove required `Acknowledgment.product` FK once PA linkage is proven in prod.
+Implemented: lifecycle-gated ack matching (`FILED`/`ACK_RECONCILING`/`PENDING_REJECT_CORRECTION`), `expected_ack_count` at filing, auto-transitions (`ACK_RECONCILING` → `CLOSED` / `PENDING_REJECT_CORRECTION`), expanded form taxonomy, clearing ack badges, unmatched staging banner, `ACK_ALLOW_AUTO_CREATE_PA` flag (default off). **Remaining:** 8.6 — remove required `Acknowledgment.product` FK once PA linkage is proven in prod; expand matching to `READY_FOR_REVIEW` safety net + Drake MEF parser — see **`docs/ACKNOWLEDGMENTS.md`** and **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`** (W3).
 
 | Step | Action |
 |------|--------|
@@ -219,6 +227,8 @@ Implemented: lifecycle-gated ack matching (`FILED`/`ACK_RECONCILING`/`PENDING_RE
 | 8.7 | UI: PA detail shows ack status at a glance |
 
 **Exit criteria:** Full ack lifecycle after filing; reject path sets `PENDING_REJECT_CORRECTION`.
+
+**Remaining workflow work (cross-phase):** ~~parser ack hints~~ ✅; optional HTMX row moves (W2.6), fuller review columns, deprecate `Acknowledgment.product` FK — see **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`**.
 
 ---
 
@@ -234,13 +244,15 @@ Implemented: lifecycle-gated ack matching (`FILED`/`ACK_RECONCILING`/`PENDING_RE
 |------|--------|--------|
 | 9.1 | ✅ | Provision `analytics` PostgreSQL (separate from CRM and parser) |
 | 9.2 | ✅ | Star schema: `dim_*`, `fact_*`, `etl_run` / watermarks |
-| 9.3 | ✅ | ETL: `manage.py sync_analytics_warehouse` (+ incremental) |
+| 9.3 | ✅ | ETL: `manage.py sync_analytics_warehouse` (+ incremental); includes `tp_comp_date` on assignment facts |
 | 9.4 | ✅ | `analytics_etl` Compose worker (tune interval via env) |
 | 9.5 | **Deferred** | Executive BI (Power BI or Python) on `analytics` only — **read-only** role; no ops DB |
 | 9.6 | ✅ | In-app analytics module (warehouse reads only) |
 | 9.7 | ✅ | Snapshot semantics in `docs/ANALYTICS.md` |
 
 **Exit criteria (met for ops path):** In-app reports and ETL use `analytics` only; no heavy analytics on `tax_operations`. Executive BI hookup is an explicit follow-on, not a blocker.
+
+**Return-level analytics (next):** Comparison, return profile, async parser Track 2, shareholder agent — phased in **`docs/ANALYTICS_ROADMAP.md`** with technical spec **`docs/RETURN_ANALYTICS.md`** (phases A1–A5; Phase 9.1b parser facts).
 
 ### ETL shows zero rows?
 

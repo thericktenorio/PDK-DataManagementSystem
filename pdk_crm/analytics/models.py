@@ -144,6 +144,11 @@ class FactAssignment(models.Model):
     ack_accepted_count = models.PositiveSmallIntegerField(default=0)
     ack_rejected_count = models.PositiveSmallIntegerField(default=0)
     expected_ack_count = models.PositiveSmallIntegerField(null=True, blank=True)
+    tp_comp_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Sunday after latest compensating ack (Pacific); computed on ETL sync.",
+    )
 
     has_parser_snapshot = models.BooleanField(default=False)
     parser_federal_amount = models.CharField(max_length=64, blank=True, default="")
@@ -199,6 +204,30 @@ class FactAck(models.Model):
 
     def __str__(self):
         return f"Ack {self.source_ack_id} ({self.status})"
+
+
+class AgentQueryAudit(models.Model):
+    """Audit log for Track C agent SQL (analytics DB only)."""
+
+    class Status(models.TextChoices):
+        SUCCESS = "SUCCESS", "Success"
+        FAILED = "FAILED", "Failed"
+
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    user_email = models.CharField(max_length=254, blank=True, default="")
+    user_role = models.CharField(max_length=50, blank=True, default="")
+    question = models.TextField(blank=True, default="")
+    sql_hash = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    sql_text = models.TextField(blank=True, default="")
+    row_count = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.SUCCESS)
+    error_message = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Agent query {self.created_at:%Y-%m-%d %H:%M} ({self.status})"
 
 
 class FactLifecycleEvent(models.Model):

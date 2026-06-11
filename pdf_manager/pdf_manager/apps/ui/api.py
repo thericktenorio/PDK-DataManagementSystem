@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import tempfile
 from collections.abc import Iterable
@@ -133,6 +134,10 @@ def _ui_status(status_enum: str) -> str:
         return "done"
     if s == "FAILED":
         return "error"
+    if s == "CANCELLED":
+        return "cancelled"
+    if s == "APPLIED":
+        return "applied"
     return s.lower() or "processing"
 
 
@@ -388,7 +393,10 @@ def job_status_api(request, job_id):
         "updated_at": job.updated_at.isoformat(),
     }
 
-    if detail and job.status == ParseJob.Status.SUCCESS:
+    if detail and job.status in (
+        ParseJob.Status.SUCCESS,
+        ParseJob.Status.APPLIED,
+    ):
         payload.update(_detail_payload_from_job(job))
 
     return JsonResponse(payload)
@@ -415,7 +423,7 @@ def job_output_api(request, job_id):
     except ParseJob.DoesNotExist as err:
         raise Http404("Job not found") from err
 
-    if job.status != ParseJob.Status.SUCCESS:
+    if job.status not in (ParseJob.Status.SUCCESS, ParseJob.Status.APPLIED):
         return HttpResponseBadRequest("Job not completed")
 
     if job.output_pdf_path and os.path.exists(job.output_pdf_path):
@@ -442,7 +450,7 @@ def job_outputs_api(request, job_id):
     except ParseJob.DoesNotExist as err:
         raise Http404("Job not found") from err
 
-    if job.status != ParseJob.Status.SUCCESS:
+    if job.status not in (ParseJob.Status.SUCCESS, ParseJob.Status.APPLIED):
         return HttpResponseBadRequest("Job not completed")
 
     paths = _job_output_files(job)
@@ -482,3 +490,50 @@ def job_outputs_api(request, job_id):
     )
     response["Content-Type"] = "application/zip"
     return response
+
+
+@require_http_methods(["POST"])
+def job_disposition_api(request, job_id):
+    """
+    Path A: mark a successful parse job CANCELLED (conflict modal) or APPLIED (committed to PA).
+    """
+    if ParseJob is None:
+        return HttpResponseBadRequest("Job disposition unavailable without DB job tracking.")
+
+    try:
+        body = json.loads(request.body or "{}")
+    except ValueError:
+        return JsonResponse({"status": "error", "error": "Invalid JSON body."}, status=400)
+
+    new_status = (body.get("status") or "").upper()
+    allowed = {ParseJob.Status.CANCELLED, ParseJob.Status.APPLIED}
+    if new_status not in allowed:
+        return JsonResponse(
+            {"status": "error", "error": "status must be CANCELLED or APPLIED."},
+            status=400,
+        )
+
+    try:
+        job = ParseJob.objects.get(job_uuid=job_id)
+    except ParseJob.DoesNotExist as err:
+        raise Http404("Job not found") from err
+
+    if job.status != ParseJob.Status.SUCCESS:
+        return JsonResponse(
+            {
+                "status": "error",
+                "error": f"Job status {job.status} cannot transition to {new_status}.",
+            },
+            status=409,
+        )
+
+    job.status = new_status
+    job.save(update_fields=["status", "updated_at"])
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "job_id": str(job.job_uuid),
+            "disposition": _ui_status(job.status),
+        }
+    )

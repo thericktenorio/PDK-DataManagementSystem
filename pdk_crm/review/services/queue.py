@@ -1,6 +1,9 @@
 from django.utils import timezone
 
-from core.workflows.lifecycle import cmd_mark_filed, cmd_start_review
+from core.workflows.lifecycle import (
+    cmd_mark_filed,
+    cmd_start_ack_reconciling,
+)
 
 from review.models import ReviewEntry
 
@@ -10,18 +13,7 @@ def ensure_review_entry(pa) -> ReviewEntry:
     return entry
 
 
-def start_review_for_pa(*, pa_id: int, actor):
-    pa = cmd_start_review(pa_id=pa_id, actor=actor)
-    entry = ensure_review_entry(pa)
-    now = timezone.now()
-    entry.assigned_reviewer = actor
-    if entry.review_started_at is None:
-        entry.review_started_at = now
-    entry.save(update_fields=["assigned_reviewer", "review_started_at", "updated_at"])
-    return pa, entry
-
-
-def mark_filed_for_pa(
+def complete_review_for_pa(
     *,
     pa_id: int,
     actor,
@@ -40,6 +32,20 @@ def mark_filed_for_pa(
     entry.filed_at = now
     entry.filed_by = actor
     entry.save(update_fields=["notes", "filed_at", "filed_by", "updated_at"])
+    return pa, entry
+
+
+def complete_reject_correction_for_pa(
+    *,
+    pa_id: int,
+    actor,
+    notes: str | None = None,
+):
+    pa = cmd_start_ack_reconciling(pa_id=pa_id, actor=actor)
+    entry = ensure_review_entry(pa)
+    if notes is not None:
+        entry.notes = notes
+        entry.save(update_fields=["notes", "updated_at"])
     return pa, entry
 
 

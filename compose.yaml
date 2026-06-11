@@ -52,8 +52,8 @@ services:
       ANALYTICS_DB_HOST: analytics_db
       ANALYTICS_DB_PORT: "5432"
       ANALYTICS_ETL_INTERVAL_SECONDS: "1800"
-      # Parser path A: CRM container reaches pdf_web on the Compose network (not localhost:8001)
-      PDF_MANAGER_BASE_URL: "http://pdf_web:8000"
+      # Parser path A: use pdfmgr alias (RFC-valid hostname; pdf_web has underscore)
+      PDF_MANAGER_BASE_URL: "http://pdfmgr:8000"
       # Phase 10.MVP: auto-seed demo org/users on first boot (see docs/MVP_TRIAL.md)
       SEED_MVP_DEMO: "true"
       MVP_DEMO_PASSWORD: "demo-mvp"
@@ -138,7 +138,6 @@ services:
       ANALYTICS_DB_PASSWORD: analyticspw
       ANALYTICS_DB_HOST: analytics_db
       ANALYTICS_DB_PORT: "5432"
-      ANALYTICS_ETL_INTERVAL_SECONDS: "1800"
     depends_on:
       crm_db:
         condition: service_healthy
@@ -153,7 +152,19 @@ services:
         python manage.py sync_analytics_warehouse --full || true
         while true; do
           python manage.py sync_analytics_warehouse || true
-          sleep ${ANALYTICS_ETL_INTERVAL_SECONDS:-1800}
+          now_min=$$(date +%M)
+          now_sec=$$(date +%S)
+          now_min=$$((10#$$now_min))
+          now_sec=$$((10#$$now_sec))
+          if [ "$$now_min" -lt 30 ]; then
+            wait_sec=$$(( (30 - $$now_min) * 60 - $$now_sec ))
+          else
+            wait_sec=$$(( (60 - $$now_min) * 60 - $$now_sec ))
+          fi
+          if [ "$$wait_sec" -lt 60 ]; then
+            wait_sec=$$(( $$wait_sec + 1800 ))
+          fi
+          sleep "$$wait_sec"
         done
     volumes:
       - crm_media:/app/media
@@ -197,7 +208,8 @@ services:
     environment:
       # Django
       DJANGO_DEBUG: "1"
-      DJANGO_ALLOWED_HOSTS: "localhost, 127.0.0.1"
+      # pdfmgr: Compose network alias for CRM → parser (underscore in pdf_web is invalid HTTP Host)
+      DJANGO_ALLOWED_HOSTS: "localhost,127.0.0.1,pdfmgr"
       DJANGO_CSRF_TRUSTED_ORIGINS: "http://localhost:8001,http://127.0.0.1:8001"
       
       # IMPORTANT: force Postgres for pdf_manager in the unified stack
@@ -219,7 +231,11 @@ services:
       OCR_EXTRACT_BILL: "0"
     volumes:
       - pdf_data:/home/app/data
-    
+    networks:
+      default:
+        aliases:
+          - pdfmgr
+
 volumes:
   crm_pgdata:
   analytics_pgdata:

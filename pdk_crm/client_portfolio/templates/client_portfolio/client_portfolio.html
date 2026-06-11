@@ -17,90 +17,196 @@
                 margin-inline: 10px;
             }
 
-            .actions-cell {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 3px;
-                padding: 0;
-                margin: 0;
-                height: 100%;
-                width: 100%;
-                line-height: 1;
-                background-color: transparent;
-            
-                vertical-align: middle;
-
-                flex-wrap: nowrap;        /* prevent wrapping unless absolutely necessary */              
+            .client-portfolio-page .portfolio-toolbar-btn {
+                border: 2px solid rgba(255, 255, 255, 0.38) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+                    0 4px 14px rgba(0, 0, 0, 0.14);
+                font-weight: 600;
             }
 
-            .actions-cell .btn {
-                padding: 2px 6px;
-                font-size: 0.75rem;
-                line-height: 1;
-                height: 28px;          /* tightly constrain to line height */
-                display: flex;
-                align-items: center;
-                justify-content: center;
-
-                white-space: nowrap;      /* prevent button text wrapping */
+            .client-portfolio-page .portfolio-toolbar-btn:hover,
+            .client-portfolio-page .portfolio-toolbar-btn:focus-visible {
+                border-color: rgba(255, 255, 255, 0.52) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+                    0 6px 18px rgba(0, 0, 0, 0.18);
             }
 
-            .table-container{
-                display: flex;
-                flex-direction: column;
-                max-height: 800px;  /* adjust table height here */
-                border: 3px solid gray;
+            .table-container {
+                display: block;
                 border-radius: 20px;
                 overflow: hidden;
             }
 
-            .table-header {
-                flex-shrink: 0; /* keeps header fixed */
-                background-color: dark;
-                color: dark;
+            .client-portfolio-page .table-scroll {
+                max-height: min(800px, calc(100dvh - 18rem));
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
-            .table-body {
-                flex-grow: 1; /* allows body to scroll */
-                overflow-y: auto;
+            .client-portfolio-page .table-scroll thead th {
+                position: sticky;
+                top: 0;
+                z-index: 2;
+                font-weight: 600;
+                letter-spacing: 0.2px;
             }
 
-            .table-body table {
+            .client-portfolio-table {
+                table-layout: fixed;
+                width: 100%;
                 margin: 0;
                 border-collapse: collapse;
+                font-size: 0.70rem;
+                line-height: 1;
             }
 
-            th, td {
+            .client-portfolio-page .client-portfolio-table th,
+            .client-portfolio-page .client-portfolio-table td {
                 text-align: center;
-                padding: 8px;
+                padding: 4px 6px;
+                vertical-align: middle;
+                white-space: nowrap;
+            }
+
+            .client-portfolio-page .client-portfolio-table th:not(.actions-cell),
+            .client-portfolio-page .client-portfolio-table td:not(.actions-cell) {
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .client-portfolio-page .client-portfolio-table .actions-cell {
+                overflow: visible;
+                text-overflow: clip;
+                min-width: 180px;
+                width: 180px;
+            }
+
+            .client-portfolio-table.table-hover > tbody > tr {
+                transition: background-color 0.16s ease, box-shadow 0.16s ease;
+            }
+
+            .client-portfolio-table.table-hover > tbody > tr:hover > * {
+                --bs-table-accent-bg: rgba(255, 255, 255, 0.2) !important;
+                background-color: rgba(255, 255, 255, 0.2) !important;
+                color: #ffffff !important;
+            }
+
+            .client-portfolio-table .form-select,
+            .client-portfolio-table .form-select:focus {
+                color: #ffffff !important;
+                background-color: rgba(255, 255, 255, 0.1) !important;
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.32) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+                    0 2px 8px rgba(0, 0, 0, 0.1);
+                font-weight: 500;
+                transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+            }
+
+            .client-portfolio-table .form-select:hover {
+                background-color: rgba(255, 255, 255, 0.14) !important;
+                border-color: rgba(255, 255, 255, 0.4) !important;
+            }
+
+            .client-portfolio-table .form-select:focus {
+                background-color: rgba(255, 255, 255, 0.16) !important;
+                border-color: rgba(255, 255, 255, 0.48) !important;
+                box-shadow:
+                    0 0 0 0.15rem rgba(255, 255, 255, 0.12),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+            }
+
+            .client-portfolio-table .form-select {
+                font-size: 0.78rem;
+                padding: 2px 1.75rem 2px 6px;
+                height: 28px;
+                background-position: right 0.4rem center;
+                background-size: 10px 8px;
+            }
+
+            .client-portfolio-table .form-select.form-select-sm {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                text-align: left;
+                text-align-last: left;
+            }
+
+            .client-portfolio-page .btn-dark {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.1) !important;
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 1px solid rgba(255, 255, 255, 0.32) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+                    0 2px 8px rgba(0, 0, 0, 0.1);
+                transition: transform 0.12s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+            }
+
+            .client-portfolio-page .btn-dark:hover,
+            .client-portfolio-page .btn-dark:focus-visible {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.2) !important;
+                border-color: rgba(255, 255, 255, 0.48) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+                    0 4px 12px rgba(0, 0, 0, 0.14);
+            }
+
+            .client-portfolio-actions-toolbar {
+                display: inline-flex;
+                flex-wrap: nowrap;
+                align-items: center;
+                justify-content: center;
+                gap: 0.15rem;
                 vertical-align: middle;
             }
 
-            select.editable {
-                height: 30px;
-                padding-top: 0;
-                padding-bottom: 0;
-                margin-top: 0;
-                margin-bottom: 0;
-                font-size: 0.85rem;
-                line-height: 1.2;
+            .client-portfolio-actions-toolbar .btn {
+                padding: 2px 6px;
+                font-size: 0.75rem;
+                line-height: 1;
+                height: 28px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                white-space: nowrap;
+                flex-shrink: 0;
+            }
+
+            @media (orientation: portrait) {
+                .client-portfolio-page .client-portfolio-table {
+                    min-width: 720px;
+                }
             }
         </style>
-    <!-- Table -->
-        <h2 class = "text-center">Client Portfolio</h2>
+    <div class="app-page client-portfolio-page">
+        <h1 class="app-page-title">Client Portfolio</h1>
         
         <div class = "button-container">
-            <button type = "button" class = "btn btn-primary" id = "addClientBtn">Add Client</button>
-            <button type = "button" class = "btn btn-primary" id = "importClientsBtn">Import Clients</button>
+            <button type = "button" class = "btn btn-primary portfolio-toolbar-btn" id = "addClientBtn">Add Client</button>
+            <button type = "button" class = "btn btn-primary portfolio-toolbar-btn" id = "importClientsBtn">Import Clients</button>
             <input type = "file" id = "clientFileInput" accept = ".xls, .xlsx, .xlsm, .csv" style = "display: none;">
         </div>
 
         <div class = "container mt-3 mb-3">
             <div class = "table-container">
-
-                <div class = "table-header">
-                    <table class = "table table-dark table-striped text-center align-middle" style = "table-layout: fixed; width: 100%;" >
+                <div class = "table-scroll">
+                    <table class = "table table-dark table-striped table-hover text-center align-middle client-portfolio-table">
+                        <colgroup>
+                            <col style = "width: 6%;">
+                            <col style = "width: 12%;">
+                            <col style = "width: 18%;">
+                            <col style = "width: 22%;">
+                            <col style = "width: 12%;">
+                            <col style = "width: 15%;">
+                            <col style = "width: 180px;">
+                        </colgroup>
                         <thead>
                             <tr>
                                 <th scope = "col" class = "text-center align-middle">ID</th>
@@ -109,24 +215,18 @@
                                 <th scope = "col" class = "text-center align-middle">Email</th>
                                 <th scope = "col" class = "text-center align-middle">Phone</th>
                                 <th scope = "col" class = "text-center align-middle">Prior Filing Type</th>
-                                <th scope = "col" class = "text-center align-middle">Actions</th>
+                                <th scope = "col" class = "text-center align-middle actions-cell">Actions</th>
                             </tr>
                         </thead>
-
-                    </table>
-                </div>
-
-                <div class = "table-body">
-                    <table class = "table table-dark table-striped table-hover text-center align-middle" style = "table-layout: fixed; width: 100%;">
                         <tbody class = "table-group-divider">
                             {% if clients %}
                                 {% for client in clients %}
                                     <tr data-client-id = "{{ client.id }}">
                                         <td data-field = "id" class = "text-center align-middle">{{ client.id }}</td>
-                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "TIN">{{ client.TIN }}</td>
-                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "name">{{ client.name }}</td>
-                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "email">{{ client.email }}</td>
-                                        <td contenteditable = "true" class = "editable text-center align: middle" data-field = "phone">{{ client.phone }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align-middle" data-field = "TIN">{{ client.TIN }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align-middle" data-field = "name">{{ client.name }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align-middle" data-field = "email">{{ client.email }}</td>
+                                        <td contenteditable = "true" class = "editable text-center align-middle" data-field = "phone">{{ client.phone }}</td>
                                         <td class = "text-center align-middle">
                                             <select class = "form-select form-select-sm editable" data-field = "prior_filing_type">
                                                 <option value = '' {% if client.prior_filing_type == '' %} selected {% endif %}></option>
@@ -138,14 +238,16 @@
                                             </select>
                                         </td>
                                         <td class = "actions-cell text-center align-middle">
-                                            <button type = "button" class = "btn btn-dark infoBtn">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
-                                                </svg>
-                                            </button>
-                                            <button type = "button" class = "btn btn-dark saveClientBtn">Save</button>
-                                            <button type = "button" class = "btn btn-dark deleteClientBtn">Delete</button>
+                                            <div class = "client-portfolio-actions-toolbar">
+                                                <button type = "button" class = "btn btn-dark infoBtn">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-info-circle" viewBox="0 0 16 16">
+                                                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                        <path d="m8.93 6.588-2.29.287-.082.38.45.083c.294.07.352.176.288.469l-.738 3.468c-.194.897.105 1.319.808 1.319.545 0 1.178-.252 1.465-.598l.088-.416c-.2.176-.492.246-.686.246-.275 0-.375-.193-.304-.533zM9 4.5a1 1 0 1 1-2 0 1 1 0 0 1 2 0"/>
+                                                    </svg>
+                                                </button>
+                                                <button type = "button" class = "btn btn-dark saveClientBtn">Save</button>
+                                                <button type = "button" class = "btn btn-dark deleteClientBtn">Delete</button>
+                                            </div>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -155,12 +257,32 @@
                 </div>
             </div>
         </div>
+    </div>
     {% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    
+    const URL_DELETE_CLIENT_TEMPLATE = "{% url 'client_portfolio:delete_client' 0 %}";
+
+    function urlForClientId(templateUrl, clientId) {
+        return templateUrl.replace(/\/0\/?$/, `/${clientId}/`).replace(/\/0\//, `/${clientId}/`);
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+            for (const cookie of document.cookie.split(";")) {
+                const trimmed = cookie.trim();
+                if (trimmed.startsWith(name + "=")) {
+                    cookieValue = decodeURIComponent(trimmed.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
     // ========== ADD CLIENT BUTTON ==========
     document.addEventListener("DOMContentLoaded", function () {
             
@@ -255,18 +377,19 @@
     document.addEventListener("DOMContentLoaded", function () {
 
         function deleteClient(event) {
-            const button = event.target;
-            const row = button.closest('tr');
-            const clientId = row.getAttribute('data-client-id');
-            const clientName = row.querySelector('[data-field="name"]').textContent.trim();
+            const button = event.target.closest(".deleteClientBtn");
+            if (!button) return;
+            const row = button.closest("tr");
+            const clientId = row?.getAttribute("data-client-id");
+            const clientName = row?.querySelector('[data-field="name"]')?.textContent?.trim() || "this client";
 
             if (!clientId) return;
 
             if (confirm(`Are you sure you want to delete ${clientName} (ID: ${clientId})?`)) {
-                axios.delete(`client_portfolio:delete_client/${clientId}/`, {
+                axios.delete(urlForClientId(URL_DELETE_CLIENT_TEMPLATE, clientId), {
                     headers: {
-                        "X-CSRFToken": "{{ csrf_token }}",
-                    }
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
                 })
                 .then(response => {
                     if (response.data.status === "success") {
@@ -278,7 +401,8 @@
                 })
                 .catch(error => {
                     console.error("Error:", error);
-                    alert("An error occurred while deleting the client.");
+                    const msg = error?.response?.data?.message || error?.response?.data?.error;
+                    alert(msg || "An error occurred while deleting the client.");
                 });
             }
         }

@@ -6,5 +6,6 @@ app_name = "analytics"
 
 
 urlpatterns = [
-    path('', views.analytics, name = 'analytics'),
+    path('', views.analytics, name='analytics'),
+    path('ask/', views.analytics_ask, name='analytics_ask'),
 ]

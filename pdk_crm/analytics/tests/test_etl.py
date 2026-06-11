@@ -130,3 +130,30 @@ class AnalyticsEtlTests(TransactionTestCase):
         self.assertEqual(actual, Decimal("200.00"))
         self.assertIsNotNone(paid_at)
         self.assertEqual(gap, Decimal("0.00"))
+
+    def test_etl_includes_tp_comp_date_when_all_acks_accepted(self):
+        import datetime
+
+        from core.models import Acknowledgment
+        from core.workflows.lifecycle import cmd_mark_filed, cmd_mark_ready_for_review
+
+        pa = self._make_pa()
+        cmd_mark_ready_for_review(pa_id=pa.id)
+        cmd_mark_filed(pa_id=pa.id, expected_ack_count=1)
+        Acknowledgment.objects.create(
+            product_assignment=pa,
+            product=self.product,
+            tax_season=self.season,
+            type="1040",
+            status=Acknowledgment.STATUS_ACCEPTED,
+            date=datetime.date(2025, 11, 7),
+            year=2098,
+            client_tin="123456789",
+            client_name="Analytics Test Client",
+        )
+
+        run = run_analytics_etl(full=True)
+        self.assertEqual(run.status, EtlRun.Status.SUCCESS)
+
+        fact = FactAssignment.objects.using("analytics").get(source_pa_id=pa.id)
+        self.assertEqual(fact.tp_comp_date, datetime.date(2025, 11, 9))

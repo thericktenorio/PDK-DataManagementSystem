@@ -4,7 +4,8 @@
 {% block title %}Analytics{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
+<div class="app-page">
+<div class="container-fluid app-page-body pb-4">
     <div class="d-flex flex-wrap justify-content-between align-items-start mb-4 gap-3">
         <div>
             <h1 class="h3 mb-1">Operations analytics</h1>
@@ -135,5 +136,133 @@
     </div>
     {% endwith %}
     {% endif %}
+
+    {% if agent_access %}
+    <div class="card mt-4" id="analyticsAgentPanel">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Shareholder agent{% if not agent_enabled %} <span class="badge bg-secondary">disabled</span>{% endif %}</span>
+            <span class="small text-muted">Owner / developer · warehouse only</span>
+        </div>
+        <div class="card-body">
+            {% if agent_enabled %}
+            <p class="small text-muted mb-3" id="agentCoverageNote">
+                Ask natural-language questions about operations KPIs. Return-level metrics appear when Track 2 ETL is populated.
+                Path B (manual clearing) rows are ops-only and excluded from parsed-return coverage.
+            </p>
+            <form id="agentAskForm" class="mb-3">
+                <label for="agentQuestion" class="form-label small">Question</label>
+                <textarea id="agentQuestion" class="form-control mb-2" rows="2" maxlength="2000"
+                    placeholder="e.g. What is the average expected fee by payment method this season?"></textarea>
+                <button type="submit" class="btn btn-primary btn-sm" id="agentAskBtn">Ask</button>
+            </form>
+            <div id="agentError" class="alert alert-danger d-none small" role="alert"></div>
+            <div id="agentResult" class="d-none">
+                <p class="mb-2" id="agentAnswer"></p>
+                <p class="small text-muted mb-2" id="agentMeta"></p>
+                <div class="mb-3" style="max-height: 280px;">
+                    <canvas id="agentChart" height="200"></canvas>
+                </div>
+                <details class="small">
+                    <summary>SQL (read-only, audited)</summary>
+                    <pre class="bg-dark text-light p-2 rounded mt-2 mb-0" id="agentSql"></pre>
+                </details>
+            </div>
+            {% else %}
+            <p class="text-muted mb-0 small">
+                Set <code>AGENT_ENABLED=true</code> and <code>AGENT_LLM_*</code> on the server to enable.
+                See <code>docs/AGENT_SETUP.md</code>.
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if agent_access and agent_enabled %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+    const form = document.getElementById("agentAskForm");
+    const btn = document.getElementById("agentAskBtn");
+    const errEl = document.getElementById("agentError");
+    const resultEl = document.getElementById("agentResult");
+    let chartInstance = null;
+
+    function renderChart(spec, columns, rows) {
+        const canvas = document.getElementById("agentChart");
+        if (!canvas || !spec || !columns.length || !rows.length) {
+            if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+            canvas?.parentElement?.classList.add("d-none");
+            return;
+        }
+        const labelCol = spec.label_column;
+        const valueCol = spec.value_column;
+        const li = columns.indexOf(labelCol);
+        const vi = columns.indexOf(valueCol);
+        if (li < 0 || vi < 0) {
+            canvas.parentElement.classList.add("d-none");
+            return;
+        }
+        canvas.parentElement.classList.remove("d-none");
+        const labels = rows.map(r => String(r[li]));
+        const values = rows.map(r => Number(r[vi]));
+        if (chartInstance) chartInstance.destroy();
+        chartInstance = new Chart(canvas, {
+            type: spec.type || "bar",
+            data: {
+                labels,
+                datasets: [{
+                    label: spec.title || valueCol,
+                    data: values,
+                }],
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+            },
+        });
+    }
+
+    form?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const question = document.getElementById("agentQuestion")?.value?.trim();
+        if (!question) return;
+        errEl?.classList.add("d-none");
+        if (btn) btn.disabled = true;
+        try {
+            const res = await fetch("{% url 'analytics:analytics_ask' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}",
+                },
+                body: JSON.stringify({ question }),
+            });
+            const data = await res.json();
+            if (!res.ok || data.status !== "success") {
+                throw new Error(data.message || "Agent request failed.");
+            }
+            document.getElementById("agentAnswer").textContent = data.answer || "";
+            const meta = [];
+            if (data.coverage_note) meta.push(data.coverage_note);
+            if (data.etl_as_of) meta.push("ETL as of " + data.etl_as_of);
+            document.getElementById("agentMeta").textContent = meta.join(" · ");
+            document.getElementById("agentSql").textContent = data.sql || "";
+            renderChart(data.chart, data.columns || [], data.rows || []);
+            resultEl?.classList.remove("d-none");
+        } catch (err) {
+            if (errEl) {
+                errEl.textContent = err.message || "Agent request failed.";
+                errEl.classList.remove("d-none");
+            }
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

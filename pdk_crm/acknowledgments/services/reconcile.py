@@ -19,11 +19,13 @@ from core.models import (
 )
 from core.workflows.lifecycle import (
     cmd_close,
+    cmd_mark_filed,
     cmd_set_pending_reject_correction,
     cmd_start_ack_reconciling,
 )
 
 ACK_ELIGIBLE_LIFECYCLE_STATES = frozenset({
+    LifecycleState.READY_FOR_REVIEW,
     LifecycleState.FILED,
     LifecycleState.ACK_RECONCILING,
     LifecycleState.PENDING_REJECT_CORRECTION,
@@ -49,6 +51,15 @@ def normalize_ack_status(raw: str) -> str:
 
 def is_accepted_status(status: str) -> bool:
     return normalize_ack_status(status) == Acknowledgment.STATUS_ACCEPTED
+
+
+def is_compensating_ack_status(status: str) -> bool:
+    """Statuses that count as A for TP Comp Dt (accepted + paper-filed)."""
+    normalized = normalize_ack_status(status)
+    return normalized in {
+        Acknowledgment.STATUS_ACCEPTED,
+        Acknowledgment.STATUS_PAPER_FILED,
+    }
 
 
 def is_rejected_status(status: str) -> bool:
@@ -110,7 +121,7 @@ def evaluate_pa_lifecycle_after_ack_change(*, pa_id: int, actor=None) -> Product
     if len(acks) < expected:
         return pa
 
-    if not all(is_accepted_status(a.status) for a in acks):
+    if not all(is_compensating_ack_status(a.status) for a in acks):
         return pa
 
     if state in {LifecycleState.ACK_RECONCILING, LifecycleState.FILED}:
@@ -122,6 +133,14 @@ def _ensure_ack_reconciling_started(*, pa: ProductAssignment, actor=None) -> Pro
     if pa.lifecycle_state == LifecycleState.FILED:
         return cmd_start_ack_reconciling(pa_id=pa.id, actor=actor)
     return pa
+
+
+def advance_pa_for_ack_safety_net(*, pa: ProductAssignment, actor=None) -> ProductAssignment:
+    """Auto-complete review when an ack matches a PA still in READY_FOR_REVIEW."""
+    if pa.lifecycle_state != LifecycleState.READY_FOR_REVIEW:
+        return pa
+    expected = pa.expected_ack_count if pa.expected_ack_count and pa.expected_ack_count >= 1 else 1
+    return cmd_mark_filed(pa_id=pa.id, actor=actor, expected_ack_count=expected)
 
 
 def _attach_ack_to_pa(
@@ -136,7 +155,13 @@ def _attach_ack_to_pa(
     tax_season: TaxSeason,
     product: Product,
     actor=None,
+    submission_id: str = "",
+    reject_code: str = "",
+    reject_reason: str = "",
 ) -> tuple[Acknowledgment, bool]:
+    pa = advance_pa_for_ack_safety_net(pa=pa, actor=actor)
+    pa.refresh_from_db()
+
     normalized_status = normalize_ack_status(ack_status)
     ack_obj, created = Acknowledgment.objects.update_or_create(
         product_assignment=pa,
@@ -149,6 +174,9 @@ def _attach_ack_to_pa(
             "status": normalized_status,
             "tax_season": tax_season,
             "product": product,
+            "submission_id": (submission_id or "").strip() or None,
+            "reject_code": (reject_code or "").strip() or None,
+            "reject_reason": (reject_reason or "").strip() or None,
         },
     )
     pa = _ensure_ack_reconciling_started(pa=pa, actor=actor)
@@ -168,6 +196,9 @@ def _process_single_record(
     ack_date = rec.get("date")
     ack_status = (rec.get("status") or "").strip()
     client_name = (rec.get("client_name") or "").strip()
+    submission_id = (rec.get("submission_id") or "").strip()
+    reject_code = (rec.get("reject_code") or "").strip()
+    reject_reason = (rec.get("reject_reason") or "").strip()
 
     client = Client.objects.filter(TIN=tin).first()
     if not client:
@@ -178,6 +209,9 @@ def _process_single_record(
             type=form_type,
             date=ack_date,
             status=normalize_ack_status(ack_status),
+            submission_id=submission_id or None,
+            reject_code=reject_code or None,
+            reject_reason=reject_reason or None,
             match_state=AckStaging.MATCH_CLIENT_NOT_FOUND,
             reason="Client TIN not found.",
             suggested_tax_season_year=active_season.year,
@@ -202,6 +236,9 @@ def _process_single_record(
             type=form_type,
             date=ack_date,
             status=normalize_ack_status(ack_status),
+            submission_id=submission_id or None,
+            reject_code=reject_code or None,
+            reject_reason=reject_reason or None,
             match_state=match_state,
             reason=map_error,
             suggested_tax_season_year=active_season.year,
@@ -218,6 +255,9 @@ def _process_single_record(
             type=form_type,
             date=ack_date,
             status=normalize_ack_status(ack_status),
+            submission_id=submission_id or None,
+            reject_code=reject_code or None,
+            reject_reason=reject_reason or None,
             match_state=AckStaging.MATCH_UNMATCHED,
             reason=UNMATCHED_CLEARING_HINT,
             suggested_tax_season_year=active_season.year,
@@ -234,6 +274,9 @@ def _process_single_record(
             type=form_type,
             date=ack_date,
             status=normalize_ack_status(ack_status),
+            submission_id=submission_id or None,
+            reject_code=reject_code or None,
+            reject_reason=reject_reason or None,
             match_state=AckStaging.MATCH_UNMATCHED,
             reason=UNMATCHED_CLEARING_HINT,
             suggested_tax_season_year=active_season.year,
@@ -263,6 +306,9 @@ def _process_single_record(
             tax_season=active_season,
             product=product,
             actor=actor,
+            submission_id=submission_id,
+            reject_code=reject_code,
+            reject_reason=reject_reason,
         )
         return {"kind": "matched", "created": created}
 
@@ -274,6 +320,9 @@ def _process_single_record(
             type=form_type,
             date=ack_date,
             status=normalize_ack_status(ack_status),
+            submission_id=submission_id or None,
+            reject_code=reject_code or None,
+            reject_reason=reject_reason or None,
             match_state=AckStaging.MATCH_UNMATCHED,
             reason=UNMATCHED_CLEARING_HINT,
             suggested_tax_season_year=active_season.year,
@@ -288,6 +337,9 @@ def _process_single_record(
         type=form_type,
         date=ack_date,
         status=normalize_ack_status(ack_status),
+        submission_id=submission_id or None,
+        reject_code=reject_code or None,
+        reject_reason=reject_reason or None,
         match_state=AckStaging.MATCH_AMBIGUOUS,
         reason=f"Multiple matching filed ProductAssignments found ({count}).",
         suggested_tax_season_year=active_season.year,

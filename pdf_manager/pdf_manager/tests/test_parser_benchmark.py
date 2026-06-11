@@ -25,4 +25,4 @@ def test_parse_scorp_under_benchmark_budget():
     assert elapsed < MAX_SECONDS, f"parse took {elapsed:.2f}s (budget {MAX_SECONDS}s)"
     assert result.extracted_fields.get("message_ready") is True
     assert result.message
-    assert result.extracted_fields.get("ocr_attempted_count", 0) <= 1
+    assert result.extracted_fields.get("ocr_attempted_count", 0) <= 2

@@ -81,6 +81,18 @@ ANALYTICS_ENABLED = os.getenv("ANALYTICS_ENABLED", "False").strip().lower() in (
 )
 ANALYTICS_ETL_INTERVAL_SECONDS = int(os.getenv("ANALYTICS_ETL_INTERVAL_SECONDS", "1800"))
 
+# Track C: shareholder analytics agent (OpenAI gpt-4o-mini; analytics warehouse only)
+AGENT_ENABLED = os.getenv("AGENT_ENABLED", "False").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
+AGENT_LLM_API_KEY = os.getenv("AGENT_LLM_API_KEY", "").strip()
+AGENT_LLM_BASE_URL = os.getenv("AGENT_LLM_BASE_URL", "https://api.openai.com/v1").strip()
+AGENT_LLM_MODEL = os.getenv("AGENT_LLM_MODEL", "gpt-4o-mini").strip()
+AGENT_LLM_TIMEOUT_SECONDS = int(os.getenv("AGENT_LLM_TIMEOUT_SECONDS", "60"))
+
 
 
 # SECURITY WARNING: Keep secret key used in production vaulted
@@ -191,6 +203,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.AppBackgroundMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -208,6 +221,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'core.context_processors.nav_apps',
+                'core.context_processors.app_background',
             ],
         },
     },
@@ -282,6 +296,9 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
+
+# Pacific calendar for TP Comp Dt only; audit timestamps remain UTC.
+FIRM_TIME_ZONE = "America/Los_Angeles"
 
 USE_I18N = True
 

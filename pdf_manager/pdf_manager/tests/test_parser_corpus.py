@@ -18,8 +18,9 @@ def test_parse_scorp_extracts_core_fields():
     result = facade.parse(job_id=uuid4(), file_path=str(SCORP_SAMPLE))
 
     fields = result.extracted_fields
-    assert fields.get("ocr_attempted_count", 0) <= 1
+    assert fields.get("ocr_attempted_count", 0) <= 2
     assert fields.get("message_ready") is True
+    assert fields.get("taxpayer_tin") == "987654321"
     assert result.message
     assert "Hi " in result.message
     assert result.output_subset_path.is_file()

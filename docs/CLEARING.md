@@ -2,7 +2,7 @@
 
 Clearing is where staff finalize client data, compose the client message, and mark a `ProductAssignment` ready for billing/review.
 
-See also: `docs/LIFECYCLE.md`, `ROADMAP.md` (Phases 3–4).
+See also: `docs/LIFECYCLE.md`, `docs/PARSER_ROADMAP.md`, `docs/PARSER_EXTRACTION.md`, `docs/PATH_A_TESTING.md`, `docs/PATH_A_PDF_UPLOAD.md`, `ROADMAP.md` (Phases 3–5).
 
 ---
 
@@ -22,7 +22,7 @@ See `docs/INTAKE.md` for intake creation rules. Helpers: `core.utils.get_or_crea
 | | Path A (parser) | Path B (manual) |
 |---|-----------------|-----------------|
 | **When** | Phase 4+ | Phase 3 (go-live first) |
-| **Input** | Upload PDF in clearing | Staff edits fields by hand |
+| **Input** | Upload PDF (per-row or header **Upload Tax PDF** — see `PATH_A_PDF_UPLOAD.md`) | Staff edits fields by hand |
 | **Output** | Auto-filled entry, generated message, sorted/signature PDFs | Manual message; optional attachments |
 | **Failure** | Retry or fall back to path B | N/A |
 | **End state** | `CLEARING_COMPLETE` | `CLEARING_COMPLETE` |
@@ -79,7 +79,27 @@ See `docs/BILLING.md`.
 
 ---
 
-## Parser integration (Path A preview)
+## Post-clearing status columns
+
+After payment, the clearing row shows read-only progress columns (implementation in progress):
+
+| Column | Meaning |
+|--------|---------|
+| Pmt Status | Invoice / payment state (implemented) |
+| Rev Status | Review stage |
+| Fed Status / St Status | Federal / state ack aggregate (`A` / `R` / pending) |
+| Fed Dt / St Dt | Ack or paper-file dates |
+| TP Comp Dt | Sunday **after** latest `A` ack when all expected acks are `A` (Pacific; hover: date + PST/PDT) |
+
+**TP Comp Dt:** Proprietary — Sunday **after** latest `A` ack (all expected acks must be `A`). Pacific time; hover shows `PST`/`PDT`. Spec: **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`** (W4).
+
+**Timezone:** `FIRM_TIME_ZONE = America/Los_Angeles` for TP Comp Dt only; Django `TIME_ZONE` stays UTC for audit timestamps.
+
+---
+
+## Parser integration (Path A)
+
+**Dev status:** `docs/PARSER_ROADMAP.md`. **Testing:** `docs/PATH_A_TESTING.md`. **Global upload:** `docs/PATH_A_PDF_UPLOAD.md`. **Fields:** `docs/PARSER_EXTRACTION.md`.
 
 CRM stores on the PA (Phase 1.7):
 

@@ -18,7 +18,14 @@ from core.models import (
     FilingType,
 )
 from core.forms import ClientForm
-from core.utils import get_valid_tax_years, enforce_pa_not_frozen_for_action, get_active_tax_season
+from core.utils import (
+    DUPLICATE_ACTIVE_PA_MESSAGE,
+    INTAKE_PRODUCT_ASSIGNMENT_ORDERING,
+    active_product_assignment_conflict,
+    enforce_pa_not_frozen_for_action,
+    get_active_tax_season,
+    get_valid_tax_years,
+)
 from intake.services.enrollment import enroll_client_in_intake, NoActiveTaxSeasonError
 
 import json
@@ -98,9 +105,13 @@ def intake(request):
 
         for intake_row in active_intakes:
             client = intake_row.client
-            product_assignments = client.product_assignments.select_related(
-                "product", "tax_year", "filing_type"
-            ).filter(intake=intake_row, is_active=True)
+            product_assignments = (
+                client.product_assignments.select_related(
+                    "product", "tax_year", "filing_type"
+                )
+                .filter(intake=intake_row, is_active=True)
+                .order_by(*INTAKE_PRODUCT_ASSIGNMENT_ORDERING)
+            )
 
             _ensure_pa_defaults(
                 product_assignments,
@@ -310,6 +321,21 @@ def add_product_assignment(request):
             defaults={"is_product_active": False},
         )
 
+        if active_product_assignment_conflict(
+            client=client,
+            intake=intake,
+            tax_year=tax_year,
+            product=product,
+        ):
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "code": "DUPLICATE_PA",
+                    "message": DUPLICATE_ACTIVE_PA_MESSAGE,
+                },
+                status=409,
+            )
+
         product_assignment, _ = ProductAssignment.objects.create_product_assignment(
             client=client,
             intake=intake,
@@ -370,6 +396,15 @@ def remove_product_assignment(request):
 
         product_assignment.is_active = False
         product_assignment.save()
+
+        from clearing.services.global_parse import _reconcile_orphan_daily_clearing
+
+        tax_season = (
+            product_assignment.intake.tax_season
+            if product_assignment.intake_id
+            else None
+        )
+        _reconcile_orphan_daily_clearing(product_assignment.client, tax_season)
 
         return JsonResponse({"status": "success"})
 

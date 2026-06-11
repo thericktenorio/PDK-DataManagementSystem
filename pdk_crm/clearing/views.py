@@ -21,11 +21,15 @@ from core.models import (
     LifecycleState,
 )
 from core.utils import (
+    DUPLICATE_ACTIVE_PA_MESSAGE,
+    INTAKE_PRODUCT_ASSIGNMENT_ORDERING,
     get_valid_tax_years,
+    get_active_tax_season,
     get_or_create_intake,
     get_or_create_product_assignment,
     get_or_create_appointment,
     enforce_pa_not_frozen_for_action,
+    pick_product_for_new_active_assignment,
 )
 from core.workflows.lifecycle import (
     cmd_enter_clearing,
@@ -37,16 +41,21 @@ from core.workflows.lifecycle import (
     is_qbo_payment_method,
 )
 
+from acknowledgments.selectors import build_clearing_status_columns
+
 from billing.selectors import pa_billing_context
 from billing.services.post_clearing import on_clearing_completed
-
-from acknowledgments.selectors import build_pa_ack_summaries
 
 from accounts.models import InternalUser
 
 from clearing.services.parse_upload import ParseUploadError, apply_parser_pdf
 from clearing.services.parser_outputs import parser_downloads_payload
 from clearing.services.pdf_manager_client import PDFManagerClient, PDFManagerError
+from clearing.services.enrollment import activate_client_in_clearing
+from clearing.services.global_parse import GlobalParseError, commit_global_upload, preview_global_upload
+
+from core.forms import ClientForm
+from intake.services.enrollment import enroll_client_in_intake, NoActiveTaxSeasonError
 
 import json
 
@@ -95,7 +104,9 @@ def clearing(request):
                 "product", "tax_year", "filing_type", "preparer", "appointment",
                 "invoice_link__invoice",
             )
+            .prefetch_related("acknowledgments")
             .filter(intake__tax_season=clearing_row.tax_season, is_active=True)
+            .order_by(*INTAKE_PRODUCT_ASSIGNMENT_ORDERING)
         )
 
         for pa in product_assignments:
@@ -128,6 +139,7 @@ def clearing(request):
             pa.appointment = get_or_create_appointment(pa)
             pa.is_row_locked = is_pa_locked_for_editing(pa)
             pa.billing_context = pa_billing_context(pa)
+            pa.clearing_status = build_clearing_status_columns(pa)
 
         client.product_assignments_list = product_assignments
         client.first_product_assignment = (
@@ -135,14 +147,8 @@ def clearing(request):
         )
         clients.append(client)
 
-    pa_ids = []
     for client in clients:
         for pa in client.product_assignments_list:
-            pa_ids.append(pa.id)
-    ack_summaries = build_pa_ack_summaries(pa_ids)
-    for client in clients:
-        for pa in client.product_assignments_list:
-            pa.ack_summary = ack_summaries.get(pa.id, {})
             pa.parser_downloads = parser_downloads_payload(pa)
 
     valid_tax_years = get_valid_tax_years()
@@ -165,7 +171,6 @@ def clearing(request):
             "payment_method_options": PAYMENT_METHOD_CHOICES,
             "appointment_type_options": APPOINTMENT_TYPE_CHOICES,
             "preparer_options": PREPARER_OPTIONS,
-            "lifecycle_state_choices": LifecycleState.choices,
             "feature_parser_path_a": getattr(settings, "FEATURE_PARSER_PATH_A", False),
         },
     )
@@ -205,6 +210,44 @@ def search_clients(request):
 
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@require_POST
+@login_required
+def create_new_client(request):
+    try:
+        form = ClientForm(json.loads(request.body))
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON payload."}, status=400)
+
+    if not form.is_valid():
+        return JsonResponse({"status": "error", "errors": form.errors}, status=400)
+
+    client = form.save()
+
+    try:
+        enroll_client_in_intake(client)
+        activate_client_in_clearing(client, actor=request.user)
+    except NoActiveTaxSeasonError as exc:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": (
+                    f"{client.name} was created but could not be added to "
+                    f"clearing and intake: {exc}"
+                ),
+                "client_id": client.id,
+            },
+            status=400,
+        )
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "message": f"{client.name} created and added to clearing and intake.",
+            "client_id": client.id,
+        }
+    )
 
 
 @require_POST
@@ -305,7 +348,18 @@ def add_product_assignment(request):
             )
         client = get_object_or_404(Client, id=client_id)
 
-        intake = Intake.objects.filter(client=client, is_active=True).first()
+        current_tax_season = get_active_tax_season()
+        if not current_tax_season:
+            return JsonResponse(
+                {"status": "error", "message": "No active tax season found."},
+                status=400,
+            )
+
+        intake = Intake.objects.filter(
+            client=client,
+            tax_season=current_tax_season,
+            is_active=True,
+        ).first()
         if not intake:
             return JsonResponse(
                 {"status": "error", "message": "Active intake not found."}, status=404
@@ -319,11 +373,21 @@ def add_product_assignment(request):
         filing_type, _ = FilingType.objects.get_or_create(
             filing_type=FilingType.FILING_TYPE_DEFAULT
         )
-        product, _ = Product.objects.get_or_create(
+
+        product = pick_product_for_new_active_assignment(
+            client=client,
+            intake=intake,
             tax_year=tax_year,
-            product_type=Product.PRODUCT_TYPE_DEFAULT,
-            defaults={"is_product_active": False},
         )
+        if product is None:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "code": "DUPLICATE_PA",
+                    "message": DUPLICATE_ACTIVE_PA_MESSAGE,
+                },
+                status=409,
+            )
 
         product_assignment, _ = ProductAssignment.objects.create_product_assignment(
             client=client,
@@ -410,6 +474,10 @@ def remove_product_assignment(request):
 
         pa.is_active = False
         pa.save()
+
+        from clearing.services.global_parse import _reconcile_orphan_daily_clearing
+
+        _reconcile_orphan_daily_clearing(pa.client, pa.intake.tax_season if pa.intake_id else None)
 
         return JsonResponse({"status": "success"})
 
@@ -547,18 +615,105 @@ def client_message(request, pa_id):
     )
 
 
+def _parser_path_a_disabled_response():
+    return JsonResponse(
+        {
+            "status": "error",
+            "code": "PARSER_DISABLED",
+            "message": "Parser upload is disabled.",
+        },
+        status=403,
+    )
+
+
+@require_POST
+@login_required
+def parse_pdf_global_preview(request):
+    if not getattr(settings, "FEATURE_PARSER_PATH_A", False):
+        return _parser_path_a_disabled_response()
+
+    if "file" not in request.FILES:
+        return JsonResponse(
+            {"status": "error", "message": "No PDF file provided."},
+            status=400,
+        )
+
+    uploaded = request.FILES["file"]
+    if not (uploaded.name or "").lower().endswith(".pdf"):
+        return JsonResponse(
+            {"status": "error", "message": "Only PDF files are allowed."},
+            status=400,
+        )
+
+    try:
+        payload = preview_global_upload(uploaded)
+    except GlobalParseError as exc:
+        return JsonResponse(
+            {
+                "status": "error",
+                "code": "PARSE_FAILED",
+                "message": str(exc),
+            },
+            status=400,
+        )
+
+    return JsonResponse(payload)
+
+
+@require_POST
+@login_required
+def parse_pdf_global_commit(request):
+    if not getattr(settings, "FEATURE_PARSER_PATH_A", False):
+        return _parser_path_a_disabled_response()
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"status": "error", "message": "Invalid JSON payload."},
+            status=400,
+        )
+
+    parse_job_uuid = data.get("parse_job_uuid")
+    action = data.get("action")
+    if not parse_job_uuid or not action:
+        return JsonResponse(
+            {"status": "error", "message": "parse_job_uuid and action are required."},
+            status=400,
+        )
+
+    try:
+        payload = commit_global_upload(
+            parse_job_uuid=str(parse_job_uuid),
+            action=str(action),
+            actor=request.user,
+            client_id=data.get("client_id"),
+            pa_id=data.get("pa_id") or data.get("product_assignment_id"),
+            filing_type_id=data.get("filing_type_id"),
+            product_id=data.get("product_id"),
+            tax_year=data.get("tax_year"),
+        )
+    except GlobalParseError as exc:
+        message = str(exc)
+        code = "REPLACE_BLOCKED" if "already completed clearing" in message else "COMMIT_FAILED"
+        status = 409 if code == "REPLACE_BLOCKED" else 400
+        return JsonResponse(
+            {
+                "status": "error",
+                "code": code,
+                "message": message,
+            },
+            status=status,
+        )
+
+    return JsonResponse(payload)
+
+
 @require_POST
 @login_required
 def parse_pdf_upload(request, pa_id):
     if not getattr(settings, "FEATURE_PARSER_PATH_A", False):
-        return JsonResponse(
-            {
-                "status": "error",
-                "code": "PARSER_DISABLED",
-                "message": "Parser upload is disabled.",
-            },
-            status=403,
-        )
+        return _parser_path_a_disabled_response()
 
     pa = get_object_or_404(ProductAssignment, id=pa_id)
 

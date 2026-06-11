@@ -9,14 +9,24 @@ app_name = "review"
 urlpatterns = [
     path("", views.review, name="review"),
     path(
-        "product-assignments/<int:pa_id>/start/",
-        views.start_review,
-        name="start_review",
+        "product-assignments/<int:pa_id>/complete-review/",
+        views.complete_review,
+        name="complete_review",
     ),
     path(
-        "product-assignments/<int:pa_id>/mark-filed/",
-        views.mark_filed,
-        name="mark_filed",
+        "product-assignments/<int:pa_id>/complete-reject-correction/",
+        views.complete_reject_correction,
+        name="complete_reject_correction",
+    ),
+    path(
+        "product-assignments/<int:pa_id>/force-complete/",
+        views.force_complete_review,
+        name="force_complete_review",
+    ),
+    path(
+        "product-assignments/<int:pa_id>/paper-filing/",
+        views.paper_filing,
+        name="paper_filing",
     ),
     path(
         "product-assignments/<int:pa_id>/notes/",

@@ -26,7 +26,9 @@ from typing import Any
 
 from django.conf import settings
 
+from pdf_manager.apps.parser.ack_hints import apply_ack_hints
 from pdf_manager.apps.parser.drake_registry import load_drake_registry
+from pdf_manager.apps.parser.enrollment_signals import build_enrollment_signals
 from pdf_manager.apps.parser.extraction_schema import finalize_extracted_fields
 from pdf_manager.apps.parser.ocr.ocr_engine import OCREngine, build_ocr_config_from_settings
 from pdf_manager.apps.parser.strategies.field_extraction_base import FieldExtractionStrategy
@@ -112,6 +114,28 @@ STATE_NAME_TO_CODE = {
     "District of Columbia": "DC",
 }
 
+_AGENCY_REMITTANCE_MARKERS = (
+    "internal revenue service",
+    "franchise tax board",
+    "department of the treasury",
+    "department of revenue",
+)
+
+_MONTH_NAME_PATTERN = re.compile(
+    r"\b("
+    r"January|February|March|April|May|June|July|August|September|October|November|December"
+    r"|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_FIRM_HEADER_MARKERS = (
+    "pdk entrust",
+    "info@",
+    "phone:",
+    "fax:",
+)
+
 
 # --------------------------------
 # ----- OUTLINE BASE HELPERS -----
@@ -148,6 +172,83 @@ def _is_client_letter_page(tp: TaggedPage) -> bool:
 
 def _is_bill_page(tp: TaggedPage) -> bool:
     return _page_role(tp) == "extract_bill"
+
+
+def _is_tpg_fee_page(tp: TaggedPage) -> bool:
+    return _page_role(tp) == "extract_tpg_fee"
+
+
+def _is_diagnostic_invoice_page(tp: TaggedPage) -> bool:
+    return _page_role(tp) == "extract_diagnostic_invoice"
+
+
+def _is_bill_fee_page(tp: TaggedPage) -> bool:
+    return _page_role(tp) == "extract_bill_fee"
+
+
+def _is_tin_comparison_page(tp: TaggedPage) -> bool:
+    return _page_role(tp) == "extract_tin_comparison"
+
+
+def _is_bank_deposit_page(tp: TaggedPage) -> bool:
+    """DD_PMT / Account Transaction Summary — customer refund deposit details."""
+    title = (getattr(tp.outline, "title", "") or "")
+    upper = title.upper()
+    if "DD_PMT" in upper:
+        return True
+    return title.strip().lower() == "account transaction summary"
+
+
+def _extract_customer_bank_from_dd_pmt(text: str) -> dict[str, Any]:
+    """
+    Parse taxpayer bank name and account last-4 from Drake DD_PMT / bank product pages.
+    Prefers the block after 'customer's chosen bank account' (not the TPG routing account).
+    """
+    out: dict[str, Any] = {}
+    if not text or not text.strip():
+        return out
+
+    section = text
+    lower = text.lower()
+    marker = "customer's chosen bank account"
+    idx = lower.find(marker)
+    if idx != -1:
+        section = text[idx:]
+    else:
+        acct2 = lower.find("account #2")
+        if acct2 != -1:
+            section = text[acct2:]
+
+    inst_match = re.search(
+        r"Financial\s+Institution\s*\n\s*([^\n]+?)\s*\n\s*Routing\s+Transit\s+Number",
+        section,
+        re.IGNORECASE,
+    )
+    acct_match = re.search(
+        r"Account\s+Number\s*\n\s*([0-9X*]+)",
+        section,
+        re.IGNORECASE,
+    )
+
+    if inst_match:
+        bank = inst_match.group(1).strip()
+        if bank and "green dot" not in bank.lower():
+            out["bank_name"] = bank
+
+    if acct_match:
+        digits = re.sub(r"\D", "", acct_match.group(1))
+        if len(digits) >= 4:
+            out["last_4_of_account"] = digits[-4:]
+
+    return out
+
+
+def _is_tin_1040_page(tp: TaggedPage) -> bool:
+    """First Form 1040 page (outline title exactly ``1040``) — packet stays form_federal."""
+    if _page_role(tp) != "form_federal":
+        return False
+    title = (tp.outline.title or "") if tp.outline else ""
+    return title.strip() == "1040"
 
 
 def _parser_debug_enabled() -> bool:
@@ -331,83 +432,66 @@ def _extract_summary_table(source: str) -> tuple[float | None, list[dict[str, An
     return federal_amount_val, states
 
 
-def _extract_name_and_address_from_client_letter(source: str) -> dict[str, Any]:
-    """
-    Given the text of the client letter (or equivalent summary page),
-    attempt to extract:
-      - taxpayer_full_name
-      - taxpayer_first_name
-      - mailing_address_line1
-      - mailing_city
-      - mailing_state
-      - mailing_zip
-      - mailing_address (full address)
-
-    Drake-style heuristic:
-      - Firm header address is usually at the very top.
-      - Taxpayer name/address block appears later on the same page.
-      - On the FIRST client-letter page, if there are multiple CITY/ST/ZIP
-        lines, the LAST one is typically the taxpayer address.
-    """
-    result: dict[str, Any] = {}
-    lines = [ln.strip() for ln in source.splitlines() if ln.strip()]
-
-    if not lines:
-        return result
-
-    # Collect all CITY/ST/ZIP candidates on this page
-    candidates: list[tuple[int, re.Match[str]]] = []
+def _client_letter_date_line_index(lines: list[str]) -> int:
     for idx, line in enumerate(lines):
-        m = CITY_STATE_ZIP_RE.match(line)
-        if m:
-            candidates.append((idx, m))
+        if _MONTH_NAME_PATTERN.search(line):
+            return idx
+        if re.search(r"\bBelow is a summary\b", line, re.IGNORECASE):
+            return idx
+    return 0
 
-    if not candidates:
-        return result
 
-    # Prefer the LAST candidate on the page (taxpayer block),
-    # so we skip the firm header address when present.
-    chosen_idx, chosen_match = candidates[-1]
+def _is_agency_remittance_block(lines: list[str], city_line_idx: int) -> bool:
+    start = max(city_line_idx - 3, 0)
+    block = "\n".join(lines[start : city_line_idx + 1]).lower()
+    return any(marker in block for marker in _AGENCY_REMITTANCE_MARKERS)
 
-    # City, state, zip
-    city = chosen_match.group("city").strip()
-    state = chosen_match.group("state").strip()
-    zip_code = chosen_match.group("zip").strip()
 
-    result["mailing_city"] = city
-    result["mailing_state"] = state
-    result["mailing_zip"] = zip_code
+def _name_line_for_address(lines: list[str], city_line_idx: int) -> str | None:
+    if city_line_idx < 2:
+        return None
+    name_line = lines[city_line_idx - 2].strip()
+    if name_line.endswith(":"):
+        if city_line_idx >= 3:
+            name_line = lines[city_line_idx - 3].strip()
+        else:
+            return None
+    if not name_line or any(marker in name_line.lower() for marker in _FIRM_HEADER_MARKERS):
+        return None
+    return name_line
 
-    # Street line (just above city, state, zip)
-    street: str | None = None
-    if chosen_idx >= 1:
-        street = lines[chosen_idx - 1].strip()
-        if street:
-            result["mailing_address_line1"] = street
 
-    # Name line (two lines above city, state, zip)
-    if chosen_idx >= 2:
-        name_line = lines[chosen_idx - 2].strip()
-        # full name: preserve casing / normalize to title for display
-        full_name = name_line.title()
-        result["taxpayer_full_name"] = full_name
+def _looks_like_entity_name(name_line: str) -> bool:
+    from pdf_manager.apps.parser.extraction_schema import looks_like_entity_name
 
-        # primary taxpayer first name heuristic
+    return looks_like_entity_name(name_line)
+
+
+def _populate_name_fields(result: dict[str, Any], name_line: str, *, street: str | None, city: str, state: str, zip_code: str) -> None:
+    full_name = name_line.title()
+    result["taxpayer_full_name"] = full_name
+
+    if _looks_like_entity_name(name_line):
+        result["taxpayer_first_name"] = full_name
+        result["taxpayer_is_entity"] = True
+    else:
         primary_segment = name_line
         if "&" in name_line:
             primary_segment = name_line.split("&", 1)[0].strip()
         elif " and " in name_line.lower():
-            primary_segment = re.split(
-                r"\band\b",
-                name_line,
-                flags=re.IGNORECASE,
-            )[0].strip()
+            primary_segment = re.split(r"\band\b", name_line, flags=re.IGNORECASE)[0].strip()
 
         tokens = primary_segment.split()
         if tokens:
             result["taxpayer_first_name"] = tokens[0].title()
 
-    # combined / full mailing address (on 1 line)
+    if street:
+        result["mailing_address_line1"] = street
+
+    result["mailing_city"] = city
+    result["mailing_state"] = state
+    result["mailing_zip"] = zip_code
+
     address_parts = []
     if street:
         address_parts.append(street)
@@ -417,7 +501,254 @@ def _extract_name_and_address_from_client_letter(source: str) -> dict[str, Any]:
     if address_parts:
         result["mailing_address"] = ", ".join(address_parts)
 
+
+def _extract_name_and_address_from_client_letter(source: str) -> dict[str, Any]:
+    """
+    Extract taxpayer name/address from Client Letter OCR text.
+
+    Uses the first post-date CITY/ST/ZIP block, skipping firm header and
+    tax-agency remittance addresses (IRS / FTB PO boxes).
+    """
+    result: dict[str, Any] = {}
+    lines = [ln.strip() for ln in source.splitlines() if ln.strip()]
+
+    if not lines:
+        return result
+
+    candidates: list[tuple[int, re.Match[str]]] = []
+    for idx, line in enumerate(lines):
+        m = CITY_STATE_ZIP_RE.match(line)
+        if m:
+            candidates.append((idx, m))
+
+    if not candidates:
+        return result
+
+    date_line_idx = _client_letter_date_line_index(lines)
+
+    for chosen_idx, chosen_match in candidates:
+        if chosen_idx < date_line_idx:
+            continue
+        if _is_agency_remittance_block(lines, chosen_idx):
+            continue
+
+        name_line = _name_line_for_address(lines, chosen_idx)
+        if not name_line:
+            continue
+
+        street = lines[chosen_idx - 1].strip() if chosen_idx >= 1 else None
+        _populate_name_fields(
+            result,
+            name_line,
+            street=street,
+            city=chosen_match.group("city").strip(),
+            state=chosen_match.group("state").strip(),
+            zip_code=chosen_match.group("zip").strip(),
+        )
+        break
+
     return result
+
+
+def _extract_name_from_embedded_fallback(text: str, *, source: str) -> dict[str, Any]:
+    """Fast fallback from Drake Notes or FILEINST embedded text."""
+    result: dict[str, Any] = {}
+    name_line: str | None = None
+    if source == "fileinst":
+        match = re.search(
+            r"Filing Instructions\s+(.+?)(?:\n|Form filed:)",
+            text,
+            re.IGNORECASE,
+        )
+        if match:
+            name_line = match.group(1).strip()
+    elif source == "notes":
+        match = re.search(
+            r"Name\(s\)\s+as\s+shown\s+on\s+return[^\n]*\n(?:[^\n]*\n){0,3}([A-Z][A-Z0-9 &'\-]+)",
+            text,
+            re.IGNORECASE,
+        )
+        if match:
+            name_line = match.group(1).strip()
+
+    if not name_line or any(m in name_line.lower() for m in _AGENCY_REMITTANCE_MARKERS):
+        return result
+
+    full_name = name_line.title()
+    result["taxpayer_full_name"] = full_name
+    if _looks_like_entity_name(name_line):
+        result["taxpayer_first_name"] = full_name
+        result["taxpayer_is_entity"] = True
+    else:
+        primary_segment = name_line.split("&", 1)[0].strip() if "&" in name_line else name_line
+        tokens = primary_segment.split()
+        if tokens:
+            result["taxpayer_first_name"] = tokens[0].title()
+    return result
+
+
+def _parse_currency_amount(raw: str) -> float | None:
+    cleaned = raw.replace("$", "").replace(",", "").strip()
+    if not cleaned:
+        return None
+    try:
+        return float(cleaned)
+    except ValueError:
+        return None
+
+
+def _extract_tpg_info_fee(text: str) -> float | None:
+    match = re.search(r"PDK\s+ENTRUST\s*\n\s*([\d,]+\.\d{2})", text, re.IGNORECASE)
+    if match:
+        return _parse_currency_amount(match.group(1))
+    return None
+
+
+def _extract_diagnostic_invoice_fee(text: str) -> float | None:
+    if "Invoice" not in text:
+        return None
+
+    lines = [ln.strip() for ln in text.splitlines()]
+    preparer_idx = next((i for i, line in enumerate(lines) if line.startswith("Preparer")), None)
+    if preparer_idx is not None:
+        for line in lines[preparer_idx + 1 : preparer_idx + 15]:
+            amount_match = re.match(r"^\$?\s*([\d,]+\.\d{2})\s*$", line)
+            if amount_match:
+                return _parse_currency_amount(amount_match.group(1))
+
+    dollar_matches = re.findall(r"^\s*\$([\d,]+\.\d{2})\s*$", text, re.MULTILINE)
+    if len(dollar_matches) == 1:
+        return _parse_currency_amount(dollar_matches[0])
+    return None
+
+
+def _extract_bill_page2_fee(text: str) -> float | None:
+    for pattern in (
+        r"(?:Total\s+Balance\s+Due|(?:Lo\s+)?Fotal\s+Balance\s+Due|Forms\s+Subtotal)"
+        r"[^\d\n]*([\d,]+\.\d{2})",
+        r"Payment due upon receipt[^\d]*([\d,]+\.\d{2})",
+    ):
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            amount = _parse_currency_amount(match.group(1))
+            if amount is not None:
+                return amount
+    return None
+
+
+_TIN_SSN_RE = re.compile(r"\b(\d{3})-(\d{2})-(\d{4})\b")
+_TIN_EIN_RE = re.compile(r"\b(\d{2})-(\d{7})\b")
+
+
+def _normalize_tin_value(raw: str) -> str | None:
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) == 9 and digits.isdigit():
+        return digits
+    return None
+
+
+def _first_tin_in_text(text: str, *, start: int = 0) -> str | None:
+    for pattern in (_TIN_SSN_RE, _TIN_EIN_RE):
+        match = pattern.search(text, start)
+        if match:
+            normalized = _normalize_tin_value(match.group(0))
+            if normalized:
+                return normalized
+    return None
+
+
+def _extract_tin_from_diagnostic(text: str) -> str | None:
+    """Primary taxpayer TIN from Diagnostic Summary (SSN or entity EIN)."""
+    ein_match = re.search(
+        r"Employer\s+Identification\s*#?\s*(?:\n[^\n]*){0,2}\n\s*(\d{2}-\d{7})\b",
+        text,
+        re.IGNORECASE,
+    )
+    if ein_match:
+        return _normalize_tin_value(ein_match.group(1))
+
+    marker = re.search(r"Taxpayer\s+Tax\s+ID\s+Number", text, re.IGNORECASE)
+    if marker:
+        return _first_tin_in_text(text, start=marker.end())
+    return None
+
+
+def _extract_tin_from_comparison(text: str) -> str | None:
+    """Primary taxpayer TIN from Comparison footer (joint returns: first SSN)."""
+    if "TAX RETURN COMPARISON" not in text.upper() and "Identifying number" not in text:
+        return None
+
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    for idx, line in enumerate(lines):
+        if not (_TIN_SSN_RE.fullmatch(line) or _TIN_EIN_RE.fullmatch(line)):
+            continue
+        if idx == 0:
+            continue
+        prev = lines[idx - 1]
+        if re.search(r"[A-Za-z]", prev) and not prev.startswith("."):
+            return _normalize_tin_value(line)
+
+    marker = re.search(r"Identifying\s+number", text, re.IGNORECASE)
+    if marker:
+        return _first_tin_in_text(text, start=marker.end())
+    return None
+
+
+def _extract_tin_from_1040(text: str) -> str | None:
+    """Fallback: first taxpayer SSN on Form 1040 page 1."""
+    if "1040" not in text and "Individual Income Tax Return" not in text:
+        return None
+    return _first_tin_in_text(text)
+
+
+def _extract_taxpayer_tin(
+    *,
+    diagnostic_text: str,
+    comparison_text: str,
+    form_1040_text: str,
+) -> tuple[str | None, str | None]:
+    """Priority: Diagnostic Summary → Comparison → 1040 page 1."""
+    if diagnostic_text:
+        tin = _extract_tin_from_diagnostic(diagnostic_text)
+        if tin:
+            return tin, "extract_diagnostic_invoice"
+
+    if comparison_text:
+        tin = _extract_tin_from_comparison(comparison_text)
+        if tin:
+            return tin, "extract_tin_comparison"
+
+    if form_1040_text:
+        tin = _extract_tin_from_1040(form_1040_text)
+        if tin:
+            return tin, "form_federal"
+
+    return None, None
+
+
+def _extract_tax_prep_fee(
+    *,
+    tpg_text: str,
+    diagnostic_text: str,
+    bill_fee_text: str,
+) -> tuple[float | None, str | None]:
+    """Priority: TPG_INFO → Diagnostic Summary → BILL_01 page 2."""
+    if tpg_text:
+        fee = _extract_tpg_info_fee(tpg_text)
+        if fee is not None:
+            return fee, "extract_tpg_fee"
+
+    if diagnostic_text:
+        fee = _extract_diagnostic_invoice_fee(diagnostic_text)
+        if fee is not None:
+            return fee, "extract_diagnostic_invoice"
+
+    if bill_fee_text:
+        fee = _extract_bill_page2_fee(bill_fee_text)
+        if fee is not None:
+            return fee, "extract_bill_fee"
+
+    return None, None
 
 
 def _get_pdf_source_path(pages: list[TaggedPage]) -> Path:
@@ -467,12 +798,27 @@ def _run_extraction(
     template: Template,
     text_getter: Callable[[TaggedPage], str],
 ) -> dict[str, Any]:
-    """Extract clearing fields from first client letter and first bill page only."""
+    """Extract clearing fields from classified source pages."""
     client_letter_pages = [tp for tp in pages if _is_client_letter_page(tp)]
+    tpg_fee_pages = [tp for tp in pages if _is_tpg_fee_page(tp)]
+    diagnostic_pages = [tp for tp in pages if _is_diagnostic_invoice_page(tp)]
     bill_pages = [tp for tp in pages if _is_bill_page(tp)]
+    bill_fee_pages = [tp for tp in pages if _is_bill_fee_page(tp)]
+    comparison_pages = [tp for tp in pages if _is_tin_comparison_page(tp)]
+    tin_1040_pages = [tp for tp in pages if _is_tin_1040_page(tp)]
+    bank_deposit_pages = [tp for tp in pages if _is_bank_deposit_page(tp)]
 
     client_letter_text = text_getter(client_letter_pages[0]) if client_letter_pages else ""
-    bill_text = text_getter(bill_pages[0]) if bill_pages else ""
+    tpg_fee_text = text_getter(tpg_fee_pages[0]) if tpg_fee_pages else ""
+    diagnostic_text = text_getter(diagnostic_pages[0]) if diagnostic_pages else ""
+    bill_fee_text = text_getter(bill_fee_pages[0]) if bill_fee_pages else ""
+    bill_text_parts = [text_getter(tp) for tp in bill_pages]
+    if bill_fee_pages and (not bill_pages or bill_fee_pages[0].index != bill_pages[0].index):
+        bill_text_parts.append(bill_fee_text)
+    bill_text = "\n".join(part for part in bill_text_parts if part)
+    comparison_text = text_getter(comparison_pages[0]) if comparison_pages else ""
+    form_1040_text = text_getter(tin_1040_pages[0]) if tin_1040_pages else ""
+    bank_deposit_text = text_getter(bank_deposit_pages[0]) if bank_deposit_pages else ""
 
     out: dict[str, Any] = {}
     if _parser_debug_enabled():
@@ -480,14 +826,14 @@ def _run_extraction(
             {
                 "__debug_page_count": len(pages),
                 "__debug_client_letter_indices": [tp.index for tp in client_letter_pages],
-                "__debug_bill_indices": [tp.index for tp in bill_pages],
+                "__debug_tpg_fee_indices": [tp.index for tp in tpg_fee_pages],
+                "__debug_diagnostic_indices": [tp.index for tp in diagnostic_pages],
+                "__debug_bill_fee_indices": [tp.index for tp in bill_fee_pages],
             }
         )
         if client_letter_text:
             out["__debug_client_letter_snippet"] = client_letter_text[:300]
             out["__debug_client_letter_full"] = client_letter_text[:4000]
-        if bill_text:
-            out["__debug_bill_snippet"] = bill_text[:300]
 
     source_for_letter = client_letter_text
 
@@ -502,23 +848,64 @@ def _run_extraction(
     if m_last4:
         out["last_4_of_account"] = m_last4.group(1)
 
+    if bank_deposit_text:
+        bank_fields = _extract_customer_bank_from_dd_pmt(bank_deposit_text)
+        if bank_fields.get("bank_name"):
+            out["bank_name"] = bank_fields["bank_name"]
+        if bank_fields.get("last_4_of_account") and "last_4_of_account" not in out:
+            out["last_4_of_account"] = bank_fields["last_4_of_account"]
+            out["_last_4_role"] = "extract_dd_pmt"
+
     federal_amount_val, states = _extract_summary_table(source_for_letter)
     if federal_amount_val is not None:
         out["federal_amount"] = federal_amount_val
     if states:
         out["states"] = states
 
-    if bill_text:
-        m_bill_amt = _CURRENCY_RE.search(bill_text)
-        if m_bill_amt:
-            out["tax_prep_fee"] = float(_normalize_amount(m_bill_amt.group(1)))
+    fee, fee_role = _extract_tax_prep_fee(
+        tpg_text=tpg_fee_text,
+        diagnostic_text=diagnostic_text,
+        bill_fee_text=bill_fee_text,
+    )
+    if fee is not None and fee_role:
+        out["tax_prep_fee"] = fee
+        out["_tax_prep_fee_role"] = fee_role
 
-    has_tpg = any(
+    tin, tin_role = _extract_taxpayer_tin(
+        diagnostic_text=diagnostic_text,
+        comparison_text=comparison_text,
+        form_1040_text=form_1040_text,
+    )
+    if tin and tin_role:
+        out["taxpayer_tin"] = tin
+        out["_taxpayer_tin_role"] = tin_role
+
+    if diagnostic_text and re.search(r"Employer\s+Identification", diagnostic_text, re.IGNORECASE):
+        out["taxpayer_is_entity"] = True
+        full = (out.get("taxpayer_full_name") or "").strip()
+        if full:
+            out["taxpayer_first_name"] = full
+
+    has_tpg = bool(tpg_fee_pages) or any(
         "tpg" in (getattr(tp.outline, "title", "") or "").lower()
         for tp in pages
         if tp.outline
     )
     out["has_tpg_pages"] = has_tpg
+
+    out["enrollment_signals"] = build_enrollment_signals(
+        pages=pages,
+        comparison_text=comparison_text,
+        diagnostic_text=diagnostic_text,
+        has_tpg_pages=has_tpg,
+    )
+
+    apply_ack_hints(
+        out,
+        client_letter_text=client_letter_text,
+        diagnostic_text=diagnostic_text,
+        bill_text=bill_text,
+    )
 
     return out
 
@@ -556,12 +943,31 @@ class RegexFieldExtraction(FieldExtractionStrategy):
 
         extract_targets: list[TaggedPage] = []
         client_letters = [tp for tp in pages if _is_client_letter_page(tp)]
-        bills = [tp for tp in pages if _is_bill_page(tp)]
+        tpg_fee_pages = [tp for tp in pages if _is_tpg_fee_page(tp)]
+        diagnostic_pages = [tp for tp in pages if _is_diagnostic_invoice_page(tp)]
+        bill_fee_pages = [tp for tp in pages if _is_bill_fee_page(tp)]
+        bill_pages = [tp for tp in pages if _is_bill_page(tp)]
+        comparison_pages = [tp for tp in pages if _is_tin_comparison_page(tp)]
+        tin_1040_pages = [tp for tp in pages if _is_tin_1040_page(tp)]
+        bank_deposit_pages = [tp for tp in pages if _is_bank_deposit_page(tp)]
+
         if client_letters:
             extract_targets.append(client_letters[0])
-        extract_bill = bool(getattr(settings, "OCR_EXTRACT_BILL", False))
-        if extract_bill and bills:
-            extract_targets.append(bills[0])
+        if tpg_fee_pages:
+            extract_targets.append(tpg_fee_pages[0])
+        if diagnostic_pages:
+            extract_targets.append(diagnostic_pages[0])
+        if bill_fee_pages:
+            extract_targets.append(bill_fee_pages[0])
+        if bill_pages and (not bill_fee_pages or bill_pages[0].index != bill_fee_pages[0].index):
+            extract_targets.append(bill_pages[0])
+        if comparison_pages:
+            extract_targets.append(comparison_pages[0])
+        if tin_1040_pages:
+            extract_targets.append(tin_1040_pages[0])
+        if bank_deposit_pages:
+            extract_targets.append(bank_deposit_pages[0])
+
         target_indices = {tp.index for tp in extract_targets}
 
         ocr_attempted_indices: set[int] = set()
@@ -608,7 +1014,30 @@ class RegexFieldExtraction(FieldExtractionStrategy):
 
             result = _run_extraction(pages, template, text_getter)
 
+            if not result.get("taxpayer_first_name"):
+                for tp in pages:
+                    title = (tp.outline.title or "") if tp.outline else ""
+                    if title == "FILEINST":
+                        fallback = _extract_name_from_embedded_fallback(
+                            doc[tp.index].get_text("text") or "",
+                            source="fileinst",
+                        )
+                    elif title == "Notes":
+                        fallback = _extract_name_from_embedded_fallback(
+                            doc[tp.index].get_text("text") or "",
+                            source="notes",
+                        )
+                    else:
+                        continue
+                    if fallback.get("taxpayer_first_name"):
+                        for key, value in fallback.items():
+                            if key not in result or not result.get(key):
+                                result[key] = value
+                        break
+
             field_sources: dict[str, dict[str, Any]] = {}
+            last4_role = result.pop("_last_4_role", None)
+
             if client_letters:
                 cl_idx = client_letters[0].index
                 cl_method = page_methods.get(cl_idx, "pymupdf")
@@ -618,12 +1047,14 @@ class RegexFieldExtraction(FieldExtractionStrategy):
                     "tax_year",
                     "federal_amount",
                     "states",
-                    "last_4_of_account",
                     "mailing_address",
                     "mailing_address_line1",
                     "mailing_city",
                     "mailing_state",
                     "mailing_zip",
+                    "expected_transmissions",
+                    "expected_ack_count",
+                    "expected_ack_source",
                 ):
                     if key in result:
                         field_sources[key] = {
@@ -631,19 +1062,65 @@ class RegexFieldExtraction(FieldExtractionStrategy):
                             "method": cl_method,
                             "role": "extract_client_letter",
                         }
-            if extract_bill and bills and "tax_prep_fee" in result:
-                bill_idx = bills[0].index
-                field_sources["tax_prep_fee"] = {
-                    "page_index": bill_idx,
-                    "method": page_methods.get(bill_idx, "pymupdf"),
-                    "role": "extract_bill",
-                }
+                if "last_4_of_account" in result and last4_role != "extract_dd_pmt":
+                    field_sources["last_4_of_account"] = {
+                        "page_index": cl_idx,
+                        "method": cl_method,
+                        "role": "extract_client_letter",
+                    }
+
+            if bank_deposit_pages:
+                bd_idx = bank_deposit_pages[0].index
+                bd_method = page_methods.get(bd_idx, "pymupdf")
+                if "bank_name" in result:
+                    field_sources["bank_name"] = {
+                        "page_index": bd_idx,
+                        "method": bd_method,
+                        "role": "extract_dd_pmt",
+                    }
+                if "last_4_of_account" in result and last4_role == "extract_dd_pmt":
+                    field_sources["last_4_of_account"] = {
+                        "page_index": bd_idx,
+                        "method": bd_method,
+                        "role": "extract_dd_pmt",
+                    }
+
+            fee_role = result.pop("_tax_prep_fee_role", None)
+            if fee_role and "tax_prep_fee" in result:
+                fee_pages = {
+                    "extract_tpg_fee": tpg_fee_pages,
+                    "extract_diagnostic_invoice": diagnostic_pages,
+                    "extract_bill_fee": bill_fee_pages,
+                }.get(fee_role, [])
+                if fee_pages:
+                    fee_idx = fee_pages[0].index
+                    field_sources["tax_prep_fee"] = {
+                        "page_index": fee_idx,
+                        "method": page_methods.get(fee_idx, "pymupdf"),
+                        "role": fee_role,
+                    }
+
             if result.get("has_tpg_pages") is not None:
                 field_sources["has_tpg_pages"] = {
                     "page_index": None,
                     "method": "outline",
                     "role": "outline",
                 }
+
+            tin_role = result.pop("_taxpayer_tin_role", None)
+            if tin_role and "taxpayer_tin" in result:
+                tin_pages = {
+                    "extract_diagnostic_invoice": diagnostic_pages,
+                    "extract_tin_comparison": comparison_pages,
+                    "form_federal": tin_1040_pages,
+                }.get(tin_role, [])
+                if tin_pages:
+                    tin_idx = tin_pages[0].index
+                    field_sources["taxpayer_tin"] = {
+                        "page_index": tin_idx,
+                        "method": page_methods.get(tin_idx, "pymupdf"),
+                        "role": tin_role,
+                    }
 
             result["_field_sources"] = field_sources
             result["ocr_enabled"] = ocr_enabled

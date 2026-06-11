@@ -33,11 +33,37 @@ roles:
     pages_for_extraction: first_page_only
 
   extract_bill:
-    description: Drake BILL_01 — tax preparation fee
+    description: Drake BILL_01 page 1 — form index (not used for fee)
+    ocr_policy: required_if_no_text
+    pages_for_extraction: none
+
+  extract_bill_fee:
+    description: Drake BILL_01 page 2 — S-corp / entity billing totals
     ocr_policy: required_if_no_text
     extract_fields:
       - tax_prep_fee
-      - has_tpg_pages
+    pages_for_extraction: first_page_only
+
+  extract_tpg_fee:
+    description: TPG_INFO Bank Product Information — tax prep fee paid to firm
+    ocr_policy: none
+    extract_fields:
+      - tax_prep_fee
+    pages_for_extraction: first_page_only
+
+  extract_diagnostic_invoice:
+    description: Diagnostic Summary — invoice amount for QBO / non-TPG billing
+    ocr_policy: none
+    extract_fields:
+      - tax_prep_fee
+      - taxpayer_tin
+    pages_for_extraction: first_page_only
+
+  extract_tin_comparison:
+    description: Comparison page — primary taxpayer TIN for global upload match
+    ocr_policy: none
+    extract_fields:
+      - taxpayer_tin
     pages_for_extraction: first_page_only
 
   cover:
@@ -99,7 +125,11 @@ ocr:
       pages: first_only
     - role: extract_bill
       pages: first_only
+    - role: extract_bill_fee
+      pages: first_only
   do_not_ocr:
+    - extract_tpg_fee
+    - extract_diagnostic_invoice
     - form_federal
     - form_state
     - form_worksheet
@@ -110,6 +140,12 @@ ocr:
 # ---------------------------------------------------------------------------
 rules:
   # --- Extraction (highest priority) ---
+  - role: extract_tpg_fee
+    priority: 101
+    match: exact
+    patterns:
+      - TPG_INFO
+
   - role: extract_client_letter
     priority: 100
     match: exact_or_page_variant
@@ -117,9 +153,27 @@ rules:
       - Client Letter
       - Client Letter page 2
 
-  - role: extract_bill
+  - role: extract_diagnostic_invoice
+    priority: 100
+    match: exact
+    patterns:
+      - Diagnostic Summary
+
+  - role: extract_tin_comparison
+    priority: 71
+    match: exact
+    patterns:
+      - Comparison
+
+  - role: extract_bill_fee
     priority: 99
-    match: prefix
+    match: exact_or_page_variant
+    patterns:
+      - BILL_01 page 2
+
+  - role: extract_bill
+    priority: 98
+    match: exact
     patterns:
       - BILL_01
 
@@ -162,7 +216,6 @@ rules:
       - TPG_APPL
       - TPG7216D
       - TPG_RT
-      - TPG_INFO
 
   # --- S-corp K-1 (must beat 1120S federal prefix on titles like 1120SK_1) ---
   - role: form_k1
@@ -183,7 +236,6 @@ rules:
       - EF Messages
       - EF Status
       - ETD_MSG
-      - Diagnostic Summary
       - Comparison
       - TAX_COMP
       - QBI_EXPL
@@ -346,12 +398,15 @@ packets:
       - form_other
     exclude_roles:
       - remove
+      - extract_diagnostic_invoice
+      - extract_tin_comparison
       - signature
       - payment_voucher
 
   signature:
     include_roles:
       - signature
+      - extract_tpg_fee
 
   payment_voucher:
     include_roles:

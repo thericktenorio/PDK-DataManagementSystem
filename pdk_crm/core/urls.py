@@ -20,6 +20,7 @@ urlpatterns = [
     path("client_portfolio/", include("client_portfolio.urls", namespace = "client_portfolio")),
 
     # core function urls
+    path('preferences/rotate-background/', views.update_rotate_background, name='update_rotate_background'),
     path('auto_save/', views.auto_save, name = 'auto_save'),
     # path('auto_save_tax_year/', views.auto_save_tax_year, name = 'auto_save_tax_year'),
     # path('auto_save_product/', views.auto_save_product, name = 'auto_save_product'),

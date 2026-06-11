@@ -80,10 +80,39 @@ Legacy completion wizard (`core/workflows/completion.py`) remains for existing U
 
 **ProductAssignmentEvent** (idempotent side effects): at most one row per `(product_assignment, event_type)` — use for billing hooks, analytics milestones, and deduplicating concurrent workers. Do not use for full history.
 
+## Review module ↔ lifecycle (display mapping)
+
+Staff-facing **review tables** use labels that map to `lifecycle_state` (see **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`**):
+
+| Review table | `lifecycle_state` |
+|--------------|-------------------|
+| Ready for review | `READY_FOR_REVIEW` |
+| Pending acknowledgments | `FILED`, `ACK_RECONCILING` |
+| Pending reject correction | `PENDING_REJECT_CORRECTION` |
+| Filed *(done)* | `CLOSED` |
+
+Optional intermediate: `IN_REVIEW` — **removed from target UX**; single **Review Complete** action instead.
+
+## Ack safety net (decided)
+
+Ack CSV import matches PAs in `READY_FOR_REVIEW`, `FILED`, `ACK_RECONCILING`, and `PENDING_REJECT_CORRECTION`. If staff forgot **Review Complete**, a matching ack auto-advances the PA into ack reconciliation. See `docs/ACKNOWLEDGMENTS.md`.
+
 ## Acknowledgments (Phase 8)
 
 - **`expected_ack_count`** on `ProductAssignment` — staff-set at filing (default 1). PA reaches `CLOSED` when received ack count matches and all are accepted (`A`). Parser may suggest a count later (Phase 4/5); staff confirms.
 - Reject ack (`R`) → immediate `PENDING_REJECT_CORRECTION`. Corrected acceptance → `ACK_RECONCILING`, then close when complete.
+- **Force completion** and **paper file** synthetic acks count as **`A`** for TP Comp Dt. Details: `docs/PRODUCT_ASSIGNMENT_WORKFLOW.md` (W5).
+
+## TP Comp Dt (clearing column — proprietary)
+
+Preparer compensation date on the clearing board:
+
+- **Blank** unless every expected ack is **`A`** (force completion / paper file count as `A`).
+- **Set** to the **Sunday after** the latest accepted ack date (Pacific calendar).
+- If the latest `A` date is itself a Sunday, use the **following** Sunday.
+- **UI:** cell shows the date; hover tooltip shows the same date with **PST** or **PDT**.
+
+Implementation: `compute_tp_comp_date()` + `FIRM_TIME_ZONE = America/Los_Angeles`. Full spec: **`docs/PRODUCT_ASSIGNMENT_WORKFLOW.md`** (W4).
 
 ## `is_complete` (legacy)
 

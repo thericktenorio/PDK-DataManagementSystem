@@ -2,7 +2,8 @@ from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import cache_control
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods
+from django.db.models import ProtectedError
 from django.contrib import messages
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
@@ -20,7 +21,7 @@ def client_portfolio(request):
 
 
 # Create and save new Client
-@require_POST
+@require_http_methods(["POST"])
 def create_and_save_new_client(request):
     try:
         data = json.loads(request.body)
@@ -70,15 +71,26 @@ def create_and_save_new_client(request):
 
 
 # Delete client from database
+@login_required
+@require_http_methods(["DELETE"])
 def delete_client(request, client_id):
-    if request.method == 'DELETE':
-        try:
-            client = get_object_or_404(Client, id = client_id)
-            client.delete()
-            return JsonResponse({'status': 'success', 'message': 'Client successfully deleted'})
-        except Client.DoesNotExist:
-            return JsonResponse({'status': 'error', 'message': 'Client not found'})
-    return JsonResponse({'error': 'Invalid request method'}, status = 400)
+    try:
+        client = get_object_or_404(Client, id=client_id)
+        client.delete()
+        return JsonResponse({"status": "success", "message": "Client successfully deleted."})
+    except ProtectedError:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": (
+                    "This client cannot be deleted because billing records reference them. "
+                    "Remove from clearing/intake first or void related invoices."
+                ),
+            },
+            status=409,
+        )
+    except Exception as exc:
+        return JsonResponse({"status": "error", "message": str(exc)}, status=400)
 
 
 # Import clients from excel to client_portfolio

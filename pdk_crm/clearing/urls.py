@@ -8,6 +8,7 @@ app_name = "clearing"
 urlpatterns = [
     path("", views.clearing, name="clearing"),
     path("search_clients/", views.search_clients, name="search_clients"),
+    path("create_new_client/", views.create_new_client, name="create_new_client"),
     path(
         "add_client_to_clearing/<int:client_id>/",
         views.add_client_to_clearing,
@@ -47,6 +48,16 @@ urlpatterns = [
         "product-assignments/<int:pa_id>/client-message/",
         views.client_message,
         name="client_message",
+    ),
+    path(
+        "parse-pdf/global/preview/",
+        views.parse_pdf_global_preview,
+        name="parse_pdf_global_preview",
+    ),
+    path(
+        "parse-pdf/global/commit/",
+        views.parse_pdf_global_commit,
+        name="parse_pdf_global_commit",
     ),
     path(
         "product-assignments/<int:pa_id>/parse-pdf/",

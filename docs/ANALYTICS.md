@@ -2,7 +2,7 @@
 
 Reporting and KPIs read from a dedicated **`analytics`** PostgreSQL database. Operational workflows continue to use **`tax_operations`** only.
 
-See `ROADMAP.md` (Phase 9) and `docs/DEPLOYMENT.md` (prod topology).
+See `ROADMAP.md` (Phase 9), `docs/ANALYTICS_ROADMAP.md` (phased feature plan), `docs/RETURN_ANALYTICS.md` (return-level spec), and `docs/DEPLOYMENT.md` (prod topology).
 
 ---
 
@@ -10,11 +10,13 @@ See `ROADMAP.md` (Phase 9) and `docs/DEPLOYMENT.md` (prod topology).
 
 ```text
 tax_operations (CRM)  ──ETL (batch)──▶  analytics (warehouse)
-                                              │
-                         ┌────────────────────┴────────────────────┐
-                         ▼                                         ▼
-              In-app KPI dashboard (Track A, later)     Power BI / Python (Track B)
+parser (return facts) ──ETL (9.1b)───▶       │
+                         ┌───────────────────┼───────────────────┐
+                         ▼                   ▼                   ▼
+              In-app dashboard (Track A)   Power BI (Track B)   AI agent (Track C)
 ```
+
+**Planned:** Parser return facts (Comparison, return profile) via async Track 2 → ETL 9.1b. See `docs/ANALYTICS_ROADMAP.md` and `docs/RETURN_ANALYTICS.md`.
 
 **Snapshot semantics:** All figures are **as of the last successful ETL run**. They are not real-time. The in-app UI should show `EtlRun.finished_at` when built (Phase 9.6).
 
@@ -25,7 +27,7 @@ tax_operations (CRM)  ──ETL (batch)──▶  analytics (warehouse)
 | Service | Role |
 |---------|------|
 | `analytics_db` | PostgreSQL 16, database `analytics` |
-| `analytics_etl` | Runs `sync_analytics_warehouse` on an interval (default 30 min) |
+| `analytics_etl` | Runs `sync_analytics_warehouse` at **:00** and **:30** each hour (wall-clock) |
 
 CRM (`crm_web`) sets `ANALYTICS_ENABLED=true` and migrates both databases on boot.
 
@@ -55,7 +57,10 @@ docker compose exec crm_web python manage.py sync_analytics_warehouse --full
 | `ANALYTICS_DB_USER` | `analytics` | ETL + app write user |
 | `ANALYTICS_DB_PASSWORD` | `analyticspw` (local only) | |
 | `ANALYTICS_DB_HOST` | `analytics_db` | |
-| `ANALYTICS_ETL_INTERVAL_SECONDS` | `1800` | ETL worker sleep between runs |
+| `ANALYTICS_ETL_INTERVAL_SECONDS` | (legacy) | Unused when worker uses wall-clock :00/:30 schedule |
+| `AGENT_ENABLED` | `false` | Track C shareholder agent |
+| `AGENT_LLM_API_KEY` | — | OpenAI API key (server-only) |
+| `AGENT_LLM_MODEL` | `gpt-4o-mini` | LLM for text-to-SQL |
 
 CI uses `ANALYTICS_ENABLED=false` (SQLite single-DB).
 
@@ -158,9 +163,11 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO analytics_re
 
 ---
 
-## Not in v1 ETL
+## Not in v1 ETL (planned — 9.1b)
 
-- Parser DB `ExtractedField` facts (optional Phase 9.1b).
-- CRM fields not yet modeled (DOB, dependents, address) — extend `dim_client` when added to intake/CRM.
+- Parser return facts (`ExtractedField` / JSON from async Track 2) → `fact_return_comparison`, `fact_return_profile`.
+- Dependent DOB/TIN, Sch C/E detail — sourced from parser return profile, not CRM intake.
 
-Parser snapshot hints on `fact_assignment`: `parser_federal_amount`, `parser_states`, `parser_tax_prep_fee` from `parse_result_json`.
+**Today:** Parser snapshot hints on `fact_assignment` only: `parser_federal_amount`, `parser_states`, `parser_tax_prep_fee` from `parse_result_json`.
+
+**Roadmap:** `docs/ANALYTICS_ROADMAP.md` (phases A1–A5). **Spec:** `docs/RETURN_ANALYTICS.md`.

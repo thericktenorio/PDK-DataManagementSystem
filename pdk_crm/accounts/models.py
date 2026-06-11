@@ -105,6 +105,10 @@ class InternalUser(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length = 30, blank = True)
     is_active = models.BooleanField(default = True)
     is_staff = models.BooleanField(default = False)
+    rotate_background = models.BooleanField(
+        default=False,
+        help_text="When enabled, the app background rotates daily. When disabled, the classic beach photo is always used.",
+    )
     # TODO: add date_joined attribute
     # TODO: add last_login attribute
 

@@ -22,13 +22,13 @@ from core.models import (
     TaxSeason,
     TaxYear,
 )
+from acknowledgments.views import _parse_ack_text
 from core.workflows.lifecycle import (
     cmd_complete_clearing,
     cmd_confirm_payment_received,
     cmd_enter_clearing,
     cmd_mark_filed,
     cmd_start_ack_reconciling,
-    cmd_start_review,
 )
 
 User = get_user_model()
@@ -82,7 +82,6 @@ class Phase8AckTests(TestCase):
         cmd_enter_clearing(pa_id=self.pa.id)
         cmd_complete_clearing(pa_id=self.pa.id)
         cmd_confirm_payment_received(pa_id=self.pa.id)
-        cmd_start_review(pa_id=self.pa.id)
         cmd_mark_filed(pa_id=self.pa.id, expected_ack_count=expected_ack_count)
         self.pa.refresh_from_db()
 
@@ -225,6 +224,49 @@ class Phase8AckTests(TestCase):
         self.assertEqual(summary["accepted_count"], 1)
         self.assertEqual(summary["badge_text"], "1/2")
         self.assertEqual(summary["badge_class"], "ack-badge-progress")
+
+    def test_safety_net_auto_advances_ready_for_review(self):
+        cmd_enter_clearing(pa_id=self.pa.id)
+        cmd_complete_clearing(pa_id=self.pa.id)
+        cmd_confirm_payment_received(pa_id=self.pa.id)
+        self.pa.refresh_from_db()
+        self.assertEqual(self.pa.lifecycle_state, LifecycleState.READY_FOR_REVIEW)
+
+        records = [
+            {
+                "client_tin": "123456789",
+                "type": "1040",
+                "status": "A",
+                "date": datetime.date(2025, 3, 1),
+                "client_name": "Ack Client",
+                "year": 2024,
+            }
+        ]
+        result = ingest_ack_records(records, active_season=self.season, actor=self.user)
+        self.assertEqual(result["created"], 1)
+        self.pa.refresh_from_db()
+        self.assertEqual(self.pa.lifecycle_state, LifecycleState.CLOSED)
+        self.assertEqual(self.pa.expected_ack_count, 1)
+
+    def test_drake_mef_parser_submission_and_error_detail(self):
+        raw = (
+            "Drake 2024 - MEF ACK files processed\n"
+            "IDNumber   Type      Acc  Date          Name                                     Reject Codes\n"
+            "000000005  1040      R    11-02-2025    CLIENT 5, TEST                           IND-181-01\n"
+            "SubmissionId:  3387962025306aifuwko\n"
+            "\n"
+            "                                                    Error Detail\n"
+            "IDNumber      Rule #               Message\n"
+            "000000005     IND-181-01           The Primary Taxpayer did not enter a valid Identity Protection Personal\n"
+        )
+        records, err = _parse_ack_text(raw)
+        self.assertIsNone(err)
+        self.assertEqual(len(records), 1)
+        rec = records[0]
+        self.assertEqual(rec["client_tin"], "000000005")
+        self.assertEqual(rec["reject_code"], "IND-181-01")
+        self.assertEqual(rec["submission_id"], "3387962025306aifuwko")
+        self.assertIn("Identity Protection", rec["reject_reason"])
 
     def test_post_acknowledgments_endpoint(self):
         self._file_pa(expected_ack_count=1)

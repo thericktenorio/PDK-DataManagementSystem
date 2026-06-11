@@ -6,6 +6,80 @@ from django.core.exceptions import ValidationError
 import datetime
 
 
+INTAKE_PRODUCT_ASSIGNMENT_ORDERING = (
+    "-tax_year__year",
+    "filing_type__filing_type",
+    "product__product_type",
+)
+
+DUPLICATE_ACTIVE_PA_MESSAGE = (
+    "An active entry with this tax year and product already exists for this client."
+)
+
+
+def get_default_filing_type() -> FilingType:
+    """Return the default FilingType row; tolerate duplicate seed rows."""
+    filing_type = (
+        FilingType.objects.filter(filing_type=FilingType.FILING_TYPE_DEFAULT)
+        .order_by("id")
+        .first()
+    )
+    if filing_type is None:
+        filing_type = FilingType.objects.create(
+            filing_type=FilingType.FILING_TYPE_DEFAULT
+        )
+    return filing_type
+
+
+def active_product_assignment_conflict(
+    *,
+    client,
+    intake,
+    tax_year,
+    product,
+    exclude_pa_id=None,
+) -> bool:
+    """True if another active PA shares the same client, intake, tax year, and product."""
+    qs = ProductAssignment.objects.filter(
+        client=client,
+        intake=intake,
+        tax_year=tax_year,
+        product=product,
+        is_active=True,
+    )
+    if exclude_pa_id is not None:
+        qs = qs.exclude(pk=exclude_pa_id)
+    return qs.exists()
+
+
+def seed_products_for_tax_year(tax_year) -> None:
+    """Ensure every product type exists for a client's tax year."""
+    for product_type, _ in Product.PRODUCT_TYPE_CHOICES:
+        Product.objects.get_or_create(
+            tax_year=tax_year,
+            product_type=product_type,
+            defaults={"is_product_active": False},
+        )
+
+
+def pick_product_for_new_active_assignment(*, client, intake, tax_year):
+    """
+    Return the first product on tax_year that has no active PA for this client/intake,
+    or None when every product type is already in use.
+    """
+    seed_products_for_tax_year(tax_year)
+    for product_type, _ in Product.PRODUCT_TYPE_CHOICES:
+        product = Product.objects.get(tax_year=tax_year, product_type=product_type)
+        if not active_product_assignment_conflict(
+            client=client,
+            intake=intake,
+            tax_year=tax_year,
+            product=product,
+        ):
+            return product
+    return None
+
+
 # Get valid tax years
 def get_valid_tax_years():
     current_calendar_year = datetime.datetime.now().year
@@ -59,9 +133,7 @@ def get_or_create_product_assignment(client, intake):
         year = current_tax_year_value
     )
 
-    filing_type, _ = FilingType.objects.get_or_create(
-        filing_type = FilingType.FILING_TYPE_DEFAULT
-    )
+    filing_type = get_default_filing_type()
 
     # seeds all default products for the tax year (if not already present) NOTE: essential to the creation of product ->> product_assignment
     for pt, _ in Product.PRODUCT_TYPE_CHOICES:
@@ -89,7 +161,7 @@ def get_or_create_product_assignment(client, intake):
 def get_or_create_product_assignment_for_tax_year(client, intake, tax_year_value):
     tax_year, _ = TaxYear.objects.get_or_create(client = client, year = tax_year_value)
 
-    filing_type, _ = FilingType.objects.get_or_create(filing_type = FilingType.FILING_TYPE_DEFAULT)
+    filing_type = get_default_filing_type()
 
     for pt, _ in Product.PRODUCT_TYPE_CHOICES:
         Product.objects.get_or_create(tax_year = tax_year, product_type = pt)

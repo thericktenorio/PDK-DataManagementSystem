@@ -23,19 +23,12 @@
 
     .table-container {
         display: block;
-        border: 3px solid gray;
         border-radius: 20px;
         overflow: hidden;
     }
 
-    .table-header {
-        flex-shrink: 0;
-        background-color: dark;
-        color: dark;
-    }
-
     .table-scroll {
-        max-height: 800px;
+        max-height: min(800px, calc(100dvh - 18rem));
         overflow: auto;
     }
 
@@ -43,7 +36,6 @@
         position: sticky;
         top: 0;
         z-index: 2;
-        background-color: #212529 !important;
     }
 
     .table-body {
@@ -69,85 +61,208 @@
         text-overflow: ellipsis;
     }
 
-    .actions-cell {
-        min-width: 84px;
+    .actions-cell,
+    .actions-header-cell {
+        padding-left: 4px;
+        padding-right: 1px;
+        text-align: right;
+        overflow: hidden;
+        text-overflow: clip;
+        white-space: nowrap;
     }
 
-    .completion-status-cell {
-        min-width: 110px;
+    .clearing-pmt-status-cell {
+        padding-left: 2px;
+        padding-right: 3px;
     }
 
-    .lifecycle-badge {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.68rem;
-        font-weight: 600;
-        margin-bottom: 2px;
+    .actions-header-cell .toggle-all-rows-btn {
+        vertical-align: middle;
     }
 
-    .lifecycle-in-clearing {
-        background: #495057;
-        color: #f8f9fa;
-    }
-
-    .lifecycle-clearing-complete {
-        background: #198754;
-        color: #fff;
-    }
-
-    .lifecycle-other {
-        background: #0d6efd;
-        color: #fff;
-    }
-
-    .pa-status-actions {
+    .clearing-actions-wrap {
+        position: relative;
         display: flex;
-        flex-direction: column;
+        justify-content: flex-end;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .clearing-actions-toolbar {
+        display: inline-flex;
+        flex-wrap: nowrap;
         align-items: center;
-        gap: 2px;
+        justify-content: flex-end;
+        gap: 0.15rem;
+        max-width: 100%;
+        min-width: 0;
+        vertical-align: middle;
     }
 
-    .pa-status-actions .btn {
-        padding: 1px 4px;
+    .clearing-actions-toolbar .btn {
+        flex-shrink: 0;
+    }
+
+    .clearing-actions-wrap:not(.is-compact) .clearing-actions-ellipsis {
+        display: none !important;
+    }
+
+    .clearing-actions-wrap:not(.is-compact) .clearing-actions-overflow-menu {
+        display: none !important;
+    }
+
+    .clearing-actions-wrap.is-compact .clearing-toolbar-overflow {
+        display: none !important;
+    }
+
+    .clearing-actions-wrap.is-compact .clearing-actions-ellipsis {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        min-width: 2rem;
+        padding: 0.25rem 0.5rem;
         line-height: 1;
+        font-weight: 700;
     }
 
-    .invoice-badge {
-        display: inline-block;
-        padding: 1px 6px;
-        border-radius: 4px;
-        font-size: 0.62rem;
-        font-weight: 600;
-        background: #6c757d;
-        color: #fff;
+    .clearing-actions-overflow-menu {
+        display: none;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 2px);
+        z-index: 2000;
+        min-width: 13rem;
+        padding: 0.35rem 0;
+        list-style: none;
+        margin: 0;
     }
 
-    .invoice-badge-sent {
-        background: #fd7e14;
+    .clearing-actions-overflow-menu.show {
+        display: block;
     }
 
-    .invoice-badge-draft {
-        background: #6f42c1;
+    .clearing-actions-overflow-menu.clearing-actions-menu-floating {
+        position: fixed;
+        right: auto;
+        top: auto;
     }
 
-    .invoice-badge-partial {
-        background: #ffc107;
-        color: #212529;
+    .parser-processing-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 12000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.58);
+        backdrop-filter: blur(3px);
+        pointer-events: all;
     }
 
-    .ack-badge {
-        display: inline-block;
-        font-size: 0.62rem;
-        font-weight: 600;
-        padding: 1px 6px;
-        border-radius: 999px;
-        margin-left: 2px;
+    .parser-pdk-mark {
+        display: block;
+        width: min(68vw, 21rem);
+        height: auto;
+        overflow: visible;
     }
-    .ack-badge-none { background: #495057; color: #dee2e6; }
-    .ack-badge-progress { background: #0d6efd; color: #fff; }
-    .ack-badge-complete { background: #198754; color: #fff; }
-    .ack-badge-rejected { background: #dc3545; color: #fff; }
+
+    .parser-pdk-mark .parser-pdk-type {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        font-size: 92px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-anchor: middle;
+        dominant-baseline: central;
+    }
+
+    .parser-pdk-radiance {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: parser-pdk-radiance-pulse 2.125s ease-in-out infinite;
+    }
+
+    .parser-pdk-radiance-halo {
+        fill: url(#parserPdkAura);
+    }
+
+    .parser-pdk-radiance-core {
+        fill: url(#parserPdkCore);
+    }
+
+    .parser-pdk-ray {
+        fill: url(#parserSunRayFill);
+    }
+
+    .parser-pdk-sun-rays {
+        animation: parser-pdk-rays-spin 20s linear infinite;
+    }
+
+    @keyframes parser-pdk-rays-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .parser-pdk-radiance-text {
+        fill: #ffffff;
+        stroke: none;
+        opacity: 0.35;
+    }
+
+    @keyframes parser-pdk-radiance-pulse {
+        0%, 100% {
+            opacity: 0.22;
+            transform: scale(0.94);
+        }
+        50% {
+            opacity: 0.98;
+            transform: scale(1.08);
+        }
+    }
+
+    .parser-pdk-glass {
+        isolation: isolate;
+    }
+
+    .parser-pdk-face {
+        fill: url(#parserPdkGlassFill);
+        stroke: none;
+    }
+
+    .parser-pdk-specular {
+        fill: url(#parserPdkSpecular);
+        stroke: none;
+        mix-blend-mode: screen;
+    }
+
+    .parser-pdk-rim {
+        fill: none;
+        stroke: url(#parserPdkRimLight);
+        stroke-width: 0.65;
+        paint-order: stroke fill;
+        opacity: 0.72;
+    }
+
+    .actions-header-label {
+        white-space: nowrap;
+        justify-content: flex-end;
+    }
+
+    .toggle-all-rows-btn {
+        line-height: 1;
+        vertical-align: middle;
+        text-decoration: none;
+    }
+
+    .toggle-all-rows-btn:hover,
+    .toggle-all-rows-btn:focus {
+        color: #fff !important;
+        opacity: 0.85;
+    }
+
+    .toggle-all-rows-btn svg {
+        display: block;
+    }
 
     .row-invoice-sent td.editable,
     .row-invoice-sent .editable {
@@ -158,60 +273,208 @@
         position: relative;
     }
 
-    #searchResults {
+    .clearing-page-toolbar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 20px;
+    }
+
+    .clearing-search-input {
+        width: 250px;
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.08) !important;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 2px solid rgba(255, 255, 255, 0.38) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.14),
+            0 4px 14px rgba(0, 0, 0, 0.12);
+    }
+
+    .clearing-search-input::placeholder {
+        color: rgba(255, 255, 255, 0.58);
+    }
+
+    .clearing-search-input:focus {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        border-color: rgba(255, 255, 255, 0.52) !important;
+        box-shadow:
+            0 0 0 0.2rem rgba(255, 255, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .clearing-page #searchResults {
         max-width: 500px;
         width: 100%;
         margin: 0 auto;
         top: 100%;
         left: 0;
         right: 0;
-        border: 1px solid dark;
-        border-radius: 8px;
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 10px;
         padding: 8px;
-        background-color: #fff;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        box-shadow:
+            0 16px 32px rgba(0, 0, 0, 0.22),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
         position: absolute;
         z-index: 1000;
         display: none;
-
         white-space: normal;
         max-height: 500px;
         overflow-y: auto;
     }
 
-    #searchResults.show {
-        display: block; /* only show when there are results */
+    .clearing-page #searchResults.show {
+        display: block;
     }
 
-    #searchResults .list-group-item {
+    .clearing-page #searchResults .list-group-item {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 8px 12px;
         margin-bottom: 6px;
-        border: 1px solid #e1e1e1;
-        border-radius: 6px;
-        background-color: #f8f9fa;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
         cursor: pointer;
+        transition: background-color 0.16s ease, border-color 0.16s ease;
     }
 
-    #searchResults .list-group-item:hover {
-        background-color: #e9ecef; /* previously backbround-color: dark;*/
+    .clearing-page #searchResults .list-group-item:hover {
+        background: rgba(255, 255, 255, 0.16);
+        border-color: rgba(255, 255, 255, 0.36);
     }
 
-    #searchResults .client-info {
+    .clearing-page #searchResults .client-info {
         font-weight: 500;
-        color: #333;
-        
+        color: rgba(255, 255, 255, 0.92);
         flex: 1;
         margin-right: 10px;
     }
 
-    #searchResults .btn {
+    .clearing-page #searchResults .btn {
         padding: 4px 8px;
         font-size: 0.8rem;
-
         flex-shrink: 0;
+    }
+
+    .clearing-table .form-select,
+    .clearing-table .form-select:focus {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 2px 8px rgba(0, 0, 0, 0.1);
+        font-weight: 500;
+        transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .clearing-table .form-select:hover {
+        background-color: rgba(255, 255, 255, 0.14) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .clearing-table .form-select:focus {
+        background-color: rgba(255, 255, 255, 0.16) !important;
+        border-color: rgba(255, 255, 255, 0.48) !important;
+        box-shadow:
+            0 0 0 0.15rem rgba(255, 255, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .clearing-table .form-control,
+    .clearing-table .form-control:focus {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 2px 8px rgba(0, 0, 0, 0.1);
+        font-weight: 500;
+        transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .clearing-table .form-control:hover {
+        background-color: rgba(255, 255, 255, 0.14) !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+
+    .clearing-table .form-control:focus {
+        background-color: rgba(255, 255, 255, 0.16) !important;
+        border-color: rgba(255, 255, 255, 0.48) !important;
+        box-shadow:
+            0 0 0 0.15rem rgba(255, 255, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .clearing-table.table-hover > tbody > tr {
+        transition: background-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .clearing-table.table-hover > tbody > tr:hover > * {
+        --bs-table-accent-bg: rgba(255, 255, 255, 0.2) !important;
+        background-color: rgba(255, 255, 255, 0.2) !important;
+        color: #ffffff !important;
+    }
+
+    .clearing-page .btn-dark,
+    .clearing-page .toggle-all-rows-btn {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.1) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.32) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: transform 0.12s ease, background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .clearing-page .btn-dark:hover,
+    .clearing-page .btn-dark:focus-visible,
+    .clearing-page .toggle-all-rows-btn:hover,
+    .clearing-page .toggle-all-rows-btn:focus-visible {
+        color: #ffffff !important;
+        background: rgba(255, 255, 255, 0.2) !important;
+        border-color: rgba(255, 255, 255, 0.48) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.2),
+            0 4px 12px rgba(0, 0, 0, 0.14);
+    }
+
+    .clearing-page .clearing-actions-overflow-menu.dropdown-menu-dark {
+        background: rgba(255, 255, 255, 0.12) !important;
+        border: 1px solid rgba(255, 255, 255, 0.28) !important;
+        box-shadow:
+            0 16px 32px rgba(0, 0, 0, 0.22),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .clearing-page .clearing-actions-overflow-menu .dropdown-item {
+        color: rgba(255, 255, 255, 0.92);
+    }
+
+    .clearing-page .clearing-actions-overflow-menu .dropdown-item:hover,
+    .clearing-page .clearing-actions-overflow-menu .dropdown-item:focus {
+        color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
     }
 
 
@@ -304,16 +567,20 @@
 
 
 <!-- ========== HEADER ========== -->
-<h1 class = "text-center text-light">Clearing</h1>
+<div class="app-page clearing-page">
+<h1 class="app-page-title">Clearing</h1>
 
 
 <!-- ========== SEARCH BAR & BUTTONS ==========-->
 <!-- ⚙️ New wrapper to align input and results correctly --> 
-<div class="search-wrapper" style="position: relative; display: flex; justify-content: center; margin-bottom: 20px;">
-    <input type="text" id="searchInput" class="form-control bg-dark text-light border-3" placeholder="Search Existing Clients" style="width: 250px;">
+<div class="search-wrapper clearing-page-toolbar">
+    <input type="text" id="searchInput" class="form-control clearing-search-input" placeholder="Search Existing Clients">
 
-    
-    
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addClientModal">Add New Client</button>
+    {% if feature_parser_path_a %}
+    <button type="button" class="btn btn-success" id="globalParsePdfBtn" title="Upload Drake PDF">Upload Tax PDF</button>
+    {% endif %}
+
     <!-- ⚙️ Search dropdown now *inside* search-wrapper but *outside* flex-flow -->
     <div id="searchResults" class="list-group search-dropdown"></div>
 </div>
@@ -339,11 +606,10 @@
                     <col style = "width: 8%;"> <!-- payment method-->
                     <col style = "width: 7%;"> <!-- fee -->
                     <col style = "width: 8%;"> <!-- preparer -->
-                    <col style = "width: 6%;"> <!-- completed -->
-                    <col style = "width: 10%;"> <!-- actions -->
+                    <col style = "width: 12%;"> <!-- actions -->
                     
                     <!-- Review Columns in Clearing Table -->
-                    <col style = "width: 10%;"> <!-- PMT Status -->
+                    <col style = "width: 9%;"> <!-- PMT Status -->
                     <col style = "width: 10%;"> <!-- Review Status -->
                     <col style = "width: 10%;"> <!-- Fed Status -->
                     <col style = "width: 10%;"> <!-- State Status -->
@@ -372,13 +638,29 @@
                         <th scope = "col" class = "text-center align-middle">Pmt Method</th>
                         <th scope = "col" class = "text-center align-middle">Fee</th>
                         <th scope = "col" class = "text-center align-middle">Preparer</th>
-                        <th scope = "col" class = "text-center align-middle">Status</th>
 
                         <!-- actions buttons -->
-                        <th scope = "col" class = "text-center align-middle">Actions</th>
+                        <th scope = "col" class = "text-center align-middle actions-header-cell">
+                            <span class="actions-header-label d-inline-flex align-items-center justify-content-center gap-1">
+                                Actions
+                                <button type="button"
+                                    class="btn btn-sm btn-link text-light p-0 border-0 toggle-all-rows-btn"
+                                    id="toggleAllRowsBtn"
+                                    title="Expand all product rows"
+                                    aria-label="Expand or collapse all product rows"
+                                    aria-expanded="false">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="toggle-all-icon-left" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
+                                    </svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="toggle-all-icon-down" viewBox="0 0 16 16" style="display: none;" aria-hidden="true">
+                                        <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                    </svg>
+                                </button>
+                            </span>
+                        </th>
 
                         <!--- Review Columns in Clearing Table -->
-                        <th scope = "col" class = "text-center align-middle">Pmt Status</th>
+                        <th scope = "col" class = "text-center align-middle clearing-pmt-status-cell">Pmt Status</th>
                         <th scope = "col" class = "text-center align-middle">Rev Status</th>
                         <th scope = "col" class = "text-center align-middle">Fed Status</th>
                         <th scope = "col" class = "text-center align-middle">St Status</th>
@@ -492,111 +774,147 @@
                                             {% endfor %}
                                         </select>
                                     </td>
-                                    
-                                    <!-- ========== LIFECYCLE STATUS ========== -->
-                                    <td class = "completion-status-cell pa-status-cell">
-                                        <div class="pa-status-actions">
-                                            {% with state=product_assignment.lifecycle_state|default:"IN_CLEARING" %}
-                                            <span class="lifecycle-badge {% if state == 'IN_CLEARING' %}lifecycle-in-clearing{% elif state == 'CLEARING_COMPLETE' %}lifecycle-clearing-complete{% else %}lifecycle-other{% endif %} lifecycle-badge-label">
-                                                {% if product_assignment.lifecycle_state %}
-                                                    {{ product_assignment.get_lifecycle_state_display }}
-                                                {% else %}
-                                                    In Clearing
-                                                {% endif %}
-                                            </span>
-                                            {% if product_assignment.billing_context.invoice_badge %}
-                                            <span class="invoice-badge {% if product_assignment.billing_context.invoice_sent %}invoice-badge-sent{% elif product_assignment.billing_context.invoice_status == 'Draft' %}invoice-badge-draft{% elif product_assignment.billing_context.invoice_status == 'Partial' %}invoice-badge-partial{% endif %} invoice-badge-label">
-                                                {{ product_assignment.billing_context.invoice_badge }}
-                                                {% if product_assignment.billing_context.qbo_invoice_number %} #{{ product_assignment.billing_context.qbo_invoice_number }}{% endif %}
-                                            </span>
-                                            {% endif %}
-                                            {% if product_assignment.ack_summary.show_badge %}
-                                            <span class="ack-badge {{ product_assignment.ack_summary.badge_class }}" title="Acknowledgments received">
-                                                {{ product_assignment.ack_summary.badge_text }}
-                                            </span>
-                                            {% endif %}
-                                            <button type="button" class="btn btn-sm btn-success complete-clearing-btn" title="Complete clearing"
-                                                {% if state != 'IN_CLEARING' %}style="display:none;"{% endif %}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-warning reopen-clearing-btn" title="Unlock for editing"
-                                                {% if not product_assignment.billing_context.can_reopen %}style="display:none;"{% endif %}>
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
-                                            </button>
-                                            <button type="button" class="btn btn-sm btn-outline-info confirm-payment-btn" title="Confirm payment received"
-                                                {% if not product_assignment.billing_context.can_confirm_payment %}style="display:none;"{% endif %}>
-                                                Confirm paid
-                                            </button>
-                                            {% endwith %}
-                                        </div>
-                                    </td>
-
 
                                     <!-- =========== Actions =========== -->
-                                    <td class = "actions-cell">
-
-                                        {% if feature_parser_path_a %}
-                                        <button type="button" class="btn btn-dark parse-pdf-btn" title="Upload Drake PDF (Path A)"
-                                            {% if product_assignment.is_row_locked %}disabled{% endif %}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H10.343c-.638 0-1.167.425-1.167.947v.053c0 .574.425 1.047 1.167 1.047h2.344c1.812 0 3.313-1.433 3.313-3.229 0-1.018-.812-1.875-1.906-2.062A4.537 4.537 0 0 0 8 3.5c-1.312 0-2.489.562-3.304 1.459l-.712-.712A5.53 5.53 0 0 1 8 1.5c2.962 0 5.433 1.812 6.406 4.342l-.712.712z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/></svg>
-                                        </button>
-                                        <button type="button" class="btn btn-dark parser-downloads-btn" title="Download parser PDFs"
-                                            {% if not product_assignment.parse_job_uuid %}style="display:none;"{% endif %}>
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H4.906A1.5 1.5 0 0 1 3.5 12.5v-2A1.5 1.5 0 0 1 5 9h2.5V2.707L6.854 3.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 2.707V9H11a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 2 12.5v-2A2.5 2.5 0 0 1 4.5 8h.906z"/></svg>
-                                        </button>
-                                        {% endif %}
-
-                                        <button type="button" class="btn btn-dark client-message-btn" title="Client message">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>
-                                        </button>
-
+                                    <td class="actions-cell">
                                         {% if forloop.first %}
-
-                                            <!-- Toggle Subrows -->
-                                            <button class = "btn btn-dark toggle-row-btn">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16">
-                                                    <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
-                                                </svg>
-
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style = "display: none;">
-                                                    <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
-                                                </svg>
-                                            </button>
-
-                                            
-                                            <!-- Add Product Assignment Row Button -->
-                                            <button class = "btn btn-dark addProductAssignmentButton">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
-                                                </svg>
-                                            </button>
-
-                                            <!-- Remove Client from Intake Table Button -->
-                                            <button type="button" class="btn btn-dark removeClientBtn" onclick="removeClientFromClearing({{ client.id }})">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16">
-                                                    <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
-                                                </svg>
-                                            </button>
-
+                                            {% with entry_count=client.product_assignments_list.count %}
+                                            <div class="clearing-actions-wrap"
+                                                data-client-id="{{ client.id }}"
+                                                data-product-assignment-id="{{ product_assignment.id }}"
+                                                data-is-main-row="true"
+                                                data-multi-entry="{% if entry_count > 1 %}true{% else %}false{% endif %}">
+                                                <div class="clearing-actions-toolbar">
+                                                    {% if entry_count > 1 %}
+                                                    <button type="button" class="btn btn-dark toggle-row-btn" title="Show / hide entries">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>
+                                                        </svg>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style="display: none;" aria-hidden="true">
+                                                            <path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>
+                                                        </svg>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if feature_parser_path_a %}
+                                                    <button type="button" class="btn btn-dark toolbar-action parse-pdf-btn" title="Upload Drake PDF (Path A)"
+                                                        {% if product_assignment.is_row_locked %}disabled{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H10.343c-.638 0-1.167.425-1.167.947v.053c0 .574.425 1.047 1.167 1.047h2.344c1.812 0 3.313-1.433 3.313-3.229 0-1.018-.812-1.875-1.906-2.062A4.537 4.537 0 0 0 8 3.5c-1.312 0-2.489.562-3.304 1.459l-.712-.712A5.53 5.53 0 0 1 8 1.5c2.962 0 5.433 1.812 6.406 4.342l-.712.712z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/></svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action parser-downloads-btn" title="Download parser PDFs"
+                                                        {% if not product_assignment.parse_job_uuid %}style="display:none;"{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H4.906A1.5 1.5 0 0 1 3.5 12.5v-2A1.5 1.5 0 0 1 5 9h2.5V2.707L6.854 3.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 2.707V9H11a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 2 12.5v-2A2.5 2.5 0 0 1 4.5 8h.906z"/></svg>
+                                                    </button>
+                                                    {% endif %}
+                                                    <button type="button" class="btn btn-dark toolbar-action client-message-btn" title="Client message">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>
+                                                    </button>
+                                                    {% with state=product_assignment.lifecycle_state|default:"IN_CLEARING" %}
+                                                    <button type="button" class="btn btn-dark toolbar-action complete-clearing-btn" title="Complete clearing"
+                                                        {% if state != 'IN_CLEARING' %}style="display:none;"{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action reopen-clearing-btn" title="Unlock for editing"
+                                                        {% if not product_assignment.billing_context.can_reopen %}style="display:none;"{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action confirm-payment-btn" title="Confirm payment received"
+                                                        {% if not product_assignment.billing_context.can_confirm_payment %}style="display:none;"{% endif %}>Paid</button>
+                                                    {% endwith %}
+                                                    <button type="button" class="btn btn-dark toolbar-action addProductAssignmentButton" title="Add entry">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                            <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                            <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action removeClientBtn" data-client-id="{{ client.id }}" title="Remove client from clearing">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark btn-sm clearing-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
+                                                </div>
+                                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end clearing-actions-overflow-menu" data-owner-pa-id="{{ product_assignment.id }}" data-owner-client-id="{{ client.id }}">
+                                                    {% if feature_parser_path_a %}
+                                                    <li class="overflow-parse-pdf-item"><button type="button" class="dropdown-item parse-pdf-btn" {% if product_assignment.is_row_locked %}disabled{% endif %}>Upload Drake PDF</button></li>
+                                                    <li class="parser-downloads-menu-item{% if not product_assignment.parse_job_uuid %} d-none{% endif %}"><button type="button" class="dropdown-item parser-downloads-btn">Download parser PDFs</button></li>
+                                                    {% endif %}
+                                                    {% with state=product_assignment.lifecycle_state|default:"IN_CLEARING" %}
+                                                    <li class="complete-clearing-menu-item overflow-complete-clearing-item{% if state != 'IN_CLEARING' %} d-none{% endif %}"><button type="button" class="dropdown-item complete-clearing-btn">Complete clearing</button></li>
+                                                    <li class="reopen-clearing-menu-item{% if not product_assignment.billing_context.can_reopen %} d-none{% endif %}"><button type="button" class="dropdown-item reopen-clearing-btn">Unlock for editing</button></li>
+                                                    <li class="confirm-payment-menu-item{% if not product_assignment.billing_context.can_confirm_payment %} d-none{% endif %}"><button type="button" class="dropdown-item confirm-payment-btn">Confirm payment received</button></li>
+                                                    {% endwith %}
+                                                    <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
+                                                    <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
+                                                    <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                                                    <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="{{ client.id }}">Remove client from clearing</button></li>
+                                                </ul>
+                                            </div>
+                                            {% endwith %}
                                         {% else %}
-
-                                            <!-- Remove Product Assingment Row Button -->
-                                            <button class = "btn btn-dark removeProductAssignmentButton">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
-                                                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                    <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
-                                                </svg>
-                                            </button>
-
+                                            <div class="clearing-actions-wrap"
+                                                data-client-id="{{ client.id }}"
+                                                data-product-assignment-id="{{ product_assignment.id }}">
+                                                <div class="clearing-actions-toolbar">
+                                                    {% if feature_parser_path_a %}
+                                                    <button type="button" class="btn btn-dark toolbar-action parse-pdf-btn" title="Upload Drake PDF (Path A)"
+                                                        {% if product_assignment.is_row_locked %}disabled{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H10.343c-.638 0-1.167.425-1.167.947v.053c0 .574.425 1.047 1.167 1.047h2.344c1.812 0 3.313-1.433 3.313-3.229 0-1.018-.812-1.875-1.906-2.062A4.537 4.537 0 0 0 8 3.5c-1.312 0-2.489.562-3.304 1.459l-.712-.712A5.53 5.53 0 0 1 8 1.5c2.962 0 5.433 1.812 6.406 4.342l-.712.712z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/></svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action parser-downloads-btn" title="Download parser PDFs"
+                                                        {% if not product_assignment.parse_job_uuid %}style="display:none;"{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H4.906A1.5 1.5 0 0 1 3.5 12.5v-2A1.5 1.5 0 0 1 5 9h2.5V2.707L6.854 3.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 2.707V9H11a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 2 12.5v-2A2.5 2.5 0 0 1 4.5 8h.906z"/></svg>
+                                                    </button>
+                                                    {% endif %}
+                                                    <button type="button" class="btn btn-dark toolbar-action client-message-btn" title="Client message">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>
+                                                    </button>
+                                                    {% with state=product_assignment.lifecycle_state|default:"IN_CLEARING" %}
+                                                    <button type="button" class="btn btn-dark toolbar-action complete-clearing-btn" title="Complete clearing"
+                                                        {% if state != 'IN_CLEARING' %}style="display:none;"{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action reopen-clearing-btn" title="Unlock for editing"
+                                                        {% if not product_assignment.billing_context.can_reopen %}style="display:none;"{% endif %}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark toolbar-action confirm-payment-btn" title="Confirm payment received"
+                                                        {% if not product_assignment.billing_context.can_confirm_payment %}style="display:none;"{% endif %}>Paid</button>
+                                                    {% endwith %}
+                                                    <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
+                                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                                            <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
+                                                        </svg>
+                                                    </button>
+                                                    <button type="button" class="btn btn-dark btn-sm clearing-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
+                                                </div>
+                                                <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end clearing-actions-overflow-menu" data-owner-pa-id="{{ product_assignment.id }}" data-owner-client-id="{{ client.id }}">
+                                                    {% if feature_parser_path_a %}
+                                                    <li><button type="button" class="dropdown-item parse-pdf-btn" {% if product_assignment.is_row_locked %}disabled{% endif %}>Upload Drake PDF</button></li>
+                                                    <li class="parser-downloads-menu-item{% if not product_assignment.parse_job_uuid %} d-none{% endif %}"><button type="button" class="dropdown-item parser-downloads-btn">Download parser PDFs</button></li>
+                                                    {% endif %}
+                                                    {% with state=product_assignment.lifecycle_state|default:"IN_CLEARING" %}
+                                                    <li class="complete-clearing-menu-item{% if state != 'IN_CLEARING' %} d-none{% endif %}"><button type="button" class="dropdown-item complete-clearing-btn">Complete clearing</button></li>
+                                                    <li class="reopen-clearing-menu-item{% if not product_assignment.billing_context.can_reopen %} d-none{% endif %}"><button type="button" class="dropdown-item reopen-clearing-btn">Unlock for editing</button></li>
+                                                    <li class="confirm-payment-menu-item{% if not product_assignment.billing_context.can_confirm_payment %} d-none{% endif %}"><button type="button" class="dropdown-item confirm-payment-btn">Confirm payment received</button></li>
+                                                    {% endwith %}
+                                                    <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
+                                                    <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                                                </ul>
+                                            </div>
                                         {% endif %}
-
                                     </td>
                                     
 
                                     <!-- ======= PMT Status ======= -->
                                     {# data not directly editable #}
-                                    <td>
+                                    <td class="clearing-pmt-status-cell">
                                         {% with s=product_assignment.payment_status %}
                                             {% if s == "Paid" %}
                                                 <span class = "pmt-badge pmt-paid">Paid</span>
@@ -610,12 +928,134 @@
                                         {% endwith %}    
                                     </td>
 
+                                    <!-- ======= Review / Ack status columns ======= -->
+                                    {% with cs=product_assignment.clearing_status %}
+                                    <td class="text-center align-middle">
+                                        <div>{{ cs.rev_status|default:"—" }}</div>
+                                        {% if cs.ack_summary.show_badge %}
+                                        <span class="badge {{ cs.ack_summary.badge_class }} mt-1">{{ cs.ack_summary.badge_text }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center align-middle"
+                                        {% if cs.fed_popover %}title="{{ cs.fed_popover }}"{% endif %}>
+                                        {{ cs.fed_status|default:"—" }}
+                                    </td>
+                                    <td class="text-center align-middle"
+                                        {% if cs.st_popover %}title="{{ cs.st_popover }}"{% endif %}>
+                                        {{ cs.st_status|default:"—" }}
+                                    </td>
+                                    <td class="text-center align-middle">{{ cs.fed_dt|default:"—" }}</td>
+                                    <td class="text-center align-middle">{{ cs.st_dt|default:"—" }}</td>
+                                    <td class="text-center align-middle"
+                                        {% if cs.tp_comp_tooltip %}title="{{ cs.tp_comp_tooltip }}"{% endif %}>
+                                        {{ cs.tp_comp_dt|default:"—" }}
+                                    </td>
+                                    {% endwith %}
+
                                 </tr>
                             {% endfor %}
                         {% endfor %}
 
         <!-- Toast host -->
         <div id="toastHost" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 11000;"></div>
+
+        {% if feature_parser_path_a %}
+        <div id="parserProcessingOverlay" class="parser-processing-overlay d-none" aria-live="polite" aria-busy="true" aria-label="Processing PDF">
+            <svg class="parser-pdk-mark" viewBox="0 0 360 120" aria-hidden="true">
+                <defs>
+                    <linearGradient id="parserPdkGlassFill" x1="180" y1="16" x2="180" y2="104" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#f8fafc"/>
+                        <stop offset="10%" stop-color="#e0f2fe"/>
+                        <stop offset="28%" stop-color="#93c5fd"/>
+                        <stop offset="52%" stop-color="#3b82f6"/>
+                        <stop offset="78%" stop-color="#1d4ed8"/>
+                        <stop offset="100%" stop-color="#1e3a8a"/>
+                    </linearGradient>
+                    <linearGradient id="parserPdkSpecular" x1="180" y1="18" x2="180" y2="66" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+                        <stop offset="24%" stop-color="#f0f9ff" stop-opacity="0.42"/>
+                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="parserPdkRimLight" x1="180" y1="14" x2="180" y2="104" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.85"/>
+                        <stop offset="12%" stop-color="#dbeafe" stop-opacity="0.45"/>
+                        <stop offset="55%" stop-color="#60a5fa" stop-opacity="0.22"/>
+                        <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0.55"/>
+                    </linearGradient>
+                    <radialGradient id="parserPdkAura" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+                        <stop offset="22%" stop-color="#ffffff" stop-opacity="0.82"/>
+                        <stop offset="48%" stop-color="#f8fafc" stop-opacity="0.38"/>
+                        <stop offset="72%" stop-color="#eff6ff" stop-opacity="0.12"/>
+                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                    </radialGradient>
+                    <radialGradient id="parserPdkCore" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+                        <stop offset="55%" stop-color="#ffffff" stop-opacity="0.45"/>
+                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                    </radialGradient>
+                    <radialGradient id="parserSunRayFill" cx="180" cy="84" r="110" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>
+                        <stop offset="28%" stop-color="#ffffff" stop-opacity="0.42"/>
+                        <stop offset="58%" stop-color="#ffffff" stop-opacity="0.1"/>
+                        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+                    </radialGradient>
+                    <filter id="parserPdkRadianceBlur" x="-120%" y="-120%" width="340%" height="340%" color-interpolation-filters="sRGB">
+                        <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur"/>
+                        <feColorMatrix in="blur" type="matrix" values="
+                            1 0 0 0 0.06
+                            0 1 0 0 0.06
+                            0 0 1 0 0.1
+                            0 0 0 1.75 0" result="boost"/>
+                        <feMerge>
+                            <feMergeNode in="boost"/>
+                        </feMerge>
+                    </filter>
+                    <filter id="parserPdkGlassDepth" x="-20%" y="-24%" width="140%" height="152%" color-interpolation-filters="sRGB">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="1.6" result="alphaSoft"/>
+                        <feOffset in="alphaSoft" dx="0" dy="2.5" result="offsetAlpha"/>
+                        <feFlood flood-color="#0f172a" flood-opacity="0.42" result="shadowColor"/>
+                        <feComposite in="shadowColor" in2="offsetAlpha" operator="in" result="drop"/>
+                        <feGaussianBlur in="drop" stdDeviation="3.5" result="softShadow"/>
+                        <feDropShadow in="SourceGraphic" dx="0" dy="0" stdDeviation="0.6" flood-color="#ffffff" flood-opacity="0.28" result="innerGlow"/>
+                        <feMerge>
+                            <feMergeNode in="softShadow"/>
+                            <feMergeNode in="innerGlow"/>
+                        </feMerge>
+                    </filter>
+                </defs>
+                <g class="parser-pdk-radiance" filter="url(#parserPdkRadianceBlur)">
+                    <g transform="translate(180 84)">
+                        <g class="parser-pdk-sun-rays">
+                            <path class="parser-pdk-ray" d="M0 10 L4 -68 L0 -82 L-4 -68 Z" transform="rotate(0)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L3 -68 L0 -82 L-3 -68 Z" transform="rotate(30)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L4 -68 L0 -82 L-4 -68 Z" transform="rotate(60)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L3 -68 L0 -82 L-3 -68 Z" transform="rotate(90)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L4 -68 L0 -82 L-4 -68 Z" transform="rotate(120)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L3 -68 L0 -82 L-3 -68 Z" transform="rotate(150)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L4 -68 L0 -82 L-4 -68 Z" transform="rotate(180)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L3 -68 L0 -82 L-3 -68 Z" transform="rotate(210)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L4 -68 L0 -82 L-4 -68 Z" transform="rotate(240)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L3 -68 L0 -82 L-3 -68 Z" transform="rotate(270)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L4 -68 L0 -82 L-4 -68 Z" transform="rotate(300)"/>
+                            <path class="parser-pdk-ray" d="M0 10 L3 -68 L0 -82 L-3 -68 Z" transform="rotate(330)"/>
+                        </g>
+                    </g>
+                    <ellipse class="parser-pdk-radiance-halo" cx="180" cy="84" rx="148" ry="56"/>
+                    <circle class="parser-pdk-radiance-core" cx="180" cy="84" r="26"/>
+                    <text class="parser-pdk-type parser-pdk-radiance-text" x="180" y="84">PDK</text>
+                </g>
+                <g class="parser-pdk-glass">
+                    <g filter="url(#parserPdkGlassDepth)">
+                        <text class="parser-pdk-type parser-pdk-face" x="180" y="84">PDK</text>
+                    </g>
+                    <text class="parser-pdk-type parser-pdk-specular" x="180" y="84">PDK</text>
+                    <text class="parser-pdk-type parser-pdk-rim" x="180" y="84">PDK</text>
+                </g>
+            </svg>
+            <span class="visually-hidden">Processing PDF</span>
+        </div>
+        {% endif %}
                     {% endif %}
                 </tbody>
 
@@ -697,9 +1137,132 @@
     </div>
 </div>
 
+<!-- Add New Client Modal -->
+<div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addClientModalLabel">Add New Client</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addClientForm">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">TIN</label>
+                        <input type="text" class="form-control" name="TIN" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="text" class="form-control" name="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phone</label>
+                        <input type="text" class="form-control" name="phone" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Filing Type</label>
+                        <select class="form-select" name="filing_type">
+                            <option value=""></option>
+                            <option value="Simple">Simple</option>
+                            <option value="Credits">Credits</option>
+                            <option value="Itemizing">Itemizing</option>
+                            <option value="Sole Proprietor">Sole Proprietor</option>
+                            <option value="Corporation">Corporation</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if feature_parser_path_a %}
 <input type="file" id="parsePdfFileInput" accept="application/pdf,.pdf" class="d-none" aria-hidden="true">
+<input type="file" id="globalParsePdfFileInput" accept="application/pdf,.pdf" class="d-none" aria-hidden="true">
+
+<!-- Global PDF upload — clearing conflict modal -->
+<div class="modal fade" id="globalParseConflictModal" tabindex="-1" aria-labelledby="globalParseConflictModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="globalParseConflictModalLabel">Client already on clearing</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3" id="globalParseConflictSummary"></p>
+                <div class="table-responsive">
+                    <table class="table table-dark table-striped table-sm text-center align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col" style="width: 3rem;"></th>
+                                <th scope="col">Tax year</th>
+                                <th scope="col">Filing type</th>
+                                <th scope="col">Product</th>
+                            </tr>
+                        </thead>
+                        <tbody id="globalParseConflictTableBody"></tbody>
+                    </table>
+                </div>
+                <p id="globalParseReplaceBlockedMsg" class="text-warning small mt-3 mb-0 d-none"></p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" id="globalParseConflictCancelBtn">Cancel</button>
+                <button type="button" class="btn btn-outline-light" id="globalParseConflictNewEntryBtn">New Entry</button>
+                <button type="button" class="btn btn-primary" id="globalParseConflictReplaceBtn" disabled>Replace Entry</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global PDF upload — enrollment modal -->
+<div class="modal fade" id="globalParseEnrollmentModal" tabindex="-1" aria-labelledby="globalParseEnrollmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="globalParseEnrollmentModalLabel">Enrollment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3" id="globalParseEnrollmentMeta"></p>
+                <div class="mb-3">
+                    <label for="globalParseEnrollmentTaxYear" class="form-label">Tax year</label>
+                    <input type="text" class="form-control bg-dark text-light border-secondary" id="globalParseEnrollmentTaxYear" readonly>
+                </div>
+                <div class="mb-3">
+                    <label for="globalParseEnrollmentFilingType" class="form-label">Filing type</label>
+                    <select class="form-select bg-dark text-light border-secondary" id="globalParseEnrollmentFilingType" required>
+                        <option value=""></option>
+                        {% for option in filing_type_options %}
+                        <option value="{{ option.id }}">{{ option.filing_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="globalParseEnrollmentProduct" class="form-label">Product</label>
+                    <select class="form-select bg-dark text-light border-secondary" id="globalParseEnrollmentProduct" required>
+                        <option value=""></option>
+                        {% for product in reference_valid_products %}
+                        <option value="{{ product.id }}">{{ product.product_type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <p id="globalParseEnrollmentError" class="text-danger small mb-0 d-none"></p>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="globalParseEnrollmentConfirmBtn">Continue</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endif %}
+
+</div>
 
 {% else %}
 <h1>Login</h1>
@@ -726,13 +1289,40 @@
         const URL_CLIENT_MESSAGE_TEMPLATE = "{% url 'clearing:client_message' 0 %}";
         const URL_PARSE_PDF_TEMPLATE = "{% url 'clearing:parse_pdf_upload' 0 %}";
         const URL_PARSER_OUTPUTS_TEMPLATE = "{% url 'clearing:parser_outputs' 0 %}";
+        const URL_PARSE_PDF_GLOBAL_PREVIEW = "{% url 'clearing:parse_pdf_global_preview' %}";
+        const URL_PARSE_PDF_GLOBAL_COMMIT = "{% url 'clearing:parse_pdf_global_commit' %}";
         const FEATURE_PARSER_PATH_A = {% if feature_parser_path_a %}true{% else %}false{% endif %};
-
-        const LIFECYCLE_LABELS = {
-            {% for value, label in lifecycle_state_choices %}
-            "{{ value }}": "{{ label }}",
+        const FILING_TYPE_OPTIONS = [
+            {% for option in filing_type_options %}
+            { id: {{ option.id }}, filing_type: "{{ option.filing_type|escapejs }}" }{% if not forloop.last %},{% endif %}
             {% endfor %}
-        };
+        ];
+        const REFERENCE_VALID_PRODUCTS = [
+            {% for product in reference_valid_products %}
+            { id: {{ product.id }}, product_type: "{{ product.product_type|escapejs }}" }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const DUPLICATE_PA_MESSAGE = "An active entry with this tax year and product already exists for this client.";
+        const MANUAL_ONLY_ENROLLMENT_PRODUCTS = [
+            "Withholdings Adjustment",
+            "Advisory",
+            "Reject Correction",
+        ];
+
+        function clearingResponseErrorMessage(err) {
+            const data = err?.response?.data;
+            if (data?.message) return data.message;
+            if (data?.errors) {
+                const parts = [];
+                for (const [field, msgs] of Object.entries(data.errors)) {
+                    const label = field === "__all__" ? "" : `${field}: `;
+                    const text = Array.isArray(msgs) ? msgs.join(" ") : String(msgs);
+                    parts.push(`${label}${text}`.trim());
+                }
+                if (parts.length) return parts.join("\n");
+            }
+            return err?.message || "Failed to add entry.";
+        }
 
         function urlForPa(templateUrl, paId) { return templateUrl.replace(/\/0\//, `/${paId}/`); }
     </script>
@@ -823,8 +1413,12 @@
                         if (resp?.data?.status === "success") {
                             snapshotLastSaved(el);
 
-                            // If tax_year update returns valid_products, you can refresh the product dropdown here if desired
-                            // (optional) resp.data.valid_products
+                            if (
+                                model === "product_assignment"
+                                && (field === "tax_year" || field === "product" || field === "filing_type")
+                            ) {
+                                markClearingRowPendingReorder(row);
+                            }
                         } else {
                             // backend returned non-success but not as an error
                             console.warn("Auto-save warning:", resp?.data?.message);
@@ -968,33 +1562,189 @@
 
 
         // ========== TOGGLE EXPAND & COLLAPSE BUTTONS ========== //
-        function bindExpandCollapseButtons(container = document) {
-            console.log("Binding toggle-row-btns");
+        function getClearingTableBody() {
+            return document.querySelector(".table-scroll tbody") || document;
+        }
 
-            container.querySelectorAll('.toggle-row-btn').forEach(button => {    
-                button.addEventListener('click', () => {
+        function isSubRowVisible(row) {
+            if (row.style.display === "none") return false;
+            if (row.style.display === "table-row") return true;
+            return window.getComputedStyle(row).display !== "none";
+        }
+
+        function clearingRowSortKey(row) {
+            const taxYearEl = row.querySelector('select[data-field="tax_year"]');
+            const filingEl = row.querySelector('select[data-field="filing_type"]');
+            const productEl = row.querySelector('select[data-field="product"]');
+            const taxYear = taxYearEl ? parseInt(taxYearEl.value, 10) || 0 : 0;
+            const filing = filingEl ? (filingEl.options[filingEl.selectedIndex]?.textContent || "").trim().toLowerCase() : "";
+            const product = productEl ? (productEl.options[productEl.selectedIndex]?.textContent || "").trim().toLowerCase() : "";
+            return [-taxYear, filing, product];
+        }
+
+        function compareClearingRowKeys(a, b) {
+            for (let i = 0; i < 3; i++) {
+                if (a[i] < b[i]) return -1;
+                if (a[i] > b[i]) return 1;
+            }
+            return 0;
+        }
+
+        function reorderClearingClientRows(clientId) {
+            const tbody = document.querySelector(".table-scroll tbody");
+            if (!tbody) return;
+
+            const rows = Array.from(tbody.querySelectorAll(`tr[data-client-id="${clientId}"]`));
+            const mainRow = rows.find((r) => r.classList.contains("main-row"));
+            if (!mainRow) return;
+
+            const subRows = rows.filter((r) => r.classList.contains("sub-row"));
+            if (subRows.length === 0) return;
+
+            const subRowsExpanded = subRows.some(isSubRowVisible);
+
+            subRows.sort((left, right) =>
+                compareClearingRowKeys(clearingRowSortKey(left), clearingRowSortKey(right))
+            );
+
+            let anchor = mainRow;
+            subRows.forEach((sub) => {
+                anchor.after(sub);
+                anchor = sub;
+            });
+
+            subRows.forEach((sub) => {
+                sub.style.display = subRowsExpanded ? "table-row" : "none";
+            });
+        }
+
+        function markClearingRowPendingReorder(row) {
+            if (!row) return;
+            row.dataset.pendingClearingReorder = "1";
+            setTimeout(() => {
+                const active = document.activeElement;
+                if (!active || !row.contains(active)) {
+                    tryReorderClearingClientAfterRowComplete(row);
+                }
+            }, 0);
+        }
+
+        function tryReorderClearingClientAfterRowComplete(row) {
+            if (!row || row.dataset.pendingClearingReorder !== "1") return;
+            const clientId = row.dataset.clientId;
+            if (!clientId) return;
+            delete row.dataset.pendingClearingReorder;
+            reorderClearingClientRows(clientId);
+        }
+
+        function bindClearingRowReorderOnComplete(container = document) {
+            container.querySelectorAll("tr[data-client-id][data-product-assignment-id]").forEach((row) => {
+                if (row.dataset.reorderOnCompleteBound === "true") return;
+                row.dataset.reorderOnCompleteBound = "true";
+
+                row.addEventListener("focusout", (event) => {
+                    const related = event.relatedTarget;
+                    if (related && row.contains(related)) return;
+
+                    setTimeout(() => {
+                        const active = document.activeElement;
+                        if (active && row.contains(active)) return;
+                        tryReorderClearingClientAfterRowComplete(row);
+                    }, 0);
+                });
+            });
+        }
+
+        function setToggleRowButtonIcon(button, expanded) {
+            const iconLeft = button.querySelector('.toggle-icon-left');
+            const iconDown = button.querySelector('.toggle-icon-down');
+            if (!iconLeft || !iconDown) return;
+            iconLeft.style.display = expanded ? 'none' : 'inline';
+            iconDown.style.display = expanded ? 'inline' : 'none';
+        }
+
+        function updateToggleAllHeaderIcon(expanded) {
+            const btn = document.getElementById('toggleAllRowsBtn');
+            if (!btn) return;
+            const iconLeft = btn.querySelector('.toggle-all-icon-left');
+            const iconDown = btn.querySelector('.toggle-all-icon-down');
+            if (!iconLeft || !iconDown) return;
+            iconLeft.style.display = expanded ? 'none' : 'inline';
+            iconDown.style.display = expanded ? 'inline' : 'none';
+            btn.title = expanded ? 'Collapse all product rows' : 'Expand all product rows';
+            btn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+
+        function allSubRowsExpanded(tableBody = getClearingTableBody()) {
+            const subs = tableBody.querySelectorAll('.sub-row');
+            if (!subs.length) return false;
+            return Array.from(subs).every(isSubRowVisible);
+        }
+
+        function setClientSubRowsExpanded(clientId, expanded, tableBody = getClearingTableBody()) {
+            const subRows = tableBody.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+            subRows.forEach((sub) => {
+                sub.style.display = expanded ? 'table-row' : 'none';
+            });
+            const mainRow = tableBody.querySelector(`.main-row[data-client-id="${clientId}"]`);
+            const toggleBtn = mainRow?.querySelector('.toggle-row-btn');
+            if (toggleBtn) setToggleRowButtonIcon(toggleBtn, expanded);
+        }
+
+        function setAllSubRowsExpanded(expanded, tableBody = getClearingTableBody()) {
+            const clientIds = new Set();
+            tableBody.querySelectorAll('.main-row[data-client-id]').forEach((row) => {
+                clientIds.add(row.getAttribute('data-client-id'));
+            });
+            clientIds.forEach((clientId) => {
+                if (clientId) setClientSubRowsExpanded(clientId, expanded, tableBody);
+            });
+            updateToggleAllHeaderIcon(expanded);
+        }
+
+        function bindToggleAllRowsButton() {
+            const btn = document.getElementById('toggleAllRowsBtn');
+            if (!btn || btn.dataset.bound === 'true') return;
+            btn.dataset.bound = 'true';
+
+            const tableBody = getClearingTableBody();
+            const subs = tableBody.querySelectorAll('.sub-row');
+            if (!subs.length) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50');
+                btn.title = 'No additional product rows to expand';
+                return;
+            }
+
+            updateToggleAllHeaderIcon(allSubRowsExpanded(tableBody));
+
+            btn.addEventListener('click', () => {
+                const expand = !allSubRowsExpanded(tableBody);
+                setAllSubRowsExpanded(expand, tableBody);
+            });
+        }
+
+        function bindExpandCollapseButtons(container = document) {
+            const tableBody = getClearingTableBody();
+
+            container.querySelectorAll('.toggle-row-btn').forEach((button) => {
+                if (button.dataset.bound === 'true') return;
+                button.dataset.bound = 'true';
+
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
 
                     const row = button.closest('tr');
                     if (!row) return;
 
                     const clientId = row.getAttribute('data-client-id');
-                    console.log("Toggle button clicked for client ID:", clientId);
+                    const subRows = tableBody.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+                    if (!subRows.length) return;
 
-                    const subRows = container.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
-
-                    subRows.forEach(sub => {
-                        sub.style.display = (sub.style.display === 'none') ? 'table-row' : 'none';
-                    });
-
-                    // Toggle expandable row svg icon
-                    const iconLeft = button.querySelector('.toggle-icon-left');
-                    const iconDown = button.querySelector('.toggle-icon-down');
-
-                    if(iconLeft && iconDown) {
-                        const isExpanding = subRows.length > 0 && subRows[0].style.display === 'table-row';
-                        iconLeft.style.display = isExpanding ? 'none' : 'inline';
-                        iconDown.style.display = isExpanding ? 'inline' : 'none';
-                    }
+                    const expand = !Array.from(subRows).every(isSubRowVisible);
+                    setClientSubRowsExpanded(clientId, expand, tableBody);
+                    updateToggleAllHeaderIcon(allSubRowsExpanded(tableBody));
                 });
             });
         }
@@ -1023,12 +1773,397 @@
             row.querySelectorAll(".parse-pdf-btn").forEach((btn) => {
                 btn.disabled = locked;
             });
+            updateClearingActionsCompactState(
+                row.querySelector(".clearing-actions-wrap")
+            );
+        }
+
+        function getClearingActionsMenuForWrap(wrap) {
+            if (!wrap) return null;
+            const paId = wrap.dataset.productAssignmentId;
+            if (!paId) return null;
+            return (
+                wrap.querySelector(".clearing-actions-overflow-menu")
+                || document.querySelector(
+                    `.clearing-actions-overflow-menu[data-owner-pa-id="${paId}"]`
+                )
+            );
+        }
+
+        function isClearingActionsMenuOpen(menu) {
+            return Boolean(menu && menu.classList.contains("show"));
+        }
+
+        function restoreClearingActionsMenuToWrap(menu) {
+            if (!menu) return;
+            const paId = menu.dataset.ownerPaId;
+            if (!paId) return;
+
+            const wrap = document.querySelector(
+                `.clearing-actions-wrap[data-product-assignment-id="${paId}"]`
+            );
+            if (!wrap) return;
+
+            menu.classList.remove("show", "clearing-actions-menu-floating");
+            menu.style.display = "";
+            menu.style.position = "";
+            menu.style.left = "";
+            menu.style.top = "";
+            menu.style.right = "";
+            menu.style.zIndex = "";
+            menu.style.visibility = "";
+
+            if (!wrap.contains(menu)) {
+                wrap.appendChild(menu);
+            }
+            delete menu.dataset.portaled;
+        }
+
+        function positionClearingActionsMenu(menu, ellipsis) {
+            document.body.appendChild(menu);
+            menu.classList.add("clearing-actions-menu-floating", "show");
+            menu.dataset.portaled = "true";
+
+            menu.style.visibility = "hidden";
+            menu.style.display = "block";
+            const menuRect = menu.getBoundingClientRect();
+            const anchor = ellipsis.getBoundingClientRect();
+
+            let top = anchor.bottom + 2;
+            if (top + menuRect.height > window.innerHeight - 8) {
+                top = Math.max(8, anchor.top - menuRect.height - 2);
+            }
+
+            let left = anchor.right - menuRect.width;
+            left = Math.max(8, Math.min(left, window.innerWidth - menuRect.width - 8));
+
+            menu.style.position = "fixed";
+            menu.style.top = `${top}px`;
+            menu.style.left = `${left}px`;
+            menu.style.right = "auto";
+            menu.style.zIndex = "2000";
+            menu.style.visibility = "visible";
+        }
+
+        function openClearingActionsMenu(wrap) {
+            const menu = getClearingActionsMenuForWrap(wrap);
+            const ellipsis = wrap.querySelector(".clearing-actions-ellipsis");
+            if (!menu || !ellipsis) return;
+
+            menu.dataset.ownerPaId = wrap.dataset.productAssignmentId || "";
+            menu.dataset.ownerClientId = wrap.dataset.clientId || "";
+            closeAllClearingOverflowMenus();
+            positionClearingActionsMenu(menu, ellipsis);
+        }
+
+        function closeAllClearingOverflowMenus() {
+            document.querySelectorAll(".clearing-actions-overflow-menu").forEach((menu) => {
+                restoreClearingActionsMenuToWrap(menu);
+            });
+        }
+
+        const CLEARING_TOOLBAR_GAP_PX = 2;
+        const CLEARING_TOOLBAR_WIDTH_BUFFER_PX = 4;
+        const CLEARING_MAX_INLINE_ACTION_BUTTONS = 4;
+        const CLEARING_OVERFLOW_MENU_ACTIONS = [
+            "parse-pdf-btn",
+            "parser-downloads-btn",
+            "complete-clearing-btn",
+            "reopen-clearing-btn",
+            "confirm-payment-btn",
+            "client-message-btn",
+            "addProductAssignmentButton",
+            "removeProductAssignmentButton",
+            "removeClientBtn",
+        ];
+
+        function isClearingToolbarButtonShown(btn) {
+            if (!btn || btn.classList.contains("clearing-actions-ellipsis")) return false;
+            if (btn.hidden) return false;
+            const style = window.getComputedStyle(btn);
+            return style.display !== "none" && style.visibility !== "hidden";
+        }
+
+        function getClearingToolbarInlineButtons(toolbar) {
+            return [...toolbar.querySelectorAll(".btn:not(.clearing-actions-ellipsis)")]
+                .filter(isClearingToolbarButtonShown);
+        }
+
+        function measureEllipsisWidth(ellipsis) {
+            if (!ellipsis) return 32;
+            if (ellipsis.offsetParent !== null) return ellipsis.offsetWidth;
+            const previousDisplay = ellipsis.style.display;
+            ellipsis.style.display = "inline-flex";
+            const width = ellipsis.offsetWidth;
+            ellipsis.style.display = previousDisplay;
+            return width;
+        }
+
+        function measureClearingToolbarWidth(buttons, { includeEllipsis = false, ellipsis = null } = {}) {
+            let total = buttons.reduce((sum, btn) => sum + btn.offsetWidth, 0);
+            const buttonCount = buttons.length + (includeEllipsis ? 1 : 0);
+            total += CLEARING_TOOLBAR_GAP_PX * Math.max(0, buttonCount - 1);
+            if (includeEllipsis) {
+                total += measureEllipsisWidth(ellipsis);
+            }
+            return total;
+        }
+
+        function getClearingToolbarHideOrder(wrap) {
+            const isMainRow = wrap.dataset.isMainRow === "true";
+            const isMultiEntry = wrap.dataset.multiEntry === "true";
+            const hideFirst = [
+                "removeClientBtn",
+                "removeProductAssignmentButton",
+                "confirm-payment-btn",
+                "reopen-clearing-btn",
+                "parser-downloads-btn",
+                "client-message-btn",
+                "parse-pdf-btn",
+            ];
+
+            if (isMainRow && isMultiEntry) {
+                return [...hideFirst, "addProductAssignmentButton", "toggle-row-btn", "complete-clearing-btn"];
+            }
+            if (isMainRow) {
+                return hideFirst.filter((cls) => cls !== "removeClientBtn")
+                    .concat(["addProductAssignmentButton", "complete-clearing-btn"]);
+            }
+            return hideFirst.filter((cls) => cls !== "removeClientBtn")
+                .concat(["complete-clearing-btn"]);
+        }
+
+        function getClearingToolbarKeepPriority(wrap) {
+            return [...getClearingToolbarHideOrder(wrap)].reverse();
+        }
+
+        function pickClearingToolbarButtonsToKeep(wrap, toolbar, inlineButtons, maxCount) {
+            const kept = [];
+            for (const className of getClearingToolbarKeepPriority(wrap)) {
+                if (kept.length >= maxCount) break;
+                const btn = toolbar.querySelector(`.${className}`);
+                if (btn && isClearingToolbarButtonShown(btn) && !kept.includes(btn)) {
+                    kept.push(btn);
+                }
+            }
+            if (kept.length < maxCount) {
+                inlineButtons.forEach((btn) => {
+                    if (kept.length >= maxCount) return;
+                    if (!kept.includes(btn)) kept.push(btn);
+                });
+            }
+            return kept;
+        }
+
+        function syncClearingOverflowMenu(wrap) {
+            const menu = getClearingActionsMenuForWrap(wrap);
+            const toolbar = wrap.querySelector(".clearing-actions-toolbar");
+            if (!menu || !toolbar) return;
+
+            CLEARING_OVERFLOW_MENU_ACTIONS.forEach((className) => {
+                const toolbarBtn = toolbar.querySelector(`.${className}`);
+                const menuBtn = menu.querySelector(`.dropdown-item.${className}`);
+                if (!menuBtn) return;
+                const menuItem = menuBtn.closest("li");
+                if (!menuItem) return;
+
+                if (!wrap.classList.contains("is-compact")) {
+                    if (toolbarBtn && isClearingToolbarButtonShown(toolbarBtn)) {
+                        menuItem.classList.add("d-none");
+                    }
+                    return;
+                }
+
+                if (!toolbarBtn || !isClearingToolbarButtonShown(toolbarBtn)) {
+                    return;
+                }
+
+                menuItem.classList.toggle(
+                    "d-none",
+                    !toolbarBtn.classList.contains("clearing-toolbar-overflow")
+                );
+            });
+        }
+
+        function updateClearingActionsCompactState(wrap) {
+            if (!wrap) return;
+            const toolbar = wrap.querySelector(".clearing-actions-toolbar");
+            const actionsCell = wrap.closest(".actions-cell");
+            const ellipsis = wrap.querySelector(".clearing-actions-ellipsis");
+            if (!toolbar || !actionsCell) return;
+
+            toolbar.querySelectorAll(".btn:not(.clearing-actions-ellipsis)").forEach((btn) => {
+                btn.classList.remove("clearing-toolbar-overflow");
+            });
+            wrap.classList.remove("is-compact");
+
+            const availableWidth = Math.max(0, wrap.clientWidth - CLEARING_TOOLBAR_WIDTH_BUFFER_PX);
+            if (availableWidth <= 0) return;
+
+            const inlineButtons = getClearingToolbarInlineButtons(toolbar);
+            if (!inlineButtons.length) {
+                syncClearingOverflowMenu(wrap);
+                return;
+            }
+
+            const hidden = new Set();
+            const needsCountCap = inlineButtons.length > CLEARING_MAX_INLINE_ACTION_BUTTONS;
+            const needsWidthCap = measureClearingToolbarWidth(inlineButtons) > availableWidth;
+
+            if (needsCountCap) {
+                const kept = pickClearingToolbarButtonsToKeep(
+                    wrap,
+                    toolbar,
+                    inlineButtons,
+                    CLEARING_MAX_INLINE_ACTION_BUTTONS
+                );
+                inlineButtons.forEach((btn) => {
+                    if (!kept.includes(btn)) hidden.add(btn);
+                });
+            }
+
+            const toolbarFitsWithOverflow = () => {
+                const shownButtons = inlineButtons.filter((btn) => !hidden.has(btn));
+                return measureClearingToolbarWidth(shownButtons, {
+                    includeEllipsis: true,
+                    ellipsis,
+                }) <= availableWidth;
+            };
+
+            if (!needsCountCap && !needsWidthCap) {
+                syncClearingOverflowMenu(wrap);
+                if (isClearingActionsMenuOpen(getClearingActionsMenuForWrap(wrap))) {
+                    closeAllClearingOverflowMenus();
+                }
+                return;
+            }
+
+            if (!toolbarFitsWithOverflow()) {
+                for (const className of getClearingToolbarHideOrder(wrap)) {
+                    if (toolbarFitsWithOverflow()) break;
+                    const btn = toolbar.querySelector(`.${className}`);
+                    if (!btn || !isClearingToolbarButtonShown(btn) || hidden.has(btn)) continue;
+                    hidden.add(btn);
+                }
+
+                if (!toolbarFitsWithOverflow()) {
+                    for (const btn of inlineButtons) {
+                        if (toolbarFitsWithOverflow()) break;
+                        hidden.add(btn);
+                    }
+                }
+            }
+
+            hidden.forEach((btn) => btn.classList.add("clearing-toolbar-overflow"));
+            wrap.classList.add("is-compact");
+            syncClearingOverflowMenu(wrap);
+        }
+
+        const clearingActionsCompactResizeListener = () => {
+            document.querySelectorAll(".clearing-actions-wrap").forEach(updateClearingActionsCompactState);
+        };
+
+        function bindClearingActionsCompact(container = document) {
+            container.querySelectorAll(".clearing-actions-wrap").forEach((wrap) => {
+                if (wrap.dataset.compactBound === "true") return;
+                wrap.dataset.compactBound = "true";
+
+                const ellipsis = wrap.querySelector(".clearing-actions-ellipsis");
+                const menu = wrap.querySelector(".clearing-actions-overflow-menu");
+                if (menu && wrap.dataset.productAssignmentId) {
+                    menu.dataset.ownerPaId = wrap.dataset.productAssignmentId;
+                }
+                if (menu && wrap.dataset.clientId) {
+                    menu.dataset.ownerClientId = wrap.dataset.clientId;
+                }
+
+                ellipsis?.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!wrap.classList.contains("is-compact")) return;
+
+                    const activeMenu = getClearingActionsMenuForWrap(wrap);
+                    if (!activeMenu || !ellipsis) return;
+
+                    if (isClearingActionsMenuOpen(activeMenu)) {
+                        closeAllClearingOverflowMenus();
+                        return;
+                    }
+                    openClearingActionsMenu(wrap);
+                });
+
+                menu?.addEventListener("click", (event) => {
+                    if (event.target.closest(".dropdown-item")) {
+                        setTimeout(closeAllClearingOverflowMenus, 0);
+                    }
+                });
+            });
+        }
+
+        function stopClearingActionClickPropagation(container = document) {
+            container.querySelectorAll(
+                ".clearing-actions-wrap button, .actions-cell > .removeProductAssignmentButton"
+            ).forEach((button) => {
+                button.addEventListener("click", (event) => event.stopPropagation());
+            });
+        }
+
+        function bindRemoveClientButtons(container = document) {
+            container.querySelectorAll(".removeClientBtn").forEach((btn) => {
+                if (btn.dataset.bound === "true") return;
+                btn.dataset.bound = "true";
+                btn.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    const clientId = btn.dataset.clientId;
+                    if (clientId) removeClientFromClearing(clientId);
+                });
+            });
+        }
+
+        function initClearingRowActionBindings(container = document) {
+            bindExpandCollapseButtons(container);
+            bindAddProductAssignmentButtons(container);
+            bindRemoveProductAssignmentButtons(container);
+            bindRemoveClientButtons(container);
+            bindCompleteClearingButtons(container);
+            bindReopenClearingButtons(container);
+            bindConfirmPaymentButtons(container);
+            bindClientMessageButtons(container);
+            bindParseUploadButtons(container);
+            bindParserDownloadButtons(container);
+            bindClearingRowReorderOnComplete(container);
+            bindClearingActionsCompact(container);
+            stopClearingActionClickPropagation(container);
+            container.querySelectorAll(".clearing-actions-wrap").forEach(updateClearingActionsCompactState);
+        }
+
+        function setWorkflowMenuItemVisibility(row, selector, visible) {
+            row.querySelectorAll(selector).forEach((el) => {
+                el.classList.toggle("d-none", !visible);
+            });
+        }
+
+        function updateWorkflowButtons(row, { lifecycleState, canReopen, canConfirmPayment }) {
+            const showComplete = lifecycleState === "IN_CLEARING";
+            row.querySelectorAll(".complete-clearing-btn").forEach((btn) => {
+                btn.style.display = showComplete ? "inline-block" : "none";
+            });
+            setWorkflowMenuItemVisibility(row, ".complete-clearing-menu-item", showComplete);
+
+            row.querySelectorAll(".reopen-clearing-btn").forEach((btn) => {
+                btn.style.display = canReopen ? "inline-block" : "none";
+            });
+            setWorkflowMenuItemVisibility(row, ".reopen-clearing-menu-item", canReopen);
+
+            row.querySelectorAll(".confirm-payment-btn").forEach((btn) => {
+                btn.style.display = canConfirmPayment ? "inline-block" : "none";
+            });
+            setWorkflowMenuItemVisibility(row, ".confirm-payment-menu-item", canConfirmPayment);
         }
 
         function updatePaStatusUI(row, data) {
             const lifecycleState = data.lifecycle_state || row.dataset.lifecycleState || "IN_CLEARING";
-            const lifecycleLabel = data.lifecycle_label;
-            updateLifecycleUI(row, lifecycleState, lifecycleLabel);
+            updateLifecycleUI(row, lifecycleState);
 
             row.dataset.reopenTier = data.reopen_tier || "none";
             row.dataset.invoiceSent = data.invoice_sent ? "true" : "false";
@@ -1041,62 +2176,16 @@
                 row.classList.remove("row-invoice-sent");
             }
 
-            const badge = row.querySelector(".invoice-badge-label");
-            if (badge) {
-                if (data.invoice_badge) {
-                    badge.textContent = data.invoice_badge + (data.qbo_invoice_number ? ` #${data.qbo_invoice_number}` : "");
-                    badge.style.display = "inline-block";
-                    badge.classList.toggle("invoice-badge-sent", !!data.invoice_sent);
-                    badge.classList.toggle("invoice-badge-draft", data.invoice_status === "Draft");
-                    badge.classList.toggle("invoice-badge-partial", data.invoice_status === "Partial");
-                } else {
-                    badge.style.display = "none";
-                }
-            } else if (data.invoice_badge) {
-                const actions = row.querySelector(".pa-status-actions");
-                if (actions) {
-                    const span = document.createElement("span");
-                    span.className = "invoice-badge invoice-badge-label" + (data.invoice_sent ? " invoice-badge-sent" : "");
-                    span.textContent = data.invoice_badge;
-                    actions.insertBefore(span, actions.querySelector(".complete-clearing-btn"));
-                }
-            }
-
-            const reopenBtn = row.querySelector(".reopen-clearing-btn");
-            if (reopenBtn) {
-                reopenBtn.style.display = data.can_reopen ? "inline-block" : "none";
-            }
-            const confirmBtn = row.querySelector(".confirm-payment-btn");
-            if (confirmBtn) {
-                confirmBtn.style.display = data.can_confirm_payment ? "inline-block" : "none";
-            }
+            const canReopen = !!data.can_reopen;
+            updateWorkflowButtons(row, {
+                lifecycleState,
+                canReopen,
+                canConfirmPayment: !!data.can_confirm_payment,
+            });
         }
 
-        function updateLifecycleUI(row, lifecycleState, lifecycleLabel) {
+        function updateLifecycleUI(row, lifecycleState) {
             row.dataset.lifecycleState = lifecycleState;
-            const badge = row.querySelector(".lifecycle-badge-label");
-            if (badge) {
-                badge.textContent = lifecycleLabel || LIFECYCLE_LABELS[lifecycleState] || lifecycleState;
-                badge.classList.remove("lifecycle-in-clearing", "lifecycle-clearing-complete", "lifecycle-other");
-                if (lifecycleState === "IN_CLEARING") {
-                    badge.classList.add("lifecycle-in-clearing");
-                } else if (lifecycleState === "CLEARING_COMPLETE") {
-                    badge.classList.add("lifecycle-clearing-complete");
-                } else {
-                    badge.classList.add("lifecycle-other");
-                }
-            }
-            const completeBtn = row.querySelector(".complete-clearing-btn");
-            const reopenBtn = row.querySelector(".reopen-clearing-btn");
-            if (completeBtn) {
-                completeBtn.style.display = lifecycleState === "IN_CLEARING" ? "inline-block" : "none";
-            }
-            if (reopenBtn && lifecycleState !== "IN_CLEARING") {
-                const canReopen = lifecycleState === "CLEARING_COMPLETE" || lifecycleState === "AWAITING_PAYMENT";
-                if (!row.dataset.canConfirmPayment && canReopen) {
-                    reopenBtn.style.display = "inline-block";
-                }
-            }
             setRowLocked(row, lifecycleState !== "IN_CLEARING" && lifecycleState !== "");
         }
 
@@ -1114,7 +2203,7 @@
                 button.dataset.bound = "true";
 
                 button.addEventListener("click", async () => {
-                    const row = button.closest("tr");
+                    const row = resolveClearingRowFromButton(button);
                     const paId = row?.dataset.productAssignmentId;
                     if (!paId) return;
 
@@ -1150,7 +2239,7 @@
                 button.dataset.bound = "true";
 
                 button.addEventListener("click", () => {
-                    const row = button.closest("tr");
+                    const row = resolveClearingRowFromButton(button);
                     const paId = row?.dataset.productAssignmentId;
                     if (!paId || !row) return;
 
@@ -1251,7 +2340,7 @@
                 button.dataset.bound = "true";
 
                 button.addEventListener("click", async () => {
-                    const row = button.closest("tr");
+                    const row = resolveClearingRowFromButton(button);
                     const paId = row?.dataset.productAssignmentId;
                     if (!paId) return;
 
@@ -1313,8 +2402,12 @@
         }
 
         function showParserDownloadsButton(row, show) {
-            const btn = row?.querySelector(".parser-downloads-btn");
-            if (btn) btn.style.display = show ? "inline-block" : "none";
+            row?.querySelectorAll(".parser-downloads-btn").forEach((btn) => {
+                btn.style.display = show ? "inline-block" : "none";
+            });
+            row?.querySelectorAll(".parser-downloads-menu-item").forEach((li) => {
+                li.classList.toggle("d-none", !show);
+            });
         }
 
         async function openParserDownloadsModal(paId) {
@@ -1341,9 +2434,10 @@
                 button.dataset.bound = "true";
 
                 button.addEventListener("click", async () => {
-                    const row = button.closest("tr");
+                    const row = resolveClearingRowFromButton(button);
                     const paId = row?.dataset.productAssignmentId;
                     if (!paId) return;
+
                     button.disabled = true;
                     try {
                         await openParserDownloadsModal(paId);
@@ -1358,6 +2452,16 @@
             if (data.parse_job_uuid) {
                 row.dataset.parseJobId = data.parse_job_uuid;
                 showParserDownloadsButton(row, true);
+            }
+            if (data.client_name) {
+                const clientId = row.dataset.clientId;
+                const nameCell = document.querySelector(
+                    `tr.main-row[data-client-id="${clientId}"] [data-field="name"]`
+                );
+                if (nameCell) {
+                    nameCell.textContent = data.client_name;
+                    snapshotLastSaved(nameCell);
+                }
             }
             if (data.fee !== undefined && data.fee !== "") {
                 row.dataset.fee = data.fee;
@@ -1388,7 +2492,7 @@
                 button.dataset.bound = "true";
 
                 button.addEventListener("click", () => {
-                    const row = button.closest("tr");
+                    const row = resolveClearingRowFromButton(button);
                     const paId = row?.dataset.productAssignmentId;
                     if (!paId || isRowLocked(row)) return;
 
@@ -1414,63 +2518,550 @@
                 const btn = row.querySelector(".parse-pdf-btn");
                 if (btn) btn.disabled = true;
 
-                const formData = new FormData();
-                formData.append("file", file);
-
                 try {
-                    const res = await axios.post(
-                        urlForPa(URL_PARSE_PDF_TEMPLATE, paId),
-                        formData,
-                        {
-                            headers: {
-                                "X-CSRFToken": getCookie("csrftoken"),
-                                "Content-Type": "multipart/form-data",
-                            },
-                        }
-                    );
-                    applyParseResultToRow(row, res.data);
-                    if (res.data.message_ready === false) {
-                        showToast(
-                            "PDF parsed (packets ready). Client name or tax year missing — compose the message manually.",
-                            "Parser — review message"
+                    const preview = await postGlobalParsePreview(file);
+                    const pdfTin = normalizeTinDigits(preview.extracted?.taxpayer_tin);
+                    const rowTin = getClearingRowClientTin(row);
+                    if (rowTin && pdfTin && rowTin !== pdfTin) {
+                        alert(
+                            "Uploaded TIN does not match this clearing entry. "
+                            + "Use Upload Tax PDF from the header for a different client."
                         );
-                    } else {
-                        showToast(res.data.message || "PDF parsed successfully.", "Parser");
+                        return;
                     }
-
-                    if (res.data.downloads?.length) {
-                        renderParserDownloadLinks(
-                            document.getElementById("clientMessageDownloadLinks"),
-                            res.data.downloads,
-                            { compact: true }
-                        );
-                    }
-
-                    if (res.data.message_text) {
-                        activeMessagePaId = paId;
-                        activeMessageLocked = false;
-                        const textarea = document.getElementById("clientMessageTextarea");
-                        const meta = document.getElementById("clientMessageMeta");
-                        if (textarea) {
-                            textarea.value = res.data.message_text;
-                            textarea.readOnly = false;
-                        }
-                        if (meta) {
-                            meta.textContent = "Generated from parser — review before sending.";
-                        }
-                        const saveBtn = document.getElementById("saveClientMessageBtn");
-                        if (saveBtn) saveBtn.style.display = "inline-block";
-                        const modalEl = document.getElementById("clientMessageModal");
-                        if (modalEl && typeof bootstrap !== "undefined") {
-                            bootstrap.Modal.getOrCreateInstance(modalEl).show();
-                        }
-                    }
+                    routeGlobalParsePreview(preview, { paId, row });
                 } catch (err) {
-                    const msg = err?.response?.data?.message || "Parser upload failed. Use manual entry (Path B).";
+                    const msg = err?.response?.data?.message || "Parser preview failed. Use manual entry (Path B).";
                     alert(msg);
                 } finally {
                     if (btn && !isRowLocked(row)) btn.disabled = false;
                     fileInput.value = "";
+                }
+            });
+        }
+
+        let globalParseState = null;
+        let parserProcessingDepth = 0;
+
+        function showParserProcessingOverlay() {
+            parserProcessingDepth += 1;
+            const el = document.getElementById("parserProcessingOverlay");
+            if (el) el.classList.remove("d-none");
+        }
+
+        function hideParserProcessingOverlay() {
+            parserProcessingDepth = Math.max(0, parserProcessingDepth - 1);
+            if (parserProcessingDepth === 0) {
+                const el = document.getElementById("parserProcessingOverlay");
+                if (el) el.classList.add("d-none");
+            }
+        }
+
+        function resetGlobalParseState() {
+            globalParseState = null;
+        }
+
+        function showGlobalParseModal(modalId) {
+            const modalEl = document.getElementById(modalId);
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+
+        function hideGlobalParseModal(modalId) {
+            const modalEl = document.getElementById(modalId);
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            }
+        }
+
+        function maskTinForDisplay(tin) {
+            const digits = String(tin || "").replace(/\D/g, "");
+            if (digits.length !== 9) return "TIN on file";
+            return `***-**-${digits.slice(-4)}`;
+        }
+
+        function resolveSuggestedProductId(suggested) {
+            if (!suggested) return null;
+            if (suggested.product_id) return suggested.product_id;
+            const productType = suggested.product_type;
+            if (!productType) return null;
+            const match = REFERENCE_VALID_PRODUCTS.find((p) => p.product_type === productType);
+            return match?.id || null;
+        }
+
+        function shouldAutoCommitEnrollment(suggested) {
+            if (!suggested?.filing_type_id) return false;
+            const productId = resolveSuggestedProductId(suggested);
+            if (!productId) return false;
+            const productType = suggested.product_type || "";
+            if (MANUAL_ONLY_ENROLLMENT_PRODUCTS.includes(productType)) return false;
+            return suggested.auto_commit_eligible !== false;
+        }
+
+        function populateGlobalParseEnrollmentModal({ prefillFilingTypeId = null } = {}) {
+            const extracted = globalParseState?.extracted || {};
+            const match = globalParseState?.match || {};
+            const suggested = globalParseState?.suggested_enrollment || null;
+            const taxYearInput = document.getElementById("globalParseEnrollmentTaxYear");
+            const filingTypeSelect = document.getElementById("globalParseEnrollmentFilingType");
+            const productSelect = document.getElementById("globalParseEnrollmentProduct");
+            const meta = document.getElementById("globalParseEnrollmentMeta");
+            const errEl = document.getElementById("globalParseEnrollmentError");
+
+            const filingTypeId = suggested?.filing_type_id || prefillFilingTypeId;
+            const productId = resolveSuggestedProductId(suggested);
+
+            if (taxYearInput) taxYearInput.value = extracted.tax_year || "";
+            if (filingTypeSelect) {
+                filingTypeSelect.value = filingTypeId ? String(filingTypeId) : "";
+            }
+            if (productSelect) {
+                productSelect.innerHTML = '<option value=""></option>';
+                REFERENCE_VALID_PRODUCTS.forEach((opt) => {
+                    const option = document.createElement("option");
+                    option.value = String(opt.id);
+                    option.textContent = opt.product_type;
+                    productSelect.appendChild(option);
+                });
+                if (productId) productSelect.value = String(productId);
+            }
+            if (meta) {
+                const name = match.client_name || extracted.taxpayer_full_name || "New client";
+                let copy = `${name} — select filing type and product for this return.`;
+                if (suggested?.reasons?.length) {
+                    copy += ` Suggested: ${suggested.reasons.join("; ")}.`;
+                }
+                meta.textContent = copy;
+            }
+            if (errEl) {
+                errEl.textContent = "";
+                errEl.classList.add("d-none");
+            }
+        }
+
+        function resolvePrefillFilingTypeId() {
+            const pas = globalParseState?.match?.product_assignments || [];
+            if (!pas.length) return null;
+            const ftName = pas[0].filing_type;
+            const opt = FILING_TYPE_OPTIONS.find((o) => o.filing_type === ftName);
+            return opt?.id || null;
+        }
+
+        async function autoCommitGlobalParseEnrollment(action) {
+            if (!globalParseState?.pendingAction) return;
+            const suggested = globalParseState.suggested_enrollment || {};
+            const productId = resolveSuggestedProductId(suggested);
+            const payload = buildGlobalParseCommitPayload(action, {
+                filing_type_id: suggested.filing_type_id,
+                product_id: productId,
+                tax_year: globalParseState.extracted?.tax_year,
+            });
+            try {
+                const data = await commitGlobalParseUpload(payload);
+                handleGlobalParseCommitSuccess(data);
+            } catch (err) {
+                handleGlobalParseCommitError(err);
+                openGlobalParseEnrollmentModal(action, { forceModal: true });
+            }
+        }
+
+        function openGlobalParseEnrollmentModal(action, { forceModal = false } = {}) {
+            if (!globalParseState) return;
+            globalParseState.pendingAction = action;
+            if (!forceModal && shouldAutoCommitEnrollment(globalParseState.suggested_enrollment)) {
+                autoCommitGlobalParseEnrollment(action);
+                return;
+            }
+            populateGlobalParseEnrollmentModal({
+                prefillFilingTypeId: resolvePrefillFilingTypeId(),
+            });
+            showGlobalParseModal("globalParseEnrollmentModal");
+        }
+
+        function renderGlobalParseConflictTable() {
+            const tbody = document.getElementById("globalParseConflictTableBody");
+            const summary = document.getElementById("globalParseConflictSummary");
+            const blockedMsg = document.getElementById("globalParseReplaceBlockedMsg");
+            const replaceBtn = document.getElementById("globalParseConflictReplaceBtn");
+            const match = globalParseState?.match || {};
+            const extracted = globalParseState?.extracted || {};
+
+            if (summary) {
+                const tinLabel = maskTinForDisplay(extracted.taxpayer_tin);
+                const name = match.client_name || extracted.taxpayer_full_name || "Client";
+                summary.textContent = `${name} (${tinLabel}) is already on clearing. Choose how to apply this PDF.`;
+            }
+            if (tbody) {
+                tbody.innerHTML = "";
+                (match.product_assignments || []).forEach((pa) => {
+                    const tr = document.createElement("tr");
+                    tr.innerHTML = `
+                        <td>
+                            <input type="radio" name="globalParseReplacePa" value="${pa.id}"
+                                data-locked="${pa.is_locked ? "true" : "false"}"
+                                aria-label="Replace entry ${pa.tax_year} ${pa.product_type}">
+                        </td>
+                        <td>${pa.tax_year ?? ""}</td>
+                        <td>${pa.filing_type || ""}</td>
+                        <td>${pa.product_type || ""}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+                tbody.querySelectorAll('input[name="globalParseReplacePa"]').forEach((radio) => {
+                    radio.addEventListener("change", updateGlobalParseConflictReplaceState);
+                });
+            }
+            if (blockedMsg) {
+                blockedMsg.textContent = "";
+                blockedMsg.classList.add("d-none");
+            }
+            if (replaceBtn) replaceBtn.disabled = true;
+
+            const rowPaId = globalParseState?.rowContext?.paId;
+            if (rowPaId && tbody) {
+                const rowRadio = tbody.querySelector(
+                    `input[name="globalParseReplacePa"][value="${rowPaId}"]`
+                );
+                if (rowRadio && rowRadio.dataset.locked !== "true") {
+                    rowRadio.checked = true;
+                    updateGlobalParseConflictReplaceState();
+                }
+            }
+        }
+
+        function updateGlobalParseConflictReplaceState() {
+            const selected = document.querySelector('input[name="globalParseReplacePa"]:checked');
+            const replaceBtn = document.getElementById("globalParseConflictReplaceBtn");
+            const blockedMsg = document.getElementById("globalParseReplaceBlockedMsg");
+            if (!replaceBtn || !blockedMsg) return;
+
+            if (!selected) {
+                replaceBtn.disabled = true;
+                blockedMsg.classList.add("d-none");
+                return;
+            }
+
+            const locked = selected.dataset.locked === "true";
+            if (locked) {
+                replaceBtn.disabled = true;
+                blockedMsg.textContent = "This entry has already completed clearing. Create a new entry with the appropriate fee instead.";
+                blockedMsg.classList.remove("d-none");
+            } else {
+                replaceBtn.disabled = false;
+                blockedMsg.classList.add("d-none");
+            }
+        }
+
+        function openGlobalParseConflictModal() {
+            renderGlobalParseConflictTable();
+            showGlobalParseModal("globalParseConflictModal");
+        }
+
+        function normalizeTinDigits(tin) {
+            const digits = String(tin || "").replace(/\D/g, "");
+            return digits.length === 9 ? digits : "";
+        }
+
+        function getClearingRowClientTin(row) {
+            const clientId = row?.dataset?.clientId;
+            if (!clientId) return "";
+            const mainRow = document.querySelector(`tr.main-row[data-client-id="${clientId}"]`);
+            const tinCell = mainRow?.querySelector('[data-field="TIN"]');
+            return normalizeTinDigits(tinCell?.textContent?.trim());
+        }
+
+        async function postGlobalParsePreview(file) {
+            showParserProcessingOverlay();
+            try {
+                const formData = new FormData();
+                formData.append("file", file);
+                const res = await axios.post(URL_PARSE_PDF_GLOBAL_PREVIEW, formData, {
+                    headers: {
+                        "X-CSRFToken": getCookie("csrftoken"),
+                        "Content-Type": "multipart/form-data",
+                    },
+                });
+                return res.data;
+            } finally {
+                hideParserProcessingOverlay();
+            }
+        }
+
+        function routeGlobalParsePreview(data, rowContext = null) {
+            globalParseState = {
+                parse_job_uuid: data.parse_job_uuid,
+                extracted: data.extracted || {},
+                match: data.match || {},
+                suggested_enrollment: data.suggested_enrollment || null,
+                pendingAction: null,
+                rowContext: rowContext || null,
+            };
+
+            const tin = globalParseState.extracted.taxpayer_tin;
+            if (!tin) {
+                resetGlobalParseState();
+                alert("Could not extract a taxpayer TIN from this PDF. Auto-enrollment requires a valid TIN.");
+                return;
+            }
+
+            const match = globalParseState.match;
+            if (!match.client_id) {
+                openGlobalParseEnrollmentModal("new_client");
+                return;
+            }
+            if (!match.on_clearing) {
+                openGlobalParseEnrollmentModal("enroll");
+                return;
+            }
+            if (match.auto_apply_pa_id) {
+                commitGlobalParseUpload(
+                    buildGlobalParseCommitPayload("apply", { pa_id: match.auto_apply_pa_id })
+                )
+                    .then(handleGlobalParseCommitSuccess)
+                    .catch(handleGlobalParseCommitError);
+                return;
+            }
+            openGlobalParseConflictModal();
+        }
+
+        function buildGlobalParseCommitPayload(action, extras = {}) {
+            const payload = {
+                parse_job_uuid: globalParseState?.parse_job_uuid,
+                action,
+            };
+            const match = globalParseState?.match || {};
+            const extracted = globalParseState?.extracted || {};
+
+            if (match.client_id) payload.client_id = match.client_id;
+            if (extras.pa_id) payload.pa_id = extras.pa_id;
+            if (extras.filing_type_id) payload.filing_type_id = extras.filing_type_id;
+            if (extras.product_id) payload.product_id = extras.product_id;
+
+            const taxYearRaw = extras.tax_year ?? extracted.tax_year;
+            if (taxYearRaw) {
+                const taxYearInt = parseInt(String(taxYearRaw), 10);
+                if (!Number.isNaN(taxYearInt)) payload.tax_year = taxYearInt;
+            }
+            return payload;
+        }
+
+        async function commitGlobalParseUpload(payload) {
+            showParserProcessingOverlay();
+            try {
+                const res = await axios.post(URL_PARSE_PDF_GLOBAL_COMMIT, payload, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                });
+                return res.data;
+            } finally {
+                hideParserProcessingOverlay();
+            }
+        }
+
+        function handleGlobalParseCommitSuccess(data) {
+            hideGlobalParseModal("globalParseEnrollmentModal");
+            hideGlobalParseModal("globalParseConflictModal");
+            resetGlobalParseState();
+
+            if (data.action === "cancel") {
+                showToast(data.message || "Upload cancelled.", "Parser");
+                return;
+            }
+
+            showToast(data.message || "PDF applied to clearing entry.", "Parser");
+
+            if (data.client_id) {
+                sessionStorage.setItem("clearingHighlightClientId", String(data.client_id));
+            }
+
+            if (data.downloads?.length && data.product_assignment_id) {
+                const row = document.querySelector(`tr[data-product-assignment-id="${data.product_assignment_id}"]`);
+                if (row) {
+                    applyParseResultToRow(row, {
+                        parse_job_uuid: data.parse_job_uuid,
+                    });
+                    showParserDownloadsButton(row, true);
+                    renderParserDownloadLinks(
+                        document.getElementById("parserDownloadsLinks"),
+                        data.downloads
+                    );
+                    const meta = document.getElementById("parserDownloadsMeta");
+                    if (meta) meta.textContent = "Download generated PDFs from the parser job.";
+                    showGlobalParseModal("parserDownloadsModal");
+                    setTimeout(() => location.reload(), 1200);
+                    return;
+                }
+            }
+
+            location.reload();
+        }
+
+        function handleGlobalParseCommitError(err) {
+            const data = err?.response?.data || {};
+            const code = data.code || "";
+            const message = data.message || "Global PDF upload failed.";
+
+            if (code === "REPLACE_BLOCKED") {
+                const blockedMsg = document.getElementById("globalParseReplaceBlockedMsg");
+                if (blockedMsg) {
+                    blockedMsg.textContent = message;
+                    blockedMsg.classList.remove("d-none");
+                } else {
+                    alert(message);
+                }
+                const replaceBtn = document.getElementById("globalParseConflictReplaceBtn");
+                if (replaceBtn) replaceBtn.disabled = true;
+                return;
+            }
+
+            const enrollmentErr = document.getElementById("globalParseEnrollmentError");
+            if (enrollmentErr && document.getElementById("globalParseEnrollmentModal")?.classList.contains("show")) {
+                enrollmentErr.textContent = message;
+                enrollmentErr.classList.remove("d-none");
+                return;
+            }
+
+            alert(message);
+        }
+
+        async function submitGlobalParseEnrollment() {
+            if (!globalParseState?.pendingAction) return;
+
+            const filingTypeId = document.getElementById("globalParseEnrollmentFilingType")?.value;
+            const productId = document.getElementById("globalParseEnrollmentProduct")?.value;
+            const taxYear = document.getElementById("globalParseEnrollmentTaxYear")?.value;
+            const errEl = document.getElementById("globalParseEnrollmentError");
+            const confirmBtn = document.getElementById("globalParseEnrollmentConfirmBtn");
+
+            if (!filingTypeId || !productId) {
+                if (errEl) {
+                    errEl.textContent = "Filing type and product are required.";
+                    errEl.classList.remove("d-none");
+                }
+                return;
+            }
+
+            const payload = buildGlobalParseCommitPayload(globalParseState.pendingAction, {
+                filing_type_id: parseInt(filingTypeId, 10),
+                product_id: parseInt(productId, 10),
+                tax_year: taxYear,
+            });
+
+            if (confirmBtn) confirmBtn.disabled = true;
+            try {
+                const data = await commitGlobalParseUpload(payload);
+                handleGlobalParseCommitSuccess(data);
+            } catch (err) {
+                handleGlobalParseCommitError(err);
+            } finally {
+                if (confirmBtn) confirmBtn.disabled = false;
+            }
+        }
+
+        async function submitGlobalParseCancel() {
+            if (!globalParseState?.parse_job_uuid) {
+                hideGlobalParseModal("globalParseConflictModal");
+                resetGlobalParseState();
+                return;
+            }
+            const cancelBtn = document.getElementById("globalParseConflictCancelBtn");
+            if (cancelBtn) cancelBtn.disabled = true;
+            try {
+                const data = await commitGlobalParseUpload({
+                    parse_job_uuid: globalParseState.parse_job_uuid,
+                    action: "cancel",
+                });
+                hideGlobalParseModal("globalParseConflictModal");
+                handleGlobalParseCommitSuccess(data);
+            } catch (err) {
+                handleGlobalParseCommitError(err);
+            } finally {
+                if (cancelBtn) cancelBtn.disabled = false;
+            }
+        }
+
+        async function submitGlobalParseReplace() {
+            const selected = document.querySelector('input[name="globalParseReplacePa"]:checked');
+            if (!selected || !globalParseState?.parse_job_uuid) return;
+
+            const replaceBtn = document.getElementById("globalParseConflictReplaceBtn");
+            if (replaceBtn) replaceBtn.disabled = true;
+            try {
+                const payload = buildGlobalParseCommitPayload("replace", {
+                    pa_id: parseInt(selected.value, 10),
+                });
+                const data = await commitGlobalParseUpload(payload);
+                handleGlobalParseCommitSuccess(data);
+            } catch (err) {
+                handleGlobalParseCommitError(err);
+                updateGlobalParseConflictReplaceState();
+            } finally {
+                if (replaceBtn && selected?.dataset.locked !== "true") {
+                    replaceBtn.disabled = false;
+                }
+            }
+        }
+
+        function bindGlobalParseUpload() {
+            if (!FEATURE_PARSER_PATH_A) return;
+
+            const uploadBtn = document.getElementById("globalParsePdfBtn");
+            const fileInput = document.getElementById("globalParsePdfFileInput");
+            if (!uploadBtn || !fileInput) return;
+
+            uploadBtn.addEventListener("click", () => {
+                fileInput.value = "";
+                fileInput.click();
+            });
+
+            if (fileInput.dataset.bound === "true") return;
+            fileInput.dataset.bound = "true";
+
+            fileInput.addEventListener("change", async () => {
+                const file = fileInput.files?.[0];
+                if (!file) return;
+
+                uploadBtn.disabled = true;
+                const formData = new FormData();
+                formData.append("file", file);
+
+                try {
+                    const preview = await postGlobalParsePreview(file);
+                    routeGlobalParsePreview(preview);
+                } catch (err) {
+                    resetGlobalParseState();
+                    const msg = err?.response?.data?.message || "Parser preview failed. Use manual entry (Path B).";
+                    alert(msg);
+                } finally {
+                    uploadBtn.disabled = false;
+                    fileInput.value = "";
+                }
+            });
+
+            document.getElementById("globalParseEnrollmentConfirmBtn")?.addEventListener("click", submitGlobalParseEnrollment);
+            document.getElementById("globalParseConflictCancelBtn")?.addEventListener("click", submitGlobalParseCancel);
+            document.getElementById("globalParseConflictNewEntryBtn")?.addEventListener("click", () => {
+                const conflictModal = document.getElementById("globalParseConflictModal");
+                if (conflictModal && typeof bootstrap !== "undefined") {
+                    const instance = bootstrap.Modal.getOrCreateInstance(conflictModal);
+                    conflictModal.addEventListener("hidden.bs.modal", () => {
+                        openGlobalParseEnrollmentModal("new_entry");
+                    }, { once: true });
+                    instance.hide();
+                } else {
+                    openGlobalParseEnrollmentModal("new_entry");
+                }
+            });
+            document.getElementById("globalParseConflictReplaceBtn")?.addEventListener("click", submitGlobalParseReplace);
+
+            document.getElementById("globalParseEnrollmentModal")?.addEventListener("hidden.bs.modal", () => {
+                const errEl = document.getElementById("globalParseEnrollmentError");
+                if (errEl) {
+                    errEl.textContent = "";
+                    errEl.classList.add("d-none");
                 }
             });
         }
@@ -1481,7 +3072,7 @@
                 button.dataset.bound = "true";
 
                 button.addEventListener("click", async () => {
-                    const row = button.closest("tr");
+                    const row = resolveClearingRowFromButton(button);
                     const paId = row?.dataset.productAssignmentId;
                     if (!paId) return;
 
@@ -1540,6 +3131,25 @@
             }
         }
 
+        async function copyTextToClipboard(text, textarea) {
+            if (navigator.clipboard?.writeText) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    return true;
+                } catch (err) {
+                    // Fall through to execCommand when async clipboard is blocked.
+                }
+            }
+            if (!textarea) return false;
+            textarea.focus();
+            textarea.select();
+            try {
+                return document.execCommand("copy");
+            } catch (err) {
+                return false;
+            }
+        }
+
         async function copyClientMessage() {
             const textarea = document.getElementById("clientMessageTextarea");
             const text = textarea?.value ?? "";
@@ -1547,16 +3157,15 @@
                 alert("Message is empty.");
                 return;
             }
-            if (!activeMessageLocked && activeMessagePaId) {
-                await saveClientMessage();
+            // Copy while the click gesture is still active (awaiting save first breaks clipboard API).
+            const copied = await copyTextToClipboard(text, textarea);
+            if (!copied) {
+                alert("Could not copy to clipboard. Select the message text and copy manually.");
+                return;
             }
-            try {
-                await navigator.clipboard.writeText(text);
-                showToast("Copied to clipboard.", "Success");
-            } catch (err) {
-                textarea.select();
-                document.execCommand("copy");
-                showToast("Copied to clipboard.", "Success");
+            showToast("Copied to clipboard.", "Success");
+            if (!activeMessageLocked && activeMessagePaId) {
+                saveClientMessage().catch(() => {});
             }
         }
 
@@ -1706,7 +3315,7 @@
             // Helper functions for add product assignment
             function getMainRowOptionsHTML(clientId, selector) {
                 const main = document.querySelector(`tr.main-row[data-client-id="${clientId}"] ${selector}`);
-                return main ? main.innerHTML : '<option value=""></option';
+                return main ? main.innerHTML : '<option value=""></option>';
             }
 
             function generateAppointmentSelectHTML(clientId, appointmentId) {
@@ -1724,25 +3333,264 @@
                 return `<select class="form-select form-select-sm editable" data-model="product_assignment" data-field="preparer" data-product-assignment-id="${paId || ''}">${options}</select>`;
             }
 
-            function generatePaStatusCellHTML(lifecycleState) {
-                const state = lifecycleState || "IN_CLEARING";
-                const label = LIFECYCLE_LABELS[state] || state;
-                let badgeClass = "lifecycle-other";
-                if (state === "IN_CLEARING") badgeClass = "lifecycle-in-clearing";
-                if (state === "CLEARING_COMPLETE") badgeClass = "lifecycle-clearing-complete";
-                return `
-                    <td class="completion-status-cell pa-status-cell">
-                        <div class="pa-status-actions">
-                            <span class="lifecycle-badge ${badgeClass} lifecycle-badge-label">${label}</span>
-                            <button type="button" class="btn btn-sm btn-success complete-clearing-btn" title="Complete clearing" ${state !== "IN_CLEARING" ? 'style="display:none;"' : ""}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/></svg>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-warning reopen-clearing-btn" title="Unlock for editing" ${state !== "CLEARING_COMPLETE" ? 'style="display:none;"' : ""}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/></svg>
-                            </button>
-                        </div>
-                    </td>`;
+        const CLEARING_SVG = {
+            complete: '<path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>',
+            reopen: '<path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/><path d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/>',
+            toggleLeft: '<path d="M10 12.796V3.204L4.519 8zm-.659.753-5.48-4.796a1 1 0 0 1 0-1.506l5.48-4.796A1 1 0 0 1 11 3.204v9.592a1 1 0 0 1-1.659.753"/>',
+            toggleDown: '<path d="M3.204 5h9.592L8 10.481zm-.753.659 4.796 5.48a1 1 0 0 0 1.506 0l4.796-5.48c.566-.647.106-1.659-.753-1.659H3.204a1 1 0 0 0-.753 1.659"/>',
+            parseUpload: '<path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H10.343c-.638 0-1.167.425-1.167.947v.053c0 .574.425 1.047 1.167 1.047h2.344c1.812 0 3.313-1.433 3.313-3.229 0-1.018-.812-1.875-1.906-2.062A4.537 4.537 0 0 0 8 3.5c-1.312 0-2.489.562-3.304 1.459l-.712-.712A5.53 5.53 0 0 1 8 1.5c2.962 0 5.433 1.812 6.406 4.342l-.712.712z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/>',
+            parseDownload: '<path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708z"/><path d="M4.406 3.342A5.53 5.53 0 0 1 8 2c2.69 0 4.923 2 5.166 4.579C14.758 6.804 16 8.137 16 9.773 16 11.569 14.502 13 12.687 13H4.906A1.5 1.5 0 0 1 3.5 12.5v-2A1.5 1.5 0 0 1 5 9h2.5V2.707L6.854 3.854a.5.5 0 1 1-.708-.708l2-2a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1-.708.708L8.5 2.707V9H11a2 2 0 0 1 2 2v1.5a2.5 2.5 0 0 1-2.5 2.5h-6A2.5 2.5 0 0 1 2 12.5v-2A2.5 2.5 0 0 1 4.5 8h.906z"/>',
+            message: '<path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/>',
+            plus: '<path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>',
+            trash: '<path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>',
+            minus: '<path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>',
+        };
+
+        function clearingParserToolbarHtml(paId, showDownloads, isLocked) {
+            if (!FEATURE_PARSER_PATH_A) return { toolbar: "", menu: "" };
+            const disabled = isLocked ? "disabled" : "";
+            const downloadsHidden = showDownloads ? "" : 'style="display:none;"';
+            const menuDownloadsHidden = showDownloads ? "" : " d-none";
+            const toolbar = `
+                <button type="button" class="btn btn-dark toolbar-action parse-pdf-btn" title="Upload Drake PDF (Path A)" ${disabled}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.parseUpload}</svg>
+                </button>
+                <button type="button" class="btn btn-dark toolbar-action parser-downloads-btn" title="Download parser PDFs" ${downloadsHidden}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.parseDownload}</svg>
+                </button>`;
+            const menu = `
+                <li class="overflow-parse-pdf-item"><button type="button" class="dropdown-item parse-pdf-btn" ${disabled}>Upload Drake PDF</button></li>
+                <li class="parser-downloads-menu-item${menuDownloadsHidden}"><button type="button" class="dropdown-item parser-downloads-btn">Download parser PDFs</button></li>`;
+            return { toolbar, menu };
+        }
+
+        function clearingWorkflowToolbarHtml(options = {}) {
+            const {
+                lifecycleState = "IN_CLEARING",
+                canReopen = false,
+                canConfirmPayment = false,
+            } = options;
+            const showComplete = lifecycleState === "IN_CLEARING";
+            const completeHidden = showComplete ? "" : 'style="display:none;"';
+            const reopenHidden = canReopen ? "" : 'style="display:none;"';
+            const confirmHidden = canConfirmPayment ? "" : 'style="display:none;"';
+            return {
+                toolbar: `
+                    <button type="button" class="btn btn-dark toolbar-action complete-clearing-btn" title="Complete clearing" ${completeHidden}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.complete}</svg>
+                    </button>
+                    <button type="button" class="btn btn-dark toolbar-action reopen-clearing-btn" title="Unlock for editing" ${reopenHidden}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.reopen}</svg>
+                    </button>
+                    <button type="button" class="btn btn-dark toolbar-action confirm-payment-btn" title="Confirm payment received" ${confirmHidden}>Paid</button>`,
+                menu: `
+                    <li class="complete-clearing-menu-item overflow-complete-clearing-item${showComplete ? "" : " d-none"}"><button type="button" class="dropdown-item complete-clearing-btn">Complete clearing</button></li>
+                    <li class="reopen-clearing-menu-item${canReopen ? "" : " d-none"}"><button type="button" class="dropdown-item reopen-clearing-btn">Unlock for editing</button></li>
+                    <li class="confirm-payment-menu-item${canConfirmPayment ? "" : " d-none"}"><button type="button" class="dropdown-item confirm-payment-btn">Confirm payment received</button></li>`,
+            };
+        }
+
+        function buildClearingSubRowActionsCell(clientId, paId, options = {}) {
+            const {
+                showParserDownloads = false,
+                isLocked = false,
+                lifecycleState = "IN_CLEARING",
+                canReopen = false,
+                canConfirmPayment = false,
+            } = options;
+            const parser = clearingParserToolbarHtml(paId, showParserDownloads, isLocked);
+            const workflow = clearingWorkflowToolbarHtml({ lifecycleState, canReopen, canConfirmPayment });
+            return `
+                <div class="clearing-actions-wrap" data-client-id="${clientId}" data-product-assignment-id="${paId}">
+                    <div class="clearing-actions-toolbar">
+                        ${parser.toolbar}
+                        <button type="button" class="btn btn-dark toolbar-action client-message-btn" title="Client message">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.message}</svg>
+                        </button>
+                        ${workflow.toolbar}
+                        <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.minus}</svg>
+                        </button>
+                        <button type="button" class="btn btn-dark btn-sm clearing-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end clearing-actions-overflow-menu" data-owner-pa-id="${paId}" data-owner-client-id="${clientId}">
+                        ${parser.menu}
+                        ${workflow.menu}
+                        <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
+                        <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function buildClearingMainRowActionsCell(clientId, paId, entryCount, options = {}) {
+            const {
+                showParserDownloads = false,
+                isLocked = false,
+                lifecycleState = "IN_CLEARING",
+                canReopen = false,
+                canConfirmPayment = false,
+            } = options;
+            const parser = clearingParserToolbarHtml(paId, showParserDownloads, isLocked);
+            const workflow = clearingWorkflowToolbarHtml({
+                lifecycleState,
+                canReopen,
+                canConfirmPayment,
+            });
+            const toggleBtn = entryCount > 1
+                ? `<button type="button" class="btn btn-dark toggle-row-btn" title="Show / hide entries">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-left" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.toggleLeft}</svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="toggle-icon-down" viewBox="0 0 16 16" style="display: none;" aria-hidden="true">${CLEARING_SVG.toggleDown}</svg>
+                   </button>`
+                : "";
+            return `
+                <div class="clearing-actions-wrap" data-client-id="${clientId}" data-product-assignment-id="${paId}" data-is-main-row="true" data-multi-entry="${entryCount > 1 ? "true" : "false"}">
+                    <div class="clearing-actions-toolbar">
+                        ${toggleBtn}
+                        ${parser.toolbar}
+                        <button type="button" class="btn btn-dark toolbar-action client-message-btn" title="Client message">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.message}</svg>
+                        </button>
+                        ${workflow.toolbar}
+                        <button type="button" class="btn btn-dark toolbar-action addProductAssignmentButton" title="Add entry">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.plus}</svg>
+                        </button>
+                        <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.minus}</svg>
+                        </button>
+                        <button type="button" class="btn btn-dark toolbar-action removeClientBtn" data-client-id="${clientId}" title="Remove client from clearing">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-trash3" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.trash}</svg>
+                        </button>
+                        <button type="button" class="btn btn-dark btn-sm clearing-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end clearing-actions-overflow-menu" data-owner-pa-id="${paId}" data-owner-client-id="${clientId}">
+                        ${parser.menu}
+                        ${workflow.menu}
+                        <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
+                        <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
+                        <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                        <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="${clientId}">Remove client from clearing</button></li>
+                    </ul>
+                </div>
+            `;
+        }
+
+        function promoteClearingSubRowToMain(clientId, clientMeta) {
+            const next = document.querySelector(`tr.sub-row[data-client-id="${clientId}"]`);
+            if (!next) return;
+
+            const entryCount = document.querySelectorAll(`tr[data-client-id="${clientId}"]`).length;
+            const paId = next.dataset.productAssignmentId;
+
+            next.classList.remove("sub-row");
+            next.classList.add("main-row");
+            next.style.display = "table-row";
+
+            const placeholder = next.querySelector("td[colspan]");
+            if (placeholder) {
+                placeholder.outerHTML = `
+                    <td>${clientMeta.id}</td>
+                    <td contenteditable="true" class="editable" data-field="TIN">${clientMeta.tin || ""}</td>
+                    <td contenteditable="true" class="editable" data-field="name">${clientMeta.name || ""}</td>
+                `;
             }
+
+            const actionsCell = next.querySelector(".actions-cell");
+            if (actionsCell && paId) {
+                actionsCell.innerHTML = buildClearingMainRowActionsCell(clientId, paId, entryCount, {
+                    showParserDownloads: Boolean(next.dataset.parseJobId),
+                    isLocked: next.dataset.rowLocked === "true",
+                });
+            }
+
+            bindAutosaveHandlers(next);
+            initClearingRowActionBindings(next);
+        }
+
+        function resolveClearingRowFromButton(button) {
+            const row = button.closest("tr");
+            if (row) return row;
+
+            const menu = button.closest(".clearing-actions-overflow-menu");
+            if (menu?.dataset.ownerPaId) {
+                return document.querySelector(
+                    `tr[data-product-assignment-id="${menu.dataset.ownerPaId}"]`
+                );
+            }
+
+            const wrap = button.closest(".clearing-actions-wrap");
+            if (wrap?.dataset.productAssignmentId) {
+                return document.querySelector(
+                    `tr[data-product-assignment-id="${wrap.dataset.productAssignmentId}"]`
+                );
+            }
+            return null;
+        }
+
+        function resolveClearingClientIdFromButton(button) {
+            const row = resolveClearingRowFromButton(button);
+            if (row?.dataset.clientId) return row.dataset.clientId;
+
+            const wrap = button.closest(".clearing-actions-wrap");
+            if (wrap?.dataset.clientId) return wrap.dataset.clientId;
+
+            const menu = button.closest(".clearing-actions-overflow-menu");
+            if (menu?.dataset.ownerClientId) return menu.dataset.ownerClientId;
+
+            return null;
+        }
+
+        function handleClearingProductAssignmentRowRemoved(row) {
+            const clientId = row?.dataset.clientId;
+            const wasMain = row?.classList.contains("main-row");
+            let clientMeta = null;
+
+            if (wasMain && clientId) {
+                clientMeta = {
+                    id: clientId,
+                    tin: row.querySelector('[data-field="TIN"]')?.textContent?.trim() || "",
+                    name: row.querySelector('[data-field="name"]')?.textContent?.trim() || "",
+                };
+            }
+
+            row.remove();
+
+            if (wasMain && clientMeta && clientId) {
+                promoteClearingSubRowToMain(clientId, clientMeta);
+                updateToggleAllHeaderIcon(allSubRowsExpanded());
+            } else if (clientId) {
+                refreshClearingMainRowActionsCell(clientId);
+            }
+        }
+
+        function refreshClearingMainRowActionsCell(clientId) {
+            closeAllClearingOverflowMenus();
+            const mainRow = document.querySelector(`tr.main-row[data-client-id="${clientId}"]`);
+            if (!mainRow) return;
+
+            const entryCount = document.querySelectorAll(`tr[data-client-id="${clientId}"]`).length;
+            const paId = mainRow.dataset.productAssignmentId;
+            const actionsCell = mainRow.querySelector(".actions-cell");
+            if (!actionsCell || !paId) return;
+
+            const subRows = document.querySelectorAll(`.sub-row[data-client-id="${clientId}"]`);
+            const subRowsExpanded = subRows.length > 0 && Array.from(subRows).every(isSubRowVisible);
+
+            actionsCell.innerHTML = buildClearingMainRowActionsCell(clientId, paId, entryCount, {
+                showParserDownloads: Boolean(mainRow.dataset.parseJobId),
+                isLocked: mainRow.dataset.rowLocked === "true",
+                lifecycleState: mainRow.dataset.lifecycleState || "IN_CLEARING",
+                canReopen: mainRow.dataset.lifecycleState === "CLEARING_COMPLETE"
+                    || mainRow.dataset.lifecycleState === "AWAITING_PAYMENT",
+                canConfirmPayment: mainRow.dataset.canConfirmPayment === "true",
+            });
+
+            initClearingRowActionBindings(mainRow);
+            if (entryCount > 1) {
+                setClientSubRowsExpanded(clientId, subRowsExpanded);
+                updateToggleAllHeaderIcon(allSubRowsExpanded());
+            }
+        }
 
         function bindAddProductAssignmentButtons(container = document) {
             container.querySelectorAll('.addProductAssignmentButton').forEach(button => {
@@ -1750,20 +3598,41 @@
                     button.dataset.bound = "true";    // mark this button as already bound
 
                     button.addEventListener('click', () => {
-                        const row = button.closest('tr');
-                        const clientId = row.dataset.clientId;
+                        const clientId = resolveClearingClientIdFromButton(button);
+                        if (!clientId) {
+                            console.error("Add entry: could not resolve client id.");
+                            alert("Could not determine which client to add an entry for.");
+                            return;
+                        }
 
-                        axios.post("{% url 'clearing:add_product_assignment' %}", {client_id : clientId }, {
-                            headers: { "X-CSRFToken": getCookie("csrftoken")}
+                        closeAllClearingOverflowMenus();
+
+                        axios.post("{% url 'clearing:add_product_assignment' %}", { client_id: clientId }, {
+                            headers: { "X-CSRFToken": getCookie("csrftoken") }
                         }).then(response => {
-                            if (response.data.status === 'success') {
-                                const tbody = document.querySelector(".table-scroll tbody");
+                            if (response.data.status !== 'success') {
+                                alert(response.data.message || "Failed to add entry.");
+                                return;
+                            }
+
+                            try {
                                 const assignment = response.data.product_assignment;
 
-                                const filingTypeOptions = generateFilingTypeDropdown(response.data.filing_type_options, assignment.filing_type.id);
+                                if (document.querySelector(`tr[data-product-assignment-id="${assignment.id}"]`)) {
+                                    alert(DUPLICATE_PA_MESSAGE);
+                                    return;
+                                }
+
+                                const filingTypeOptions = generateFilingTypeDropdown(
+                                    response.data.filing_type_options,
+                                    assignment.filing_type.id
+                                );
                                 const taxYearOptions = generateTaxYearDropdown(assignment.tax_year);
-                                const productOptions = generateDynamicProductDropdown(response.data.product_options, assignment.product_type);
-                                
+                                const productOptions = generateDynamicProductDropdown(
+                                    response.data.product_options,
+                                    assignment.product_type
+                                );
+
                                 const apptId = assignment.appointment_id;
 
                                 const newSubRow = document.createElement('tr');
@@ -1811,41 +3680,34 @@
                                         ${generatePreparerSelectHTML(clientId, assignment.id)}
                                     </td>
 
-                                    ${generatePaStatusCellHTML(assignment.lifecycle_state)}
-
-                                    <td class = "actions-cell text-center align-middle">
-                                        <button type="button" class="btn btn-dark client-message-btn" title="Client message">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1zm13 2.383-4.708 2.825L15 11.105zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741M1 11.105l4.708-2.897L1 5.383z"/></svg>
-                                        </button>
-                                        <button type = "button" class = "btn btn-dark removeProductAssignmentButton">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
-                                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
-                                                <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
-                                            </svg>
-                                        </button>
+                                    <td class="actions-cell align-middle">
+                                        ${buildClearingSubRowActionsCell(clientId, assignment.id)}
                                     </td>
                                     <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
                                 `;
 
-                                // Insert newly created subrow to the bottom of the Client's associated row section
                                 let lastRow = null;
-                                document.querySelectorAll(`tr[data-client-id = "${clientId}"]`).forEach(r => lastRow = r);
-                                if (lastRow) {
-                                    lastRow.after(newSubRow);
-                                    bindAutosaveHandlers(newSubRow);
-                                    bindRemoveProductAssignmentButtons(newSubRow);
-                                    bindCompleteClearingButtons(newSubRow);
-                                    bindReopenClearingButtons(newSubRow);
-                                    bindConfirmPaymentButtons(newSubRow);
-                                    bindClientMessageButtons(newSubRow);
+                                document.querySelectorAll(`tr[data-client-id="${clientId}"]`).forEach(r => lastRow = r);
+                                if (!lastRow) {
+                                    alert("Could not find client row to attach the new entry.");
+                                    return;
                                 }
-                            } else {
-                                alert(response.data.message);
+
+                                lastRow.after(newSubRow);
+                                bindAutosaveHandlers(newSubRow);
+                                initClearingRowActionBindings(newSubRow);
+                                reorderClearingClientRows(clientId);
+                                refreshClearingMainRowActionsCell(clientId);
+                                setClientSubRowsExpanded(clientId, true);
+                                updateToggleAllHeaderIcon(allSubRowsExpanded());
+                            } catch (domErr) {
+                                console.error("Error rendering new entry row:", domErr);
+                                alert("Entry was created but the table could not be updated. Refresh the page.");
                             }
                         })
                         .catch(err => {
-                            console.error("Error adding product assignment:", err);
-                            alert("Failed to add product assignment.");
+                            console.error("Error adding entry:", err);
+                            alert(clearingResponseErrorMessage(err));
                         });
                     })
                 }
@@ -1859,16 +3721,18 @@
                     button.dataset.bound = "true";    // mark this button as already bound
 
                     button.addEventListener('click', function () {
-                        const row = this.closest('tr');
-                        const productAssignmentId = row.getAttribute('data-product-assignment-id');
+                        const row = resolveClearingRowFromButton(this);
+                        const productAssignmentId = row?.getAttribute('data-product-assignment-id');
+                        if (!row || !productAssignmentId) return;
 
-                        if (confirm("Are you sure you want to remove this product assignment?")) {
+                        if (confirm("Are you sure you want to remove this entry?")) {
                             axios.post("{% url 'clearing:remove_product_assignment' %}", {product_assignment_id : productAssignmentId}, {
                                 headers: { "X-CSRFToken": getCookie("csrftoken")}
                             })
                             .then(response => {
                                 if (response.data.status === 'success') {
-                                    row.remove()    // remove subrow from DOM
+                                    closeAllClearingOverflowMenus();
+                                    handleClearingProductAssignmentRowRemoved(row);
                                 } else {
                                     alert("Error removing product assignment: " + response.data.message);
                                 }
@@ -1937,17 +3801,45 @@
 
     <!-- ========== DOM CONTENT LOADED FUNCTIONS ========== -->
     <script>
+        document.addEventListener("click", (event) => {
+            if (
+                !event.target.closest(".clearing-actions-wrap")
+                && !event.target.closest(".clearing-actions-overflow-menu")
+            ) {
+                closeAllClearingOverflowMenus();
+            }
+        });
+
         document.addEventListener("DOMContentLoaded", function () {
             bindAutosaveHandlers();
-            bindExpandCollapseButtons();
-            bindCompleteClearingButtons();
-            bindReopenClearingButtons();
-            bindConfirmPaymentButtons();
-            bindClientMessageButtons();
-            bindParseUploadButtons();
-            bindParserDownloadButtons();
-            bindAddProductAssignmentButtons();
-            bindRemoveProductAssignmentButtons();
+            bindToggleAllRowsButton();
+            initClearingRowActionBindings();
+            bindGlobalParseUpload();
+
+            const highlightId = sessionStorage.getItem("clearingHighlightClientId");
+            if (highlightId) {
+                sessionStorage.removeItem("clearingHighlightClientId");
+                highlightClientRow(highlightId);
+            }
+            document.querySelectorAll("tr.main-row[data-client-id]").forEach((row) => {
+                reorderClearingClientRows(row.dataset.clientId);
+            });
+
+            const tableScroll = document.querySelector(".table-scroll");
+            if (tableScroll) {
+                tableScroll.addEventListener("scroll", closeAllClearingOverflowMenus, { passive: true });
+                if (typeof ResizeObserver !== "undefined") {
+                    const observer = new ResizeObserver(() => {
+                        requestAnimationFrame(clearingActionsCompactResizeListener);
+                    });
+                    observer.observe(tableScroll);
+                }
+            }
+            window.addEventListener("resize", () => {
+                closeAllClearingOverflowMenus();
+                clearingActionsCompactResizeListener();
+            });
+            requestAnimationFrame(clearingActionsCompactResizeListener);
 
             document.querySelectorAll("tr[data-product-assignment-id]").forEach((row) => {
                 const state = row.dataset.lifecycleState || "IN_CLEARING";
@@ -1959,6 +3851,32 @@
             document.getElementById("confirmReopenBtn")?.addEventListener("click", confirmReopenClearing);
             document.getElementById("saveClientMessageBtn")?.addEventListener("click", saveClientMessage);
             document.getElementById("copyClientMessageBtn")?.addEventListener("click", copyClientMessage);
+
+            document.getElementById("addClientForm")?.addEventListener("submit", function (event) {
+                event.preventDefault();
+                const formData = new FormData(this);
+                const jsonData = Object.fromEntries(formData.entries());
+
+                axios.post("{% url 'clearing:create_new_client' %}", jsonData, {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCookie("csrftoken"),
+                    },
+                })
+                .then((response) => {
+                    if (response.data.status === "success") {
+                        alert(response.data.message);
+                        location.reload();
+                    } else {
+                        const err = response.data.errors || response.data.message;
+                        alert("Client creation error: " + (typeof err === "string" ? err : JSON.stringify(err)));
+                    }
+                })
+                .catch((error) => {
+                    console.error("Error creating client:", error);
+                    alert(clearingResponseErrorMessage(error) || "Something went wrong during client creation.");
+                });
+            });
         });
     </script>
 {% endblock %}

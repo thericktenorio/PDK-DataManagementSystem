@@ -40,23 +40,78 @@ def acknowledgments(request):
     prior_tax_year = current_year - 2
     prior_prior_tax_year = current_year - 3
 
+    current_acks = acknowledgments_for_display(tax_season_year=current_tax_year)
+    prior_acks = acknowledgments_for_display(tax_season_year=prior_tax_year)
+    prior_prior_acks = acknowledgments_for_display(tax_season_year=prior_prior_tax_year)
+
     context = {
         "current_tax_year": current_tax_year,
         "prior_tax_year": prior_tax_year,
         "prior_prior_tax_year": prior_prior_tax_year,
-        "current_tax_year_acknowledgments": acknowledgments_for_display(
-            tax_season_year=current_tax_year
-        ),
-        "prior_tax_year_acknowledgments": acknowledgments_for_display(
-            tax_season_year=prior_tax_year
-        ),
-        "prior_prior_tax_year_acknowledgments": acknowledgments_for_display(
-            tax_season_year=prior_prior_tax_year
-        ),
+        "current_tax_year_acknowledgments": current_acks,
+        "prior_tax_year_acknowledgments": prior_acks,
+        "prior_prior_tax_year_acknowledgments": prior_prior_acks,
+        "ack_year_sections": [
+            {"year": current_tax_year, "acks": current_acks},
+            {"year": prior_tax_year, "acks": prior_acks},
+            {"year": prior_prior_tax_year, "acks": prior_prior_acks},
+        ],
         "unmatched_staging": pending_unmatched_staging(),
         "ack_auto_create_enabled": ack_auto_create_enabled(),
     }
     return render(request, "acknowledgments/acknowledgments.html", context)
+
+
+def _parse_ack_date(date_str: str):
+    for fmt in ("%m-%d-%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(date_str, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _parse_data_row(line: str, *, inferred_year: int) -> dict | None:
+    """Parse a Drake MEF data row (IDNumber Type Acc Date Name [Reject Codes])."""
+    if line.startswith("IDNumber") or line.startswith("Drake "):
+        return None
+    if line.lower().startswith("submissionid:"):
+        return None
+
+    parts = line.split()
+    if len(parts) < 5:
+        return None
+
+    idnumber = parts[0]
+    if not idnumber.isdigit():
+        return None
+
+    ack_type = parts[1]
+    status = parts[2]
+    date_str = parts[3]
+    ack_date = _parse_ack_date(date_str)
+    if ack_date is None:
+        return None
+
+    remainder = parts[4:]
+    reject_code = ""
+    if status.upper() == "R" and remainder:
+        reject_code = remainder[-1]
+        name_parts = remainder[:-1]
+    else:
+        name_parts = remainder
+
+    return {
+        "client_tin": idnumber,
+        "type": ack_type,
+        "status": status,
+        "date": ack_date,
+        "client_name": " ".join(name_parts),
+        "year": inferred_year,
+        "submission_id": "",
+        "reject_code": reject_code,
+        "reject_reason": "",
+    }
 
 
 def _parse_ack_text(raw_text: str):
@@ -74,41 +129,50 @@ def _parse_ack_text(raw_text: str):
     if inferred_year is None:
         return [], "Missing required header."
 
-    records = []
+    records: list[dict] = []
+    records_by_tin: dict[str, dict] = {}
+    in_error_detail = False
+
     for ln in lines:
-        if ln.startswith("IDNumber") or "IDNumber" in ln:
-            continue
-        if ln.startswith("Drake "):
-            continue
-
-        parts = ln.split()
-        if len(parts) < 5:
+        lower = ln.lower()
+        if lower.startswith("submissionid:"):
+            submission_id = ln.split(":", 1)[-1].strip()
+            if records:
+                records[-1]["submission_id"] = submission_id
             continue
 
-        idnumber = parts[0]
-        ack_type = parts[1]
-        status = parts[2]
-        date_str = parts[3]
-        name = " ".join(parts[4:])
+        if "error detail" in lower:
+            in_error_detail = True
+            continue
 
-        try:
-            ack_date = datetime.strptime(date_str, "%m-%d-%Y").date()
-        except ValueError:
-            try:
-                ack_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            except ValueError:
+        if in_error_detail:
+            if ln.startswith("IDNumber"):
                 continue
+            parts = ln.split(None, 2)
+            if len(parts) >= 3 and parts[0].isdigit():
+                tin = parts[0]
+                rule = parts[1]
+                message = parts[2]
+                target = records_by_tin.get(tin)
+                if target is not None:
+                    if not target.get("reject_code"):
+                        target["reject_code"] = rule
+                    target["reject_reason"] = message
+            elif records and in_error_detail:
+                last = records[-1]
+                if last.get("reject_reason"):
+                    last["reject_reason"] = f"{last['reject_reason']} {ln}"
+            continue
 
-        records.append(
-            {
-                "client_tin": idnumber,
-                "type": ack_type,
-                "status": status,
-                "date": ack_date,
-                "client_name": name,
-                "year": inferred_year,
-            }
-        )
+        if ln.startswith("IDNumber"):
+            in_error_detail = False
+            continue
+
+        rec = _parse_data_row(ln, inferred_year=inferred_year)
+        if rec is None:
+            continue
+        records.append(rec)
+        records_by_tin[rec["client_tin"]] = rec
 
     if not records:
         return [], "No valid acknowledgment rows found after parsing."

@@ -5,6 +5,8 @@ from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
+from pdf_manager.apps.parser.extraction_schema import taxpayer_display_name
+
 
 def render_message(templates_dir: Path, template_key: str | None, context: dict[str, Any]) -> str:
     """Render a message using Jinja2 from templates/messages."""
@@ -24,25 +26,50 @@ def render_message(templates_dir: Path, template_key: str | None, context: dict[
 # ------------------------------
 # ------- HELPER METHODS -------
 # ------------------------------
-def build_tax_prep_fee_statement(has_tpg_pages: bool, tax_prep_fee) -> str:
-    # Option 1 : No tax prep fee
+def _has_refund_amount(federal_amount, states: list[dict]) -> bool:
+    amounts = [federal_amount] + [s.get("amount") for s in states]
+    return any(a is not None and a > 0 for a in amounts)
+
+
+def _has_balance_due(federal_amount, states: list[dict]) -> bool:
+    amounts = [federal_amount] + [s.get("amount") for s in states]
+    return any(a is not None and a < 0 for a in amounts)
+
+
+def _has_banking_info(last4: str | None, bank_name: str | None) -> bool:
+    """Direct-deposit copy requires both institution name and account last-4."""
+    return bool(str(last4 or "").strip() and str(bank_name or "").strip())
+
+
+def build_tax_prep_fee_statement(
+    has_tpg_pages: bool,
+    tax_prep_fee,
+    *,
+    federal_amount=None,
+    states: list[dict] | None = None,
+) -> str:
+    """
+    Fee copy rules:
+    - No extracted fee → omit.
+    - TPG return with an expected refund → fees withheld from refund.
+    - Otherwise (invoice / QBO / entity bill, or TPG with balance due) → email invoice.
+    """
     if tax_prep_fee is None:
         return ""
 
     amount_str = f"${tax_prep_fee:,.2f}"
+    states = states or []
 
-    # Option 2 : TPG
-    if has_tpg_pages:
+    if has_tpg_pages and _has_refund_amount(federal_amount, states):
         return (
             f" Tax prep fees ({amount_str}) will be deducted from your return "
             "when issued (third party banking fees apply)."
         )
-    # Option 3 : Invoice
-    else:
-        return (
-            f" An invoice for tax prep fees ({amount_str}) will be sent to you via email. "
-            "Tax returns will be submitted once the invoice has been paid."
-        )
+
+    return (
+        f" An invoice for tax prep fees ({amount_str}) will be sent to you via email. "
+        "Tax returns will be submitted once the invoice has been paid."
+    )
 
 
 def build_refund_statement(
@@ -50,34 +77,45 @@ def build_refund_statement(
     states: list[dict],
     last4: str | None,
     mailing_address: str | None,
+    bank_name: str | None = None,
 ) -> str:
-    amounts = [federal_amount] + [s["amount"] for s in states]
-    has_refund = any(a is not None and a > 0 for a in amounts)
-    all_negative_or_zero = all(a is None or a <= 0 for a in amounts)
-
-    # Option 1 : No refund
-    if all_negative_or_zero:
+    """
+    Refund copy rules (only when a refund amount exists):
+    - bank_name + last_4 → direct deposit.
+    - else mailing_address → mail.
+    - else omit.
+    """
+    if not _has_refund_amount(federal_amount, states):
         return ""
 
-    # Option 2 : No refund ($0 balance and -$ balance)
-    if not has_refund:
-        return ""
-
-    # Option 3 : At least one refund
-    if last4:
+    if _has_banking_info(last4, bank_name):
         return (
-            f" Applicable refunds will be direct deposited into the account ending in " f" {last4}."
+            f" Applicable refunds will be direct deposited into your {bank_name.strip()} "
+            f"account ending in {str(last4).strip()}."
         )
 
-    # Option 4 : Refund is mailed to tax payer
-    return " Applicable refunds will be mailed to the following address " f"{mailing_address}."
+    if mailing_address:
+        return (
+            " Applicable refunds will be mailed to the following address "
+            f"{mailing_address}."
+        )
 
-    # Option 5 Placeholder for printed refund in office
-    # return ""
+    return ""
 
 
-def build_due_tax_statement(has_payment_voucher: bool) -> str:
-    if not has_payment_voucher:
+def build_due_tax_statement(
+    has_payment_voucher: bool,
+    *,
+    federal_amount=None,
+    states: list[dict] | None = None,
+) -> str:
+    """
+    Balance-due copy rules:
+    - Payment-voucher packet present, or summary shows balance due → include pay instructions.
+    - Otherwise omit.
+    """
+    states = states or []
+    if not has_payment_voucher and not _has_balance_due(federal_amount, states):
         return ""
 
     return " Instructions to pay owed taxes may be found with your approval documents."
@@ -91,10 +129,11 @@ def build_message_context(parse_result) -> dict[str, Any]:
     federal_amount = extracted.get("federal_amount")
     states = extracted.get("states") or []
     last4 = extracted.get("last_4_of_account")
+    bank_name = (extracted.get("bank_name") or "").strip() or None
 
     mailing_address = extracted.get("mailing_address")
     if not mailing_address:
-        line1 = extracted.get("Mailing_address_line1")
+        line1 = extracted.get("mailing_address_line1")
         city = extracted.get("mailing_city")
         state = extracted.get("mailing_state")
         zip_code = extracted.get("mailing_zip")
@@ -110,12 +149,23 @@ def build_message_context(parse_result) -> dict[str, Any]:
     has_tpg_pages = bool(extracted.get("has_tpg_pages", False))
     has_payment_voucher = getattr(parse_result, "payment_voucher_packet_path", None) is not None
 
-    tax_prep_fee_statement = build_tax_prep_fee_statement(has_tpg_pages, tax_prep_fee)
-    refund_statement = build_refund_statement(federal_amount, states, last4, mailing_address)
-    due_tax_statement = build_due_tax_statement(has_payment_voucher)
+    tax_prep_fee_statement = build_tax_prep_fee_statement(
+        has_tpg_pages,
+        tax_prep_fee,
+        federal_amount=federal_amount,
+        states=states,
+    )
+    refund_statement = build_refund_statement(
+        federal_amount, states, last4, mailing_address, bank_name=bank_name
+    )
+    due_tax_statement = build_due_tax_statement(
+        has_payment_voucher,
+        federal_amount=federal_amount,
+        states=states,
+    )
 
     return {
-        "taxpayer_first_name": extracted.get("taxpayer_first_name", ""),
+        "taxpayer_first_name": taxpayer_display_name(extracted),
         "tax_year": extracted.get("tax_year", ""),
         "federal_amount": federal_amount or 0,
         "states": states,
@@ -123,6 +173,7 @@ def build_message_context(parse_result) -> dict[str, Any]:
         "has_tpg_pages": has_tpg_pages,
         "has_payment_voucher": has_payment_voucher,
         "last_4_of_account": last4,
+        "bank_name": bank_name,
         "mailing_address": mailing_address,
         "tax_prep_fee_statement": tax_prep_fee_statement,
         "refund_statement": refund_statement,

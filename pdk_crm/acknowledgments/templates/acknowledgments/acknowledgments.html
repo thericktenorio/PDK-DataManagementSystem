@@ -7,94 +7,296 @@
     {% if user.is_authenticated %}
 
         <style>
-            .ack-page-title {
-                text-align: center;
-                margin-top: 10px;
-                margin-bottom: 20px;
-            }
-
-            .ack-input-card {
-                max-width: 900px;
-                margin: 0 auto 30px auto;
-            }
-
-            .ack-input-card textarea {
-                min-height: 150px;
-                resize: vertical;
-            }
-
-            .ack-input-hint {
-                font-size: 0.85rem;
-                color: #bbbbbb;
-            }
-
-            .ack-wrapper {
-                padding-bottom: 140px;
-                background-color: #212529;
-            }
-
-            .table-container {
-                display: block;
-                border: 3px solid gray;
-                border-radius: 20px;
+            main.app-main:has(.ack-page) {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
                 overflow: hidden;
-                margin-bottom: 24px;
+                height: 100dvh;
+                max-height: 100dvh;
+                box-sizing: border-box;
             }
 
-            .table-scroll {
-                max-height: 500px;
+            body.has-app-bg:has(.ack-page) {
+                overflow: hidden;
+            }
+
+            .ack-page {
+                flex: 1 1 auto;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                min-height: 0;
+            }
+
+            .ack-page .app-page-title {
+                margin-bottom: 0.5rem;
+                flex-shrink: 0;
+            }
+
+            .ack-unmatched-banner {
+                flex-shrink: 0;
+                margin: 0 auto 0.65rem;
+                max-width: 100%;
+                border: 1px solid rgba(253, 126, 20, 0.55);
+                border-radius: 12px;
+                background: rgba(253, 126, 20, 0.14);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
+                padding: 0.55rem 0.85rem;
+            }
+
+            .ack-unmatched-banner ul {
+                margin-bottom: 0;
+                padding-left: 1.1rem;
+                max-height: 4.5rem;
+                overflow-y: auto;
+            }
+
+            .ack-import-panel {
+                flex-shrink: 0;
+                width: 100%;
+                max-width: 1100px;
+                margin: 0 auto 0.65rem;
+                padding: 0.55rem 0.75rem;
+                border-radius: 16px;
+            }
+
+            .ack-import-row {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: flex-end;
+                gap: 0.55rem;
+            }
+
+            .ack-import-field {
+                display: flex;
+                flex-direction: column;
+                gap: 0.2rem;
+                min-width: 0;
+            }
+
+            .ack-import-field-upload {
+                flex: 0 0 16rem;
+            }
+
+            .ack-import-field-paste {
+                flex: 1 1 11rem;
+                min-width: 9rem;
+            }
+
+            .ack-field-label {
+                font-size: 0.72rem;
+                font-weight: 600;
+                letter-spacing: 0.2px;
+                color: rgba(255, 255, 255, 0.78);
+                margin: 0;
+            }
+
+            .ack-page .ack-glass-input,
+            .ack-page .ack-glass-input:focus {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.08) !important;
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+                border: 2px solid rgba(255, 255, 255, 0.38) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+                    0 4px 14px rgba(0, 0, 0, 0.12);
+                font-size: 0.78rem;
+                transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+            }
+
+            .ack-page .ack-glass-input::placeholder {
+                color: rgba(255, 255, 255, 0.52);
+            }
+
+            .ack-page .ack-glass-input:hover {
+                background: rgba(255, 255, 255, 0.12) !important;
+                border-color: rgba(255, 255, 255, 0.48) !important;
+            }
+
+            .ack-page .ack-glass-input:focus {
+                background: rgba(255, 255, 255, 0.12) !important;
+                border-color: rgba(255, 255, 255, 0.52) !important;
+                box-shadow:
+                    0 0 0 0.2rem rgba(255, 255, 255, 0.12),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+            }
+
+            .ack-file-input {
+                padding: 0.28rem 0.45rem;
+                height: 2rem;
+            }
+
+            .ack-paste-input {
+                min-height: 2rem;
+                max-height: 3.25rem;
+                resize: vertical;
+                padding: 0.28rem 0.45rem;
+                line-height: 1.25;
+            }
+
+            .ack-import-actions {
+                display: flex;
+                align-items: center;
+                gap: 0.4rem;
+                flex-shrink: 0;
+            }
+
+            .ack-page .ack-import-actions .btn {
+                font-size: 0.78rem;
+                padding: 0.28rem 0.65rem;
+                font-weight: 600;
+            }
+
+            .ack-page .btn-outline-glass {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.08) !important;
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+                border: 2px solid rgba(255, 255, 255, 0.38) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+                    0 4px 14px rgba(0, 0, 0, 0.12);
+            }
+
+            .ack-page .btn-outline-glass:hover,
+            .ack-page .btn-outline-glass:focus-visible {
+                color: #ffffff !important;
+                background: rgba(255, 255, 255, 0.16) !important;
+                border-color: rgba(255, 255, 255, 0.52) !important;
+            }
+
+            .ack-page .btn-primary {
+                border: 2px solid rgba(255, 255, 255, 0.38) !important;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+                    0 4px 14px rgba(0, 0, 0, 0.14);
+                font-weight: 600;
+            }
+
+            .ack-import-status {
+                font-size: 0.78rem;
+                color: rgba(255, 255, 255, 0.72);
+                margin-top: 0.35rem;
+                min-height: 1rem;
+            }
+
+            .ack-tables-row {
+                flex: 1 1 auto;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 0.65rem;
+                min-height: 0;
+                overflow: hidden;
+                width: 100%;
+                padding: 0 0.25rem;
+            }
+
+            .ack-year-panel {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            .ack-section-title {
+                text-align: center;
+                font-size: 0.92rem;
+                margin: 0 0 0.35rem;
+                flex-shrink: 0;
+                color: #ffffff;
+            }
+
+            .ack-year-panel .table-container {
+                flex: 1 1 auto;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                overflow: hidden;
+            }
+
+            .ack-year-panel .table-scroll {
+                flex: 1 1 auto;
+                min-height: 0;
                 overflow: auto;
+                -webkit-overflow-scrolling: touch;
             }
 
-            .table-scroll thead th {
+            .ack-year-panel .table-scroll thead th {
                 position: sticky;
                 top: 0;
                 z-index: 2;
-                background-color: #212529 !important;
+                font-weight: 600;
+                letter-spacing: 0.2px;
             }
 
-            th, td {
+            .ack-table {
+                table-layout: fixed;
+                width: 100%;
+                margin: 0;
+                border-collapse: collapse;
+                font-size: 0.68rem;
+                line-height: 1.15;
+            }
+
+            .ack-page .ack-table th,
+            .ack-page .ack-table td {
                 text-align: center;
-                padding: 8px;
+                padding: 3px 4px;
                 vertical-align: middle;
                 white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
             }
 
-            .ack-section-title {
-                margin-top: 10px;
-                margin-bottom: 6px;
-            }
-
             .ack-status-accepted { color: #62f0a2; font-weight: 600; }
             .ack-status-rejected { color: #ff6b6b; font-weight: 600; }
             .ack-status-pending { color: #ffc83a; font-weight: 600; }
 
-            .ack-unmatched-banner {
-                max-width: 1100px;
-                margin: 0 auto 24px auto;
-                border: 1px solid #fd7e14;
-                border-radius: 12px;
-                background: rgba(253, 126, 20, 0.12);
-                padding: 16px 20px;
+            @media (max-width: 991.98px) {
+                .ack-tables-row {
+                    grid-template-columns: 1fr;
+                    overflow-y: auto;
+                }
+
+                body.has-app-bg:has(.ack-page) {
+                    overflow: auto;
+                }
+
+                main.app-main:has(.ack-page) {
+                    height: auto;
+                    max-height: none;
+                    overflow: visible;
+                }
+
+                .ack-page {
+                    overflow: visible;
+                }
+
+                .ack-year-panel {
+                    min-height: 12rem;
+                    max-height: 22rem;
+                }
             }
         </style>
 
-        <div class = "ack-wrapper">
+        <div class="app-page ack-page">
 
             {% if unmatched_staging %}
-            <div class="container-fluid">
+            <div class="container-fluid px-2">
                 <div class="ack-unmatched-banner text-light">
-                    <h5 class="mb-2">Unmatched acknowledgments</h5>
-                    <p class="mb-2 small">
-                        These acks could not be paired to a filed assignment.
-                        Go to <strong>Clearing</strong> and update tax services for the client, then re-import.
+                    <div class="small fw-semibold mb-1">Unmatched acknowledgments</div>
+                    <p class="mb-1 small">
+                        Update tax services in <strong>Clearing</strong>, then re-import.
                     </p>
-                    <ul class="mb-0 small">
-                        {% for row in unmatched_staging|slice:":20" %}
+                    <ul class="small">
+                        {% for row in unmatched_staging|slice:":8" %}
                         <li>
-                            <strong>SSN {{ row.tin }}</strong> — form <strong>{{ row.form_type }}</strong>
+                            <strong>{{ row.tin }}</strong> — {{ row.form_type }}
                             {% if row.client_name %} ({{ row.client_name }}){% endif %}
                         </li>
                         {% endfor %}
@@ -102,83 +304,69 @@
                 </div>
             </div>
             {% endif %}
-            
-            <h1 class="ack-page-title text-light">Acknowledgments</h1>
 
-            <!-- ============== Ingestion / Parser Input ============== -->
-            <div class="container">
-                <div class="card ack-input-card bg-dark text-light">
-                    <div class="card-body">
-                        <h5 class="card-title mb-3">Import Acknowledgments</h5>
+            <h1 class="app-page-title">Acknowledgments</h1>
 
-                        <p class="ack-input-hint mb-3">
-                            Upload acknowledgments file <strong>(.xls, .xlsx, .csv)</strong> or
-                            paste the raw data.
-                        </p>
+            <div class="card ack-import-panel">
+                <div class="ack-import-row">
+                    <label class="ack-import-field ack-import-field-upload" for="ackFileInput">
+                        <span class="ack-field-label">Upload</span>
+                        <input type="file"
+                               id="ackFileInput"
+                               class="form-control ack-glass-input ack-file-input"
+                               accept=".xls,.xlsx,.xlsm,.csv">
+                    </label>
 
-                        <!-- File upload -->
-                        <div class="mb-3">
-                            <label for="ackFileInput" class="form-label">Upload</label>
-                            <input type="file"
-                                id="ackFileInput"
-                                class="form-control"
-                                accept=".xls,.xlsx,.xlsm,.csv">
-                        </div>
+                    <label class="ack-import-field ack-import-field-paste" for="ackPasteInput">
+                        <span class="ack-field-label">Paste Drake MEF data</span>
+                        <textarea id="ackPasteInput"
+                                  class="form-control ack-glass-input ack-paste-input"
+                                  rows="2"
+                                  placeholder="Paste acknowledgment export…"></textarea>
+                    </label>
 
-                        <!-- Paste area -->
-                        <div class="mb-3">
-                            <label for="ackPasteInput" class="form-label">Paste</label>
-                            <textarea id="ackPasteInput"
-                                    class="form-control"
-                                    placeholder="Paste entire acknowledgment spreadsheet here"></textarea>
-                        </div>
-
-                        <div class="d-flex justify-content-end gap-2">
-                            <button type="button"
-                                    id="ackClearBtn"
-                                    class="btn btn-outline-secondary btn-sm">
-                                Clear
-                            </button>
-                            <button type="button"
-                                    id="ackPostBtn"
-                                    class="btn btn-primary">
-                                Post
-                            </button>
-                        </div>
-
-                        <div id="ackParserStatus" class="mt-3 ack-input-hint"></div>
+                    <div class="ack-import-actions">
+                        <button type="button"
+                                id="ackClearBtn"
+                                class="btn btn-outline-glass btn-sm">
+                            Clear
+                        </button>
+                        <button type="button"
+                                id="ackPostBtn"
+                                class="btn btn-primary btn-sm">
+                            Post
+                        </button>
                     </div>
                 </div>
+                <div id="ackParserStatus" class="ack-import-status"></div>
             </div>
 
-            <!-- ================== Acknowledgement Tables ================== -->
-            <div class="container-fluid mt-3 mb-4">
-
-                <!-- Current Year -->
-                <h4 class="ack-section-title text-light">{{ current_tax_year }} Acknowledgments</h4>
-                <div class="table-container">
-                    <div class="table-scroll">
-                        <table class="table table-dark table-striped table-hover text-center align-middle"
-                            style="table-layout: fixed; width: 100%; margin: 0;">
-                            <colgroup>
-                                <col style="width: 20%;"> <!-- Ack Date -->
-                                <col style="width: 20%;"> <!-- TIN -->
-                                <col style="width: 20%;"> <!-- Client Name -->
-                                <col style="width: 20%;"> <!-- Ack Type -->
-                                <col style="width: 20%;"> <!-- Status -->
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Ack Date</th>
-                                    <th scope="col">TIN</th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Type</th>
-                                    <th scope="col">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ackCurrentBody">
-                                {% if current_tax_year_acknowledgments %}
-                                    {% for ack in current_tax_year_acknowledgments %}
+            <div class="ack-tables-row container-fluid px-2 pb-2">
+                {% for section in ack_year_sections %}
+                <div class="ack-year-panel">
+                    <h4 class="ack-section-title">{{ section.year }}</h4>
+                    <div class="table-container">
+                        <div class="table-scroll">
+                            <table class="table table-dark table-striped table-hover text-center align-middle ack-table">
+                                <colgroup>
+                                    <col style="width: 19%;">
+                                    <col style="width: 22%;">
+                                    <col style="width: 28%;">
+                                    <col style="width: 14%;">
+                                    <col style="width: 17%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Date</th>
+                                        <th scope="col">TIN</th>
+                                        <th scope="col">Name</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if section.acks %}
+                                        {% for ack in section.acks %}
                                         <tr>
                                             <td>
                                                 {% if ack.date %}
@@ -188,7 +376,7 @@
                                                 {% endif %}
                                             </td>
                                             <td>{{ ack.client_tin }}</td>
-                                            <td>{{ ack.client_name }}</td>
+                                            <td title="{{ ack.client_name }}">{{ ack.client_name }}</td>
                                             <td>{{ ack.type }}</td>
                                             <td>
                                                 {% if ack.status == 'A' or ack.status == 'Accepted' %}
@@ -200,133 +388,20 @@
                                                 {% endif %}
                                             </td>
                                         </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-muted">No acknowledgments found for the current year.</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- Prior Year (Y-1) -->
-                <h4 class="ack-section-title text-light">{{ prior_tax_year }} Acknowledgments</h4>
-                <div class="table-container">
-                    <div class="table-scroll">
-                        <table class="table table-dark table-striped table-hover text-center align-middle"
-                            style="table-layout: fixed; width: 100%; margin: 0;">
-                            <colgroup>
-                                <col style="width: 20%;"> <!-- Ack Date -->
-                                <col style="width: 20%;"> <!-- TIN -->
-                                <col style="width: 20%;"> <!-- Client Name -->
-                                <col style="width: 20%;"> <!-- Ack Type -->
-                                <col style="width: 20%;"> <!-- Status -->
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Ack Date</th>
-                                    <th scope="col">TIN</th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Type</th>
-                                    <th scope="col">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ackPriorBody">
-                                {% if prior_tax_year_acknowledgments %}
-                                    {% for ack in prior_tax_year_acknowledgments %}
+                                        {% endfor %}
+                                    {% else %}
                                         <tr>
-                                            <td>
-                                                {% if ack.date %}
-                                                    {{ ack.date|date:"Y-m-d" }}
-                                                {% else %}
-                                                    {{ ack.created_at|date:"Y-m-d" }}
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ ack.client_tin }}</td>
-                                            <td>{{ ack.client_name }}</td>
-                                            <td>{{ ack.type }}</td>
-                                            <td>
-                                                {% if ack.status == 'A' or ack.status == 'Accepted' %}
-                                                    <span class="ack-status-accepted">{{ ack.status }}</span>
-                                                {% elif ack.status == 'R' or ack.status == 'Rejected' %}
-                                                    <span class="ack-status-rejected">{{ ack.status }}</span>
-                                                {% else %}
-                                                    <span class="ack-status-pending">{{ ack.status|default:"—" }}</span>
-                                                {% endif %}
-                                            </td>
+                                            <td colspan="5" class="text-muted">No acknowledgments</td>
                                         </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-muted">No acknowledgments found for the prior year.</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Prior Prior Year (Y-2) -->
-                <h4 class="ack-section-title text-light">{{ prior_prior_tax_year }} Acknowledgments</h4>
-                <div class="table-container">
-                    <div class="table-scroll">
-                        <table class="table table-dark table-striped table-hover text-center align-middle"
-                            style="table-layout: fixed; width: 100%; margin: 0;">
-                            <colgroup>
-                                <col style="width: 20%;"> <!-- Ack Date -->
-                                <col style="width: 20%;"> <!-- TIN -->
-                                <col style="width: 20%;"> <!-- Client Name -->
-                                <col style="width: 20%;"> <!-- Ack Type -->
-                                <col style="width: 20%;"> <!-- Status -->
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    <th scope="col">Ack Date</th>
-                                    <th scope="col">TIN</th>
-                                    <th scope="col">Name</th>
-                                    <th scope="col">Type</th>
-                                    <th scope="col">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ackPriorPriorBody">
-                                {% if prior_prior_tax_year_acknowledgments %}
-                                    {% for ack in prior_prior_tax_year_acknowledgments %}
-                                        <tr>
-                                            <td>
-                                                {% if ack.date %}
-                                                    {{ ack.date|date:"Y-m-d" }}
-                                                {% else %}
-                                                    {{ ack.created_at|date:"Y-m-d" }}
-                                                {% endif %}
-                                            </td>
-                                            <td>{{ ack.client_tin }}</td>
-                                            <td>{{ ack.client_name }}</td>
-                                            <td>{{ ack.type }}</td>
-                                            <td>
-                                                {% if ack.status == 'A' or ack.status == 'Accepted' %}
-                                                    <span class="ack-status-accepted">{{ ack.status }}</span>
-                                                {% elif ack.status == 'R' or ack.status == 'Rejected' %}
-                                                    <span class="ack-status-rejected">{{ ack.status }}</span>
-                                                {% else %}
-                                                    <span class="ack-status-pending">{{ ack.status|default:"—" }}</span>
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                {% else %}
-                                    <tr>
-                                        <td colspan="5" class="text-muted">No acknowledgments found for the prior-prior year.</td>
-                                    </tr>
-                                {% endif %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
+                {% endfor %}
             </div>
-        
+
         </div>
 
         <div class="modal fade" id="ackResolveModal" tabindex="-1" aria-hidden="true">
@@ -415,7 +490,6 @@
             </div>
         </div>
 
-
         {% else %}
         <h1>Login</h1>
         <form method="POST" action="{% url 'home' %}">
@@ -424,33 +498,26 @@
             <div class="form-group"><input type="password" class="form-control" name="password" placeholder="password" required></div>
             <button type="submit" class="btn btn-primary mt-3">Login</button>
         </form>
-
-
-    {% endif %}
+        {% endif %}
 {% endblock %}
-
-
-
 
 {% block extra_js %}
     <script>
-        // TODO: wire this to your actual parser endpoint once we design it.
         const ackStatusEl = document.getElementById('ackParserStatus');
         const ackFileInput = document.getElementById('ackFileInput');
         const ackPasteInput = document.getElementById('ackPasteInput');
         const ackPostBtn = document.getElementById('ackPostBtn');
         const ackClearBtn = document.getElementById('ackClearBtn');
 
-        
         const ACK_POST_URL = "{% url 'acknowledgments:post' %}";
         const ACK_RESOLVE_URL = "{% url 'acknowledgments:resolve' %}";
         let lastUnmatchedIds = [];
         let lastUnmatchedRows = [];
-        
+
         function setAckStatus(msg, isError = false) {
             if (ackStatusEl) {
                 ackStatusEl.textContent = msg || "";
-                ackStatusEl.style.color = isError ? '#ff6b6b' : '#bbbbbb'
+                ackStatusEl.style.color = isError ? '#ff6b6b' : 'rgba(255, 255, 255, 0.72)';
             }
         }
 
@@ -504,7 +571,6 @@
                 axios.post(ACK_POST_URL, formData, {
                     headers: {
                         "X-CSRFToken": getCookie('csrftoken'),
-                        // let browser set Content-Type for multipart
                     }
                 })
                 .then(response => {
@@ -523,22 +589,16 @@
 
                     const totalProblem = unmatched.length + needsFiling.length + ambiguous.length + clientNotFound.length;
 
-                    // If nothing to resolve, we can just reload (normal success)
                     if (totalProblem === 0) {
                         setAckStatus(data.message || "Posted.");
                         window.location.reload();
                         return;
                     }
 
-                    // Build modal rows
                     const modalEl = document.getElementById("ackResolveModal");
                     const tbody = document.getElementById("ackResolveRows");
                     const summary = document.getElementById("ackResolveSummary");
 
-                    // collect IDs we allow auto-create for:
-                    // - UNMATCHED
-                    // - NEEDS_FILING_TYPE (still allow create default TBD PA)
-                    // We will NOT auto-resolve ambiguous in this pass.
                     const displayRows = [...unmatched, ...needsFiling, ...ambiguous, ...clientNotFound];
                     const resolvableRows = [...unmatched, ...needsFiling];
                     lastUnmatchedIds = resolvableRows.map(x => x.id);
@@ -552,7 +612,7 @@
                     tbody.innerHTML = "";
                     for (const r of displayRows) {
                         const isClientNotFound = clientNotFoundIds.has(r.id);
-                        
+
                         const tr = document.createElement("tr");
                         tr.innerHTML = `
                             <td>${(r.year !== undefined && r.year !== null) ? r.year : ""}</td>
@@ -596,7 +656,6 @@
             });
         }
 
-        //Handlers for Yes / No functionality when prompted to create new PA based on unmatched Ack
         async function resolveStaging(action) {
             if (!lastUnmatchedIds.length) {
                 window.location.reload();
@@ -629,7 +688,7 @@
                 setAckStatus("An error occurred while resolving acknowledgments.", true);
             }
         }
-        
+
         const ACK_CREATE_CLIENT_URL = "{% url 'core:create_client_from_ack' %}";
 
         function showCreateClientModal(row) {
@@ -647,9 +706,6 @@
             const modal = new bootstrap.Modal(modalEl);
             modal.show();
         }
-
-
-
 
         const yesBtn = document.getElementById("ackResolveYesBtn");
         if (yesBtn) yesBtn.addEventListener("click", () => resolveStaging("create"));
@@ -673,7 +729,6 @@
                 const phoneEl = document.getElementById("ackCreateClientPhone");
                 const errEl = document.getElementById("ackCreateClientError");
 
-                // Hard guard: if modal markup is missing, fail gracefully (no JS crash)
                 if (!stagingEl || !tinEl || !nameEl || !emailEl || !phoneEl || !errEl) {
                     console.error("Create Client modal elements missing.", {
                         stagingEl, tinEl, nameEl, emailEl, phoneEl, errEl,

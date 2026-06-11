@@ -149,6 +149,8 @@ class ParseJob(TimeStampedModel):
         PENDING = "PENDING", "Pending"
         SUCCESS = "SUCCESS", "Success"
         FAILED = "FAILED", "Failed"
+        CANCELLED = "CANCELLED", "Cancelled"
+        APPLIED = "APPLIED", "Applied"
 
     document = models.ForeignKey(Document, on_delete=models.CASCADE, related_name="parse_jobs")
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)

@@ -17,17 +17,52 @@ INTERNAL_FIELD_KEYS = frozenset({
     "ocr_total_ms",
     "message_ready",
     "message_ready_reason",
+    "taxpayer_is_entity",
     "_field_sources",
 })
+
+ENTITY_NAME_MARKERS: tuple[str, ...] = (
+    " CORP",
+    " LLC",
+    " INC",
+    " LP",
+    " LLP",
+    " LTD",
+    " PLLC",
+    " CO.",
+    " COMPANY",
+    " S CORP",
+    " SCORP",
+    " L.L.C.",
+    " L.P.",
+)
+
+
+def looks_like_entity_name(name: str | None) -> bool:
+    if not name:
+        return False
+    upper = str(name).upper()
+    return any(marker in upper for marker in ENTITY_NAME_MARKERS)
+
+
+def taxpayer_display_name(fields: dict[str, Any]) -> str:
+    """Greeting name: full legal name for entities, first name for individuals."""
+    full = (fields.get("taxpayer_full_name") or "").strip()
+    first = (fields.get("taxpayer_first_name") or "").strip()
+    if (fields.get("taxpayer_is_entity") or looks_like_entity_name(full)) and full:
+        return full
+    return first or full
 
 # Keys persisted to ExtractedField rows and CRM snapshot.fields.
 EXTRACTED_FIELD_KEYS: tuple[str, ...] = (
     "taxpayer_first_name",
     "taxpayer_full_name",
+    "taxpayer_tin",
     "tax_year",
     "federal_amount",
     "states",
     "last_4_of_account",
+    "bank_name",
     "mailing_address",
     "mailing_address_line1",
     "mailing_city",
@@ -35,6 +70,10 @@ EXTRACTED_FIELD_KEYS: tuple[str, ...] = (
     "mailing_zip",
     "tax_prep_fee",
     "has_tpg_pages",
+    "enrollment_signals",
+    "expected_transmissions",
+    "expected_ack_count",
+    "expected_ack_source",
 )
 
 FIELD_CATALOG: tuple[dict[str, Any], ...] = (
@@ -57,6 +96,16 @@ FIELD_CATALOG: tuple[dict[str, Any], ...] = (
         "required_for_message": False,
     },
     {
+        "key": "taxpayer_tin",
+        "tier": "A",
+        "source_roles": (
+            "extract_diagnostic_invoice",
+            "extract_tin_comparison",
+            "form_federal",
+        ),
+        "required_for_message": False,
+    },
+    {
         "key": "federal_amount",
         "tier": "B",
         "source_roles": ("extract_client_letter",),
@@ -71,7 +120,13 @@ FIELD_CATALOG: tuple[dict[str, Any], ...] = (
     {
         "key": "last_4_of_account",
         "tier": "B",
-        "source_roles": ("extract_client_letter",),
+        "source_roles": ("extract_client_letter", "extract_dd_pmt"),
+        "required_for_message": False,
+    },
+    {
+        "key": "bank_name",
+        "tier": "B",
+        "source_roles": ("extract_dd_pmt",),
         "required_for_message": False,
     },
     {
@@ -107,13 +162,29 @@ FIELD_CATALOG: tuple[dict[str, Any], ...] = (
     {
         "key": "tax_prep_fee",
         "tier": "B",
-        "source_roles": ("extract_bill",),
+        "source_roles": (
+            "extract_tpg_fee",
+            "extract_diagnostic_invoice",
+            "extract_bill_fee",
+        ),
         "required_for_message": False,
     },
     {
         "key": "has_tpg_pages",
         "tier": "B",
         "source_roles": ("outline",),
+        "required_for_message": False,
+    },
+    {
+        "key": "expected_transmissions",
+        "tier": "B",
+        "source_roles": ("extract_client_letter", "extract_diagnostic_invoice", "extract_bill"),
+        "required_for_message": False,
+    },
+    {
+        "key": "expected_ack_count",
+        "tier": "B",
+        "source_roles": ("extract_client_letter", "extract_diagnostic_invoice", "extract_bill"),
         "required_for_message": False,
     },
 )
@@ -128,9 +199,16 @@ def finalize_extracted_fields(raw: dict[str, Any]) -> dict[str, Any]:
     """
     out = dict(raw)
 
+    full_name = (out.get("taxpayer_full_name") or "").strip()
+    is_entity = bool(out.get("taxpayer_is_entity")) or looks_like_entity_name(full_name)
     first = (out.get("taxpayer_first_name") or "").strip()
-    if not first and out.get("taxpayer_full_name"):
-        tokens = str(out["taxpayer_full_name"]).split()
+
+    if is_entity and full_name:
+        first = full_name.title()
+        out["taxpayer_full_name"] = first
+        out["taxpayer_first_name"] = first
+    elif not first and full_name:
+        tokens = str(full_name).split()
         if tokens:
             first = tokens[0].title()
             out["taxpayer_first_name"] = first

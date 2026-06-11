@@ -37,14 +37,23 @@ ALLOWED_TRANSITIONS: dict[str | None, set[str]] = {
         LifecycleState.READY_FOR_REVIEW,
         LifecycleState.IN_CLEARING,
     },
-    LifecycleState.READY_FOR_REVIEW: {LifecycleState.IN_REVIEW},
+    LifecycleState.READY_FOR_REVIEW: {
+        LifecycleState.IN_REVIEW,
+        LifecycleState.FILED,
+    },
     LifecycleState.IN_REVIEW: {LifecycleState.FILED},
-    LifecycleState.FILED: {LifecycleState.ACK_RECONCILING},
+    LifecycleState.FILED: {
+        LifecycleState.ACK_RECONCILING,
+        LifecycleState.CLOSED,
+    },
     LifecycleState.ACK_RECONCILING: {
         LifecycleState.CLOSED,
         LifecycleState.PENDING_REJECT_CORRECTION,
     },
-    LifecycleState.PENDING_REJECT_CORRECTION: {LifecycleState.ACK_RECONCILING},
+    LifecycleState.PENDING_REJECT_CORRECTION: {
+        LifecycleState.ACK_RECONCILING,
+        LifecycleState.CLOSED,
+    },
     LifecycleState.CLOSED: set(),
 }
 
@@ -71,6 +80,7 @@ WORKFLOW_OWNED_FIELDS = {
     "completion_state",
     "parser_status",
     "expected_ack_count",
+    "force_completed_at",
     "completed_at",
     "completed_by",
     "is_complete",
@@ -478,6 +488,58 @@ def cmd_close(*, pa_id: int, actor=None) -> ProductAssignment:
         return pa
 
 
+FORCE_COMPLETE_ELIGIBLE_STATES = frozenset({
+    LifecycleState.PENDING_REJECT_CORRECTION,
+    LifecycleState.FILED,
+    LifecycleState.ACK_RECONCILING,
+})
+
+
+def cmd_force_complete_review(
+    *,
+    pa_id: int,
+    actor=None,
+    note: str = "",
+) -> ProductAssignment:
+    """Close a PA despite stuck reject acks; force date counts as A for TP Comp Dt."""
+    note = (note or "").strip()
+    if not note:
+        raise ValidationError({"note": "A note is required for force completion."})
+
+    with transaction.atomic():
+        pa = _lock_pa(pa_id)
+        state = _normalize_state(pa.lifecycle_state)
+        if state == LifecycleState.CLOSED:
+            return pa
+        if state not in FORCE_COMPLETE_ELIGIBLE_STATES:
+            raise ValidationError(
+                {
+                    "lifecycle_state": (
+                        "PA must be pending reject correction or pending acknowledgments "
+                        "to force complete."
+                    )
+                }
+            )
+
+        pa.force_completed_at = timezone.now()
+        pa.save(update_fields=["force_completed_at"])
+
+        pa = transition_pa(
+            pa,
+            to_state=LifecycleState.CLOSED,
+            actor=actor,
+            note=note,
+            payload={"force_completed": True},
+        )
+        emit_idempotent_event(
+            pa=pa,
+            event_type=ProductAssignmentEvent.EventType.CLOSED,
+            created_by=actor,
+            payload={"force_completed": True},
+        )
+        return pa
+
+
 def cmd_set_pending_reject_correction(
     *, pa_id: int, actor=None, reason: str = ""
 ) -> ProductAssignment:
@@ -560,6 +622,47 @@ def cmd_reopen_clearing(
                 "payment_method": pa.payment_method,
             },
         )
+
+
+def cmd_void_pa_for_parse_replace(
+    *,
+    pa_id: int,
+    actor=None,
+    superseded_by_pa_id: int | None = None,
+) -> ProductAssignment:
+    """Void a PA when global upload replaces its parse data (audit-friendly supersede)."""
+    with transaction.atomic():
+        pa = _lock_pa(pa_id)
+        if is_pa_locked_for_editing(pa):
+            raise ValidationError(
+                {
+                    "__all__": (
+                        "This entry has already completed clearing. "
+                        "Create a new entry with the appropriate fee instead."
+                    )
+                }
+            )
+
+        pa.is_active = False
+        pa.voided_at = timezone.now()
+        pa.voided_by = actor
+        pa.void_reason = ProductAssignment.VoidReason.PDF_REPLACED
+        update_fields = ["is_active", "voided_at", "voided_by", "void_reason"]
+        if superseded_by_pa_id is not None:
+            pa.superseded_by_id = superseded_by_pa_id
+            update_fields.append("superseded_by")
+        pa.save(update_fields=update_fields)
+
+        emit_idempotent_event(
+            pa=pa,
+            event_type=ProductAssignmentEvent.EventType.PARSE_SUPERSEDED,
+            created_by=actor,
+            payload={
+                "parse_job_uuid": str(pa.parse_job_uuid) if pa.parse_job_uuid else None,
+                "superseded_by_pa_id": superseded_by_pa_id,
+            },
+        )
+        return pa
 
 
 def enter_clearing_for_client_assignments(
