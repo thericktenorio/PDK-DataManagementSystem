@@ -95,6 +95,7 @@
 
             .client-portfolio-table .form-select,
             .client-portfolio-table .form-select:focus {
+                color-scheme: dark !important;
                 color: #ffffff !important;
                 background-color: rgba(255, 255, 255, 0.1) !important;
                 backdrop-filter: blur(10px);
@@ -118,6 +119,16 @@
                 box-shadow:
                     0 0 0 0.15rem rgba(255, 255, 255, 0.12),
                     inset 0 1px 0 rgba(255, 255, 255, 0.18);
+            }
+
+            @media (prefers-color-scheme: light) {
+                .client-portfolio-table .form-select,
+                .client-portfolio-table .form-select:hover,
+                .client-portfolio-table .form-select:focus,
+                .client-portfolio-table.table-hover > tbody > tr:hover .form-select {
+                    color: #212529 !important;
+                    color-scheme: light !important;
+                }
             }
 
             .client-portfolio-table .form-select {

@@ -113,6 +113,31 @@
             border-color: rgba(255, 255, 255, 0.14);
         }
 
+        /*
+         * Native <select> popups follow the OS/browser theme. Light-theme Chrome uses a
+         * white list surface, so white select text becomes invisible unless we adapt.
+         */
+        body.has-app-bg .form-select {
+            color-scheme: dark;
+        }
+
+        @media (prefers-color-scheme: light) {
+            body.has-app-bg .form-select:not(.bg-dark):not(.text-light) {
+                color: #212529 !important;
+                color-scheme: light;
+            }
+
+            body.has-app-bg .table-hover > tbody > tr:hover .form-select:not(.bg-dark):not(.text-light) {
+                color: #212529 !important;
+                color-scheme: light !important;
+            }
+        }
+
+        body.has-app-bg .form-select.bg-dark,
+        body.has-app-bg .form-select.text-light {
+            color-scheme: dark !important;
+        }
+
         body.has-app-bg .alert {
             backdrop-filter: blur(8px);
             -webkit-backdrop-filter: blur(8px);
