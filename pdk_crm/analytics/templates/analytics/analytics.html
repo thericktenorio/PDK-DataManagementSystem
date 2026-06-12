@@ -46,7 +46,7 @@
                 data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 data-bs-custom-class="analytics-kpi-tooltip"
-                title="Count of all product assignments in the selected tax season (every lifecycle state). Updated at each warehouse sync — not live operational data.">
+                title="Active product assignments not yet closed (excludes cancelled and voided rows). Updated at each warehouse sync — not live operational data.">
                 <div class="card-body">
                     <div class="text-muted small">Services Pending</div>
                     <div class="display-6">{{ s.total_assignments }}</div>
@@ -58,7 +58,7 @@
                 data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 data-bs-custom-class="analytics-kpi-tooltip"
-                title="Distinct clients with at least one assignment this season (intake through closed — not intake-only or clearing-only).">
+                title="Distinct clients with at least one active assignment this season (excludes cancelled and voided).">
                 <div class="card-body">
                     <div class="text-muted small">Clients</div>
                     <div class="display-6">{{ s.clients_serviced }}</div>
@@ -70,7 +70,7 @@
                 data-bs-toggle="tooltip"
                 data-bs-placement="top"
                 data-bs-custom-class="analytics-kpi-tooltip"
-                title="Product assignments in Closed lifecycle state. The number below the total is still in progress (not closed).">
+                title="Active assignments in Closed lifecycle state. The number below is still in progress (not closed).">
                 <div class="card-body">
                     <div class="text-muted small">Services Closed</div>
                     <div class="display-6">{{ s.closed_count }}</div>
@@ -87,6 +87,21 @@
                 <div class="card-body">
                     <div class="text-muted small">Tax PDFs Parsed</div>
                     <div class="display-6">{{ s.parser_assisted_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100 analytics-kpi-card"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-custom-class="analytics-kpi-tooltip"
+                title="Assignments cancelled by staff or voided when a PDF was replaced (excluded from pending and revenue KPIs).">
+                <div class="card-body">
+                    <div class="text-muted small">Services Cancelled</div>
+                    <div class="display-6">{{ s.cancelled_count }}</div>
                 </div>
             </div>
         </div>

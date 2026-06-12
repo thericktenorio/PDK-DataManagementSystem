@@ -8,7 +8,7 @@ from decimal import Decimal
 from statistics import median
 
 from django.conf import settings
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 
 from analytics.models import DimTaxSeason, EtlRun, FactAssignment
 from core.models import LifecycleState
@@ -20,6 +20,19 @@ def warehouse_available() -> bool:
 
 def _facts():
     return FactAssignment.objects.using("analytics")
+
+
+def _reportable_qs(qs):
+    """Active assignments that count toward operational KPIs."""
+    return qs.filter(is_active=True, voided_at__isnull=True).exclude(
+        lifecycle_state=LifecycleState.CANCELLED
+    )
+
+
+def _cancelled_qs(qs):
+    return qs.filter(
+        Q(lifecycle_state=LifecycleState.CANCELLED) | Q(voided_at__isnull=False)
+    )
 
 
 @dataclass
@@ -43,6 +56,7 @@ class SeasonKpiSnapshot:
     closed_count: int = 0
     in_progress_count: int = 0
     parser_assisted_count: int = 0
+    cancelled_count: int = 0
 
 
 @dataclass
@@ -106,6 +120,7 @@ LIFECYCLE_DISPLAY = (
     (LifecycleState.ACK_RECONCILING, "Ack reconciling"),
     (LifecycleState.PENDING_REJECT_CORRECTION, "Pending reject"),
     (LifecycleState.CLOSED, "Closed"),
+    (LifecycleState.CANCELLED, "Cancelled"),
 )
 
 OUTSTANDING_LIFECYCLE = {
@@ -116,10 +131,13 @@ OUTSTANDING_LIFECYCLE = {
 
 def build_season_snapshot(tax_season_year: int) -> SeasonKpiSnapshot:
     qs = _facts().filter(tax_season_year=tax_season_year)
-    total = qs.count()
-    clients = qs.values("source_client_id").distinct().count()
+    reportable = _reportable_qs(qs)
+    pending = reportable.exclude(lifecycle_state=LifecycleState.CLOSED)
+    total = pending.count()
+    clients = reportable.values("source_client_id").distinct().count()
+    cancelled_count = _cancelled_qs(qs).count()
 
-    agg = qs.aggregate(
+    agg = reportable.aggregate(
         expected=Sum("expected_fee"),
         recognized=Sum("actual_revenue_recognized"),
         gap=Sum("revenue_gap"),
@@ -134,25 +152,33 @@ def build_season_snapshot(tax_season_year: int) -> SeasonKpiSnapshot:
 
     days_list = [
         d
-        for d in qs.exclude(days_to_payment__isnull=True).values_list("days_to_payment", flat=True)
+        for d in reportable.exclude(days_to_payment__isnull=True).values_list(
+            "days_to_payment", flat=True
+        )
         if d is not None
     ]
     med_days = int(median(days_list)) if days_list else None
 
     outstanding = _money(
-        qs.filter(lifecycle_state__in=OUTSTANDING_LIFECYCLE).aggregate(s=Sum("expected_fee"))["s"]
+        reportable.filter(lifecycle_state__in=OUTSTANDING_LIFECYCLE).aggregate(s=Sum("expected_fee"))[
+            "s"
+        ]
     )
 
-    closed_count = qs.filter(lifecycle_state=LifecycleState.CLOSED).count()
-    parser_count = qs.filter(has_parser_snapshot=True).count()
+    closed_count = reportable.filter(lifecycle_state=LifecycleState.CLOSED).count()
+    parser_count = reportable.filter(has_parser_snapshot=True).count()
 
     buckets: list[LifecycleBucket] = []
     counts_by_state = {
         row["lifecycle_state"]: row["c"]
-        for row in qs.values("lifecycle_state").annotate(c=Count("id"))
+        for row in reportable.values("lifecycle_state").annotate(c=Count("id"))
     }
     for state, label in LIFECYCLE_DISPLAY:
+        if state == LifecycleState.CANCELLED:
+            continue
         buckets.append(LifecycleBucket(label=label, count=counts_by_state.get(state, 0)))
+    if cancelled_count:
+        buckets.append(LifecycleBucket(label="Cancelled / voided", count=cancelled_count))
 
     return SeasonKpiSnapshot(
         tax_season_year=tax_season_year,
@@ -166,8 +192,9 @@ def build_season_snapshot(tax_season_year: int) -> SeasonKpiSnapshot:
         median_days_to_payment=med_days,
         outstanding_expected=outstanding,
         closed_count=closed_count,
-        in_progress_count=total - closed_count,
+        in_progress_count=total,
         parser_assisted_count=parser_count,
+        cancelled_count=cancelled_count,
     )
 
 

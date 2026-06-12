@@ -27,6 +27,7 @@ from core.utils import (
     get_valid_tax_years,
 )
 from intake.services.enrollment import enroll_client_in_intake, NoActiveTaxSeasonError
+from core.workflows.lifecycle import cmd_cancel_assignment
 
 import json
 
@@ -227,12 +228,25 @@ def remove_client_from_intake(request, client_id):
         for pa in product_assignments:
             enforce_pa_not_frozen_for_action(pa, action="remove_client_from_intake")
 
-        product_ids = product_assignments.values_list("product_id", flat=True).distinct()
-        Product.objects.filter(id__in=product_ids).update(is_product_active=False)
-        product_assignments.update(is_active=False)
+        try:
+            body = json.loads(request.body or "{}")
+        except json.JSONDecodeError:
+            body = {}
+        bulk_reason = (body.get("cancellation_reason") or "").strip() or "Client removed from intake"
+
+        for pa in product_assignments:
+            cmd_cancel_assignment(
+                pa_id=pa.id,
+                actor=request.user,
+                cancellation_reason=bulk_reason,
+            )
 
         intake.is_active = False
         intake.save(update_fields=["is_active"])
+
+        from clearing.services.global_parse import _reconcile_orphan_daily_clearing
+
+        _reconcile_orphan_daily_clearing(intake.client, current_tax_season)
 
         return JsonResponse({"status": "success"}, status=200)
 
@@ -372,30 +386,35 @@ def add_product_assignment(request):
         return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
-# Remove product assignment from client subrow
+# Cancel product assignment from client subrow
 @require_POST
 @login_required
-def remove_product_assignment(request):
+def cancel_product_assignment(request):
     try:
         data = json.loads(request.body)
         product_assignment_id = data.get("product_assignment_id")
+        cancellation_reason = (data.get("cancellation_reason") or "").strip()
 
         if not product_assignment_id:
             return JsonResponse(
                 {"status": "error", "message": "Missing product assignment ID"},
                 status=400,
             )
+        if not cancellation_reason:
+            return JsonResponse(
+                {"status": "error", "message": "Cancellation reason is required."},
+                status=400,
+            )
 
         product_assignment = get_object_or_404(ProductAssignment, id=product_assignment_id)
 
-        enforce_pa_not_frozen_for_action(product_assignment, action="remove_product_assignment")
+        enforce_pa_not_frozen_for_action(product_assignment, action="cancel_product_assignment")
 
-        product = product_assignment.product
-        product.is_product_active = False
-        product.save()
-
-        product_assignment.is_active = False
-        product_assignment.save()
+        cmd_cancel_assignment(
+            pa_id=product_assignment.id,
+            actor=request.user,
+            cancellation_reason=cancellation_reason,
+        )
 
         from clearing.services.global_parse import _reconcile_orphan_daily_clearing
 

@@ -115,6 +115,7 @@ class AnalyticsSelectorTests(TransactionTestCase):
             source_client_id=1,
             tax_season_year=2025,
             lifecycle_state="IN_CLEARING",
+            is_active=True,
             expected_fee=Decimal("200.00"),
             actual_revenue_recognized=Decimal("50.00"),
             revenue_gap=Decimal("150.00"),
@@ -125,15 +126,25 @@ class AnalyticsSelectorTests(TransactionTestCase):
             source_client_id=2,
             tax_season_year=2025,
             lifecycle_state="CLOSED",
+            is_active=True,
             expected_fee=Decimal("100.00"),
             actual_revenue_recognized=Decimal("100.00"),
             revenue_gap=Decimal("0.00"),
             days_to_payment=2,
         )
+        FactAssignment.objects.using("analytics").create(
+            source_pa_id=103,
+            source_client_id=3,
+            tax_season_year=2025,
+            lifecycle_state="CANCELLED",
+            is_active=False,
+            expected_fee=Decimal("75.00"),
+        )
         snap = build_season_snapshot(2025)
-        self.assertEqual(snap.total_assignments, 2)
+        self.assertEqual(snap.total_assignments, 1)
         self.assertEqual(snap.clients_serviced, 2)
         self.assertEqual(snap.expected_revenue, Decimal("300.00"))
         self.assertEqual(snap.recognized_revenue, Decimal("150.00"))
         self.assertEqual(snap.closed_count, 1)
+        self.assertEqual(snap.cancelled_count, 1)
         self.assertEqual(snap.median_days_to_payment, 6)

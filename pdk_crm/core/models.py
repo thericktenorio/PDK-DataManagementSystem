@@ -386,6 +386,7 @@ class LifecycleState(models.TextChoices):
     ACK_RECONCILING = "ACK_RECONCILING", "Ack Reconciling"
     CLOSED = "CLOSED", "Closed"
     PENDING_REJECT_CORRECTION = "PENDING_REJECT_CORRECTION", "Pending Reject Correction"
+    CANCELLED = "CANCELLED", "Cancelled"
 
 
 # PA Helper model
@@ -502,6 +503,19 @@ class ProductAssignment(models.Model):
         choices = VoidReason.choices,
         null = True,
         blank = True,
+    )
+    cancelled_at = models.DateTimeField(null = True, blank = True)
+    cancelled_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete = models.SET_NULL,
+        null = True,
+        blank = True,
+        related_name = "cancelled_product_assignments",
+    )
+    cancellation_reason = models.TextField(
+        null = True,
+        blank = True,
+        help_text = "Staff-provided reason when the assignment is cancelled before completion.",
     )
     superseded_by = models.ForeignKey(
         "self",
@@ -781,6 +795,7 @@ class ProductAssignmentEvent(models.Model):
         FILED = "FILED", "FILED"
         CLOSED = "CLOSED", "CLOSED"
         PARSE_SUPERSEDED = "PARSE_SUPERSEDED", "PARSE_SUPERSEDED"
+        ASSIGNMENT_CANCELLED = "ASSIGNMENT_CANCELLED", "ASSIGNMENT_CANCELLED"
 
     product_assignment = models.ForeignKey(
         "ProductAssignment",

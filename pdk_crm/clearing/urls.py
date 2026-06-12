@@ -25,9 +25,9 @@ urlpatterns = [
         name="add_product_assignment",
     ),
     path(
-        "remove_product_assignment/",
-        views.remove_product_assignment,
-        name="remove_product_assignment",
+        "cancel_product_assignment/",
+        views.cancel_product_assignment,
+        name="cancel_product_assignment",
     ),
     path(
         "product-assignments/<int:pa_id>/complete/",

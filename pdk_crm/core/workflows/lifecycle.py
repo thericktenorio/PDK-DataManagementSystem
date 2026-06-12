@@ -25,9 +25,12 @@ logger = logging.getLogger(__name__)
 
 
 ALLOWED_TRANSITIONS: dict[str | None, set[str]] = {
-    None: {LifecycleState.IN_CLEARING},
-    "": {LifecycleState.IN_CLEARING},
-    LifecycleState.IN_CLEARING: {LifecycleState.CLEARING_COMPLETE},
+    None: {LifecycleState.IN_CLEARING, LifecycleState.CANCELLED},
+    "": {LifecycleState.IN_CLEARING, LifecycleState.CANCELLED},
+    LifecycleState.IN_CLEARING: {
+        LifecycleState.CLEARING_COMPLETE,
+        LifecycleState.CANCELLED,
+    },
     LifecycleState.CLEARING_COMPLETE: {
         LifecycleState.AWAITING_PAYMENT,
         LifecycleState.READY_FOR_REVIEW,
@@ -55,6 +58,7 @@ ALLOWED_TRANSITIONS: dict[str | None, set[str]] = {
         LifecycleState.CLOSED,
     },
     LifecycleState.CLOSED: set(),
+    LifecycleState.CANCELLED: set(),
 }
 
 
@@ -622,6 +626,80 @@ def cmd_reopen_clearing(
                 "payment_method": pa.payment_method,
             },
         )
+
+
+def cmd_cancel_assignment(
+    *,
+    pa_id: int,
+    actor=None,
+    cancellation_reason: str,
+) -> ProductAssignment:
+    """Cancel a PA before clearing is complete; retains row for audit."""
+    reason = (cancellation_reason or "").strip()
+    if not reason:
+        raise ValidationError({"cancellation_reason": "Cancellation reason is required."})
+
+    with transaction.atomic():
+        pa = _lock_pa(pa_id)
+        state = _normalize_state(pa.lifecycle_state)
+
+        if state == LifecycleState.CANCELLED:
+            return pa
+
+        if state and state != LifecycleState.IN_CLEARING:
+            raise ValidationError(
+                {
+                    "lifecycle_state": (
+                        f"PA cannot be cancelled after leaving clearing (state={state})."
+                    )
+                }
+            )
+
+        from core.models import CompletionState
+
+        if pa.completion_state and pa.completion_state != CompletionState.OPEN:
+            raise ValidationError(
+                {
+                    "__all__": (
+                        f"PA is frozen (legacy completion={pa.completion_state}). "
+                        "Cancellation not allowed."
+                    )
+                }
+            )
+
+        pa = transition_pa(
+            pa,
+            to_state=LifecycleState.CANCELLED,
+            actor=actor,
+            note=reason[:500],
+            payload={"cancellation_reason": reason},
+        )
+
+        pa.is_active = False
+        pa.cancelled_at = timezone.now()
+        pa.cancelled_by = actor
+        pa.cancellation_reason = reason
+        pa.save(
+            update_fields=[
+                "is_active",
+                "cancelled_at",
+                "cancelled_by",
+                "cancellation_reason",
+            ]
+        )
+
+        if pa.product_id:
+            product = pa.product
+            product.is_product_active = False
+            product.save(update_fields=["is_product_active"])
+
+        emit_idempotent_event(
+            pa=pa,
+            event_type=ProductAssignmentEvent.EventType.ASSIGNMENT_CANCELLED,
+            created_by=actor,
+            payload={"cancellation_reason": reason},
+        )
+        return pa
 
 
 def cmd_void_pa_for_parse_replace(

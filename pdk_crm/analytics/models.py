@@ -110,6 +110,9 @@ class FactAssignment(models.Model):
 
     is_active = models.BooleanField(default=False)
     is_archived = models.BooleanField(default=False)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True, default="")
     preparer_email = models.CharField(max_length=254, blank=True, default="")
 
     expected_fee = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)

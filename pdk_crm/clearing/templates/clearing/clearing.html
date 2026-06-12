@@ -842,7 +842,7 @@
                                                             <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
                                                         </svg>
                                                     </button>
-                                                    <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                                                    <button type="button" class="btn btn-dark toolbar-action cancelProductAssignmentButton" title="Cancel entry">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
                                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                             <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -867,7 +867,7 @@
                                                     {% endwith %}
                                                     <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
                                                     <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
-                                                    <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                                                    <li><button type="button" class="dropdown-item cancelProductAssignmentButton">Cancel entry</button></li>
                                                     <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="{{ client.id }}">Remove client from clearing</button></li>
                                                 </ul>
                                             </div>
@@ -902,7 +902,7 @@
                                                     <button type="button" class="btn btn-dark toolbar-action confirm-payment-btn" title="Confirm payment received"
                                                         {% if not product_assignment.billing_context.can_confirm_payment %}style="display:none;"{% endif %}>Paid</button>
                                                     {% endwith %}
-                                                    <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                                                    <button type="button" class="btn btn-dark toolbar-action cancelProductAssignmentButton" title="Cancel entry">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
                                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                             <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -921,7 +921,7 @@
                                                     <li class="confirm-payment-menu-item{% if not product_assignment.billing_context.can_confirm_payment %} d-none{% endif %}"><button type="button" class="dropdown-item confirm-payment-btn">Confirm payment received</button></li>
                                                     {% endwith %}
                                                     <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
-                                                    <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                                                    <li><button type="button" class="dropdown-item cancelProductAssignmentButton">Cancel entry</button></li>
                                                 </ul>
                                             </div>
                                         {% endif %}
@@ -1148,6 +1148,29 @@
             <div class="modal-footer border-secondary">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-warning" id="confirmReopenBtn">Unlock row</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel entry modal -->
+<div class="modal fade" id="cancelEntryModal" tabindex="-1" aria-labelledby="cancelEntryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="cancelEntryModalLabel">Cancel entry</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">This entry will be cancelled and removed from the board. Data is kept for audit and cannot be edited afterward.</p>
+                <div class="mb-2">
+                    <label for="cancelEntryReason" class="form-label">Reason for cancellation <span class="text-danger">*</span></label>
+                    <textarea class="form-control bg-dark text-light border-secondary" id="cancelEntryReason" rows="3" required placeholder="Describe why this entry is being cancelled"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelEntryBtn" disabled>Cancel entry</button>
             </div>
         </div>
     </div>
@@ -1889,7 +1912,7 @@
             "confirm-payment-btn",
             "client-message-btn",
             "addProductAssignmentButton",
-            "removeProductAssignmentButton",
+            "cancelProductAssignmentButton",
             "removeClientBtn",
         ];
 
@@ -1930,7 +1953,7 @@
             const isMultiEntry = wrap.dataset.multiEntry === "true";
             const hideFirst = [
                 "removeClientBtn",
-                "removeProductAssignmentButton",
+                "cancelProductAssignmentButton",
                 "confirm-payment-btn",
                 "reopen-clearing-btn",
                 "parser-downloads-btn",
@@ -2118,7 +2141,7 @@
 
         function stopClearingActionClickPropagation(container = document) {
             container.querySelectorAll(
-                ".clearing-actions-wrap button, .actions-cell > .removeProductAssignmentButton"
+                ".clearing-actions-wrap button, .actions-cell > .cancelProductAssignmentButton"
             ).forEach((button) => {
                 button.addEventListener("click", (event) => event.stopPropagation());
             });
@@ -2139,7 +2162,7 @@
         function initClearingRowActionBindings(container = document) {
             bindExpandCollapseButtons(container);
             bindAddProductAssignmentButtons(container);
-            bindRemoveProductAssignmentButtons(container);
+            bindCancelProductAssignmentButtons(container);
             bindRemoveClientButtons(container);
             bindCompleteClearingButtons(container);
             bindReopenClearingButtons(container);
@@ -3424,7 +3447,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.message}</svg>
                         </button>
                         ${workflow.toolbar}
-                        <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                        <button type="button" class="btn btn-dark toolbar-action cancelProductAssignmentButton" title="Cancel entry">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.minus}</svg>
                         </button>
                         <button type="button" class="btn btn-dark btn-sm clearing-actions-ellipsis" aria-label="More actions" title="More actions">…</button>
@@ -3433,7 +3456,7 @@
                         ${parser.menu}
                         ${workflow.menu}
                         <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
-                        <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                        <li><button type="button" class="dropdown-item cancelProductAssignmentButton">Cancel entry</button></li>
                     </ul>
                 </div>
             `;
@@ -3471,7 +3494,7 @@
                         <button type="button" class="btn btn-dark toolbar-action addProductAssignmentButton" title="Add entry">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.plus}</svg>
                         </button>
-                        <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton" title="Remove entry">
+                        <button type="button" class="btn btn-dark toolbar-action cancelProductAssignmentButton" title="Cancel entry">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">${CLEARING_SVG.minus}</svg>
                         </button>
                         <button type="button" class="btn btn-dark toolbar-action removeClientBtn" data-client-id="${clientId}" title="Remove client from clearing">
@@ -3484,7 +3507,7 @@
                         ${workflow.menu}
                         <li><button type="button" class="dropdown-item client-message-btn">Client message</button></li>
                         <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
-                        <li><button type="button" class="dropdown-item removeProductAssignmentButton">Remove entry</button></li>
+                        <li><button type="button" class="dropdown-item cancelProductAssignmentButton">Cancel entry</button></li>
                         <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="${clientId}">Remove client from clearing</button></li>
                     </ul>
                 </div>
@@ -3730,38 +3753,84 @@
             })
         }
 
-        // ========== REMOVE PRODUCT ASSIGNMENT SUBROW ========= //
-        function bindRemoveProductAssignmentButtons(container = document) {
-            container.querySelectorAll('.removeProductAssignmentButton').forEach(button => {
+        // ========== CANCEL PRODUCT ASSIGNMENT SUBROW ========= //
+        let pendingCancelEntryRow = null;
+        let pendingCancelEntryPaId = null;
+
+        function syncCancelEntryConfirmState() {
+            const reasonEl = document.getElementById("cancelEntryReason");
+            const confirmBtn = document.getElementById("confirmCancelEntryBtn");
+            if (!reasonEl || !confirmBtn) return;
+            confirmBtn.disabled = reasonEl.value.trim().length === 0;
+        }
+
+        function openCancelEntryModal(row, productAssignmentId) {
+            pendingCancelEntryRow = row;
+            pendingCancelEntryPaId = productAssignmentId;
+            const reasonEl = document.getElementById("cancelEntryReason");
+            if (reasonEl) reasonEl.value = "";
+            syncCancelEntryConfirmState();
+            const modalEl = document.getElementById("cancelEntryModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+
+        async function submitCancelEntry() {
+            const reason = (document.getElementById("cancelEntryReason")?.value || "").trim();
+            if (!reason || !pendingCancelEntryPaId || !pendingCancelEntryRow) return;
+
+            const confirmBtn = document.getElementById("confirmCancelEntryBtn");
+            if (confirmBtn) confirmBtn.disabled = true;
+
+            try {
+                const response = await axios.post(
+                    "{% url 'clearing:cancel_product_assignment' %}",
+                    {
+                        product_assignment_id: pendingCancelEntryPaId,
+                        cancellation_reason: reason,
+                    },
+                    { headers: { "X-CSRFToken": getCookie("csrftoken") } }
+                );
+                if (response.data.status === "success") {
+                    closeAllClearingOverflowMenus();
+                    const row = pendingCancelEntryRow;
+                    pendingCancelEntryRow = null;
+                    pendingCancelEntryPaId = null;
+                    const modalEl = document.getElementById("cancelEntryModal");
+                    if (modalEl && typeof bootstrap !== "undefined") {
+                        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                    }
+                    handleClearingProductAssignmentRowRemoved(row);
+                } else {
+                    alert("Error cancelling entry: " + response.data.message);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while cancelling the entry.");
+            } finally {
+                if (confirmBtn) confirmBtn.disabled = false;
+                syncCancelEntryConfirmState();
+            }
+        }
+
+        function bindCancelProductAssignmentButtons(container = document) {
+            container.querySelectorAll(".cancelProductAssignmentButton").forEach(button => {
                 if (button.dataset.bound !== "true") {
-                    button.dataset.bound = "true";    // mark this button as already bound
+                    button.dataset.bound = "true";
 
-                    button.addEventListener('click', function () {
+                    button.addEventListener("click", function () {
                         const row = resolveClearingRowFromButton(this);
-                        const productAssignmentId = row?.getAttribute('data-product-assignment-id');
+                        const productAssignmentId = row?.getAttribute("data-product-assignment-id");
                         if (!row || !productAssignmentId) return;
-
-                        if (confirm("Are you sure you want to remove this entry?")) {
-                            axios.post("{% url 'clearing:remove_product_assignment' %}", {product_assignment_id : productAssignmentId}, {
-                                headers: { "X-CSRFToken": getCookie("csrftoken")}
-                            })
-                            .then(response => {
-                                if (response.data.status === 'success') {
-                                    closeAllClearingOverflowMenus();
-                                    handleClearingProductAssignmentRowRemoved(row);
-                                } else {
-                                    alert("Error removing product assignment: " + response.data.message);
-                                }
-                            })
-                            .catch(error => {
-                                console.error("Error:", error);
-                                alert("An error ocurred while removing the product assignment.");
-                            });
-                        }
+                        openCancelEntryModal(row, productAssignmentId);
                     });
                 }
             });
         }
+
+        document.getElementById("cancelEntryReason")?.addEventListener("input", syncCancelEntryConfirmState);
+        document.getElementById("confirmCancelEntryBtn")?.addEventListener("click", submitCancelEntry);
 
         // ============== HELPER FUNCTIONS FOR TESTING CLEARING ============== //
         function showToast(message, title = "Notice") {

@@ -36,6 +36,7 @@ from core.workflows.lifecycle import (
     cmd_complete_clearing,
     cmd_reopen_clearing,
     cmd_confirm_payment_received,
+    cmd_cancel_assignment,
     enter_clearing_for_client_assignments,
     is_pa_locked_for_editing,
     is_qbo_payment_method,
@@ -452,28 +453,32 @@ def add_product_assignment(request):
 
 @require_POST
 @login_required
-def remove_product_assignment(request):
+def cancel_product_assignment(request):
     try:
         data = json.loads(request.body)
         pa_id = data.get("product_assignment_id")
+        cancellation_reason = (data.get("cancellation_reason") or "").strip()
 
         if not pa_id:
             return JsonResponse(
                 {"status": "error", "message": "Missing product assignment ID"},
                 status=400,
             )
+        if not cancellation_reason:
+            return JsonResponse(
+                {"status": "error", "message": "Cancellation reason is required."},
+                status=400,
+            )
 
         pa = get_object_or_404(ProductAssignment, id=pa_id)
 
-        enforce_pa_not_frozen_for_action(pa, action="remove_product_assignment")
+        enforce_pa_not_frozen_for_action(pa, action="cancel_product_assignment")
 
-        product = pa.product
-
-        product.is_product_active = False
-        product.save()
-
-        pa.is_active = False
-        pa.save()
+        cmd_cancel_assignment(
+            pa_id=pa.id,
+            actor=request.user,
+            cancellation_reason=cancellation_reason,
+        )
 
         from clearing.services.global_parse import _reconcile_orphan_daily_clearing
 

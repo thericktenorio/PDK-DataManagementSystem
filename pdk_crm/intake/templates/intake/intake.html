@@ -345,7 +345,7 @@
     }
 
     .intake-actions-toolbar .btn,
-    .actions-cell > .removeProductAssignmentButton {
+    .actions-cell > .cancelProductAssignmentButton {
         flex-shrink: 0;
     }
 
@@ -611,7 +611,7 @@
                                                             <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
                                                         </svg>
                                                     </button>
-                                                    <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton{% if entry_count > 1 %} toolbar-action-pinned{% endif %}" title="Remove this entry">
+                                                    <button type="button" class="btn btn-dark toolbar-action cancelProductAssignmentButton{% if entry_count > 1 %} toolbar-action-pinned{% endif %}" title="Cancel this entry">
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
                                                             <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                             <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -632,14 +632,14 @@
                                                 </div>
                                                 <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end intake-actions-overflow-menu" data-owner-client-id="{{ client.id }}">
                                                     <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
-                                                    <li class="overflow-remove-product-item"><button type="button" class="dropdown-item removeProductAssignmentButton">Remove this entry</button></li>
+                                                    <li class="overflow-remove-product-item"><button type="button" class="dropdown-item cancelProductAssignmentButton">Cancel this entry</button></li>
                                                     <li><button type="button" class="dropdown-item infoBtn">Client info</button></li>
                                                     <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="{{ client.id }}">Remove client from intake</button></li>
                                                 </ul>
                                             </div>
                                             {% endwith %}
                                         {% else %}
-                                            <button type="button" class="btn btn-dark removeProductAssignmentButton" title="Remove this entry">
+                                            <button type="button" class="btn btn-dark cancelProductAssignmentButton" title="Cancel this entry">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
                                                     <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                     <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -660,6 +660,28 @@
 </div>
 
 <!-- Add New Client Modal -->
+<div class="modal fade" id="cancelEntryModal" tabindex="-1" aria-labelledby="cancelEntryModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark text-light border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title" id="cancelEntryModalLabel">Cancel entry</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">This entry will be cancelled and removed from the board. Data is kept for audit and cannot be edited afterward.</p>
+                <div class="mb-2">
+                    <label for="cancelEntryReason" class="form-label">Reason for cancellation <span class="text-danger">*</span></label>
+                    <textarea class="form-control bg-dark text-light border-secondary" id="cancelEntryReason" rows="3" required placeholder="Describe why this entry is being cancelled"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-danger" id="confirmCancelEntryBtn" disabled>Cancel entry</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="addClientModal" tabindex="-1" aria-labelledby="addClientModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content bg-dark text-light">
@@ -1100,7 +1122,7 @@
 
         function stopIntakeActionClickPropagation(container = document) {
             container.querySelectorAll(
-                '.intake-actions-wrap button, .actions-cell > .removeProductAssignmentButton'
+                '.intake-actions-wrap button, .actions-cell > .cancelProductAssignmentButton'
             ).forEach((button) => {
                 button.addEventListener('click', (event) => event.stopPropagation());
             });
@@ -1109,7 +1131,7 @@
         function initIntakeRowActionBindings(container = document) {
             bindExpandCollapseButtons(container);
             bindAddProductAssignmentButtons(container);
-            bindRemoveProductAssignmentButtons(container);
+            bindCancelProductAssignmentButtons(container);
             bindRemoveClientButtons(container);
             bindIntakeActionsCompact(container);
             stopIntakeActionClickPropagation(container);
@@ -1378,7 +1400,7 @@
                                 <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
                             </svg>
                         </button>
-                        <button type="button" class="btn btn-dark toolbar-action removeProductAssignmentButton${pinnedClass}" title="Remove this entry">
+                        <button type="button" class="btn btn-dark toolbar-action cancelProductAssignmentButton${pinnedClass}" title="Cancel this entry">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16" aria-hidden="true">
                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                 <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -1399,7 +1421,7 @@
                     </div>
                     <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end intake-actions-overflow-menu" data-owner-client-id="${clientId}">
                         <li class="overflow-add-product-item"><button type="button" class="dropdown-item addProductAssignmentButton">Add entry</button></li>
-                        <li class="overflow-remove-product-item"><button type="button" class="dropdown-item removeProductAssignmentButton">Remove this entry</button></li>
+                        <li class="overflow-remove-product-item"><button type="button" class="dropdown-item cancelProductAssignmentButton">Cancel this entry</button></li>
                         <li><button type="button" class="dropdown-item infoBtn">Client info</button></li>
                         <li><button type="button" class="dropdown-item removeClientBtn" data-client-id="${clientId}">Remove client from intake</button></li>
                     </ul>
@@ -1742,7 +1764,7 @@
                                     </td>
 
                                     <td class="actions-cell">
-                                        <button type="button" class="btn btn-dark removeProductAssignmentButton">
+                                        <button type="button" class="btn btn-dark cancelProductAssignmentButton">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-dash-circle" viewBox="0 0 16 16">
                                                 <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
                                                 <path d="M4 8a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7A.5.5 0 0 1 4 8"/>
@@ -1754,7 +1776,7 @@
                                 tbody.appendChild(newSubRow);
                                 bindAutosaveHandlers(newSubRow);
                                 bindIntakeRowReorderOnComplete(newSubRow);
-                                bindRemoveProductAssignmentButtons(newSubRow);
+                                bindCancelProductAssignmentButtons(newSubRow);
                                 markIntakeRowPendingReorder(newSubRow);
                                 refreshMainRowActionsMenu(clientId);
                                 expandClientIntakeSubrows(clientId);
@@ -1772,36 +1794,83 @@
             })
         }
 
-        // ========== Remove Product Assigment (SUBROW) ========== //
-        function bindRemoveProductAssignmentButtons(container = document) {
-            container.querySelectorAll('.removeProductAssignmentButton').forEach(button => {
+        // ========== Cancel Product Assignment (SUBROW) ========== //
+        let pendingCancelEntryRow = null;
+        let pendingCancelEntryPaId = null;
+
+        function syncCancelEntryConfirmState() {
+            const reasonEl = document.getElementById("cancelEntryReason");
+            const confirmBtn = document.getElementById("confirmCancelEntryBtn");
+            if (!reasonEl || !confirmBtn) return;
+            confirmBtn.disabled = reasonEl.value.trim().length === 0;
+        }
+
+        function openCancelEntryModal(row, productAssignmentId) {
+            pendingCancelEntryRow = row;
+            pendingCancelEntryPaId = productAssignmentId;
+            const reasonEl = document.getElementById("cancelEntryReason");
+            if (reasonEl) reasonEl.value = "";
+            syncCancelEntryConfirmState();
+            const modalEl = document.getElementById("cancelEntryModal");
+            if (modalEl && typeof bootstrap !== "undefined") {
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            }
+        }
+
+        async function submitCancelEntry() {
+            const reason = (document.getElementById("cancelEntryReason")?.value || "").trim();
+            if (!reason || !pendingCancelEntryPaId || !pendingCancelEntryRow) return;
+
+            const confirmBtn = document.getElementById("confirmCancelEntryBtn");
+            if (confirmBtn) confirmBtn.disabled = true;
+
+            try {
+                const response = await axios.post(
+                    "{% url 'intake:cancel_product_assignment' %}",
+                    {
+                        product_assignment_id: pendingCancelEntryPaId,
+                        cancellation_reason: reason,
+                    },
+                    { headers: { "X-CSRFToken": "{{ csrf_token }}" } }
+                );
+                if (response.data.status === "success") {
+                    const row = pendingCancelEntryRow;
+                    pendingCancelEntryRow = null;
+                    pendingCancelEntryPaId = null;
+                    const modalEl = document.getElementById("cancelEntryModal");
+                    if (modalEl && typeof bootstrap !== "undefined") {
+                        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                    }
+                    handleProductAssignmentRowRemoved(row);
+                } else {
+                    alert("Error cancelling entry: " + response.data.message);
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("An error occurred while cancelling the entry.");
+            } finally {
+                if (confirmBtn) confirmBtn.disabled = false;
+                syncCancelEntryConfirmState();
+            }
+        }
+
+        function bindCancelProductAssignmentButtons(container = document) {
+            container.querySelectorAll(".cancelProductAssignmentButton").forEach(button => {
                 if (button.dataset.bound !== "true") {
-                    button.dataset.bound = "true"; // mark this button as already bound
+                    button.dataset.bound = "true";
 
-                    button.addEventListener('click', function () {
-                        const row = this.closest('tr');
-                        const productAssignmentId = row.getAttribute('data-product-assignment-id');
-
-                        if (confirm("Are you sure you want to remove this product assignment?")) {
-                            axios.post("{% url 'intake:remove_product_assignment' %}", {product_assignment_id : productAssignmentId}, {
-                                headers: { "X-CSRFToken": "{{ csrf_token }}" }
-                            })
-                            .then(response => {
-                                if (response.data.status === 'success') {
-                                    handleProductAssignmentRowRemoved(row);
-                                } else {
-                                    alert("Error removing product assignment: " + response.data.message);
-                                }
-                            })
-                            .catch(error => {
-                                console.error("Error:", error);
-                                alert("An error ocurred while removing the product assignment.");
-                            });
-                        }
+                    button.addEventListener("click", function () {
+                        const row = this.closest("tr");
+                        const productAssignmentId = row?.getAttribute("data-product-assignment-id");
+                        if (!row || !productAssignmentId) return;
+                        openCancelEntryModal(row, productAssignmentId);
                     });
                 }
             });
         }
+
+        document.getElementById("cancelEntryReason")?.addEventListener("input", syncCancelEntryConfirmState);
+        document.getElementById("confirmCancelEntryBtn")?.addEventListener("click", submitCancelEntry);
 
         // Add Product Assignment to Client's row as a subRow
         document.addEventListener("click", (event) => {

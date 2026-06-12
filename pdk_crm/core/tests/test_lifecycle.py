@@ -25,6 +25,7 @@ from core.workflows.lifecycle import (
     cmd_reopen_clearing,
     cmd_apply_post_clearing_payment_gate,
     cmd_confirm_payment_received,
+    cmd_cancel_assignment,
     validate_pa_ready_for_clearing,
     cmd_mark_ready_for_review,
     cmd_start_review,
@@ -187,3 +188,42 @@ class LifecycleWorkflowTests(TestCase):
         cmd_complete_clearing(pa_id=self.pa.id)
         pa = cmd_reopen_clearing(pa_id=self.pa.id, confirmed_fee="100.00")
         self.assertEqual(pa.lifecycle_state, LifecycleState.IN_CLEARING)
+
+    def test_cancel_assignment_from_in_clearing(self):
+        cmd_enter_clearing(pa_id=self.pa.id)
+        pa = cmd_cancel_assignment(
+            pa_id=self.pa.id,
+            actor=self.preparer,
+            cancellation_reason="Client withdrew",
+        )
+        self.assertEqual(pa.lifecycle_state, LifecycleState.CANCELLED)
+        self.assertFalse(pa.is_active)
+        self.assertEqual(pa.cancellation_reason, "Client withdrew")
+        self.assertIsNotNone(pa.cancelled_at)
+        self.assertTrue(
+            ProductAssignmentEvent.objects.filter(
+                product_assignment=pa,
+                event_type=ProductAssignmentEvent.EventType.ASSIGNMENT_CANCELLED,
+            ).exists()
+        )
+        self.assertTrue(
+            LifecycleTransition.objects.filter(
+                product_assignment=pa,
+                to_state=LifecycleState.CANCELLED,
+            ).exists()
+        )
+
+    def test_cancel_assignment_requires_reason(self):
+        cmd_enter_clearing(pa_id=self.pa.id)
+        with self.assertRaises(ValidationError):
+            cmd_cancel_assignment(pa_id=self.pa.id, cancellation_reason="   ")
+
+    def test_cancel_assignment_blocked_after_clearing_complete(self):
+        cmd_enter_clearing(pa_id=self.pa.id)
+        self._make_pa_ready_for_clearing()
+        cmd_complete_clearing(pa_id=self.pa.id)
+        with self.assertRaises(ValidationError):
+            cmd_cancel_assignment(
+                pa_id=self.pa.id,
+                cancellation_reason="Too late",
+            )
