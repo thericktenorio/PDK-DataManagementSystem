@@ -116,6 +116,22 @@
     .billing-page .billing-control-readonly {
         opacity: 0.72;
     }
+
+    .billing-page .billing-primary-action-btn {
+        border: 2px solid rgba(255, 255, 255, 0.38) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            0 4px 14px rgba(0, 0, 0, 0.14);
+        font-weight: 600;
+    }
+
+    .billing-page .billing-primary-action-btn:hover,
+    .billing-page .billing-primary-action-btn:focus-visible {
+        border-color: rgba(255, 255, 255, 0.52) !important;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 6px 18px rgba(0, 0, 0, 0.18);
+    }
 </style>
 <div class="app-page billing-page">
     <h1 class="app-page-title">Billing</h1>
@@ -125,9 +141,9 @@
         {% else %}
             <span class="badge bg-secondary">QBO not connected</span>
             {% if can_manage_billing_settings %}
-            <a href="{% url 'billing:qbo_connect' %}" class="btn btn-sm btn-outline-light">Connect QBO</a>
+            <a href="{% url 'billing:qbo_connect' %}" class="btn btn-primary billing-primary-action-btn">Connect QBO</a>
             {% else %}
-            <button type="button" class="btn btn-sm btn-outline-light billing-control-readonly" disabled aria-disabled="true">Connect QBO</button>
+            <button type="button" class="btn btn-primary billing-primary-action-btn billing-control-readonly" disabled aria-disabled="true">Connect QBO</button>
             {% endif %}
         {% endif %}
         {% if quiet_period_minutes and can_toggle_auto_send %}
