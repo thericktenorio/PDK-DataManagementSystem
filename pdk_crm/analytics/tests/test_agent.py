@@ -12,6 +12,7 @@ from analytics.services.agent import (
     ask_agent,
     execute_agent_sql,
     validate_sql,
+    _parse_json_block,
 )
 
 User = get_user_model()
@@ -22,6 +23,18 @@ User = get_user_model()
     AGENT_ENABLED=True,
     AGENT_LLM_API_KEY="test-key",
 )
+class AgentJsonParseTests(TestCase):
+    def test_parse_json_block_from_markdown_fence(self):
+        payload = _parse_json_block(
+            'Here is the query:\n```json\n{"sql": "SELECT 1 LIMIT 1"}\n```'
+        )
+        self.assertEqual(payload["sql"], "SELECT 1 LIMIT 1")
+
+    def test_parse_json_block_from_embedded_object(self):
+        payload = _parse_json_block('Summary: {"answer": "ok", "chart": null}')
+        self.assertEqual(payload["answer"], "ok")
+
+
 class AgentSqlGuardTests(TestCase):
     databases = {"default", "analytics"}
 

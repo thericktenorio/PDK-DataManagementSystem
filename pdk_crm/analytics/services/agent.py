@@ -52,11 +52,7 @@ bi_assignments — one row per product assignment (primary KPI grain):
   clearing_complete_at, closed_at, tp_comp_date
 bi_last_etl — last successful ETL run (finished_at, rows_assignments)
 bi_invoices — invoice facts (amount, balance, paid_amount, is_paid, status)
-bi_return_metrics — return-level KPIs (when Track 2 ETL populated):
-  agi_current, taxable_income_current, refund_current, filing_status, return_type
-bi_return_coverage — season parsed counts (parsed_returns, total_assignments)
-bi_return_comparison — YoY comparison facts per assignment
-bi_return_profile — return profile (deduction_type, has_schedule_c, has_schedule_e)
+bi_return_metrics, bi_return_coverage, bi_return_comparison, bi_return_profile — NOT deployed yet; do not use.
 
 Rules:
 - SELECT only; single statement; always include LIMIT (max 500).
@@ -125,21 +121,66 @@ def validate_sql(sql: str) -> str:
 def execute_agent_sql(sql: str) -> tuple[list[str], list[list[Any]]]:
     validated = validate_sql(sql)
     conn = connections["analytics"]
-    with conn.cursor() as cursor:
-        cursor.execute(validated)
-        columns = [col[0] for col in cursor.description] if cursor.description else []
-        rows = [list(r) for r in cursor.fetchall()]
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(validated)
+            columns = [col[0] for col in cursor.description] if cursor.description else []
+            rows = [list(r) for r in cursor.fetchall()]
+    except Exception as exc:
+        raise AgentError(f"Warehouse query failed: {exc}") from exc
     return columns, rows
 
 
-def _call_openai(*, messages: list[dict[str, str]], temperature: float = 0.1) -> str:
+def _extract_completion_text(data: dict[str, Any]) -> str:
+    try:
+        choice = data["choices"][0]
+        message = choice.get("message") or {}
+        content = message.get("content")
+        if content is None:
+            refusal = message.get("refusal")
+            if refusal:
+                raise AgentError(f"LLM refused the request: {refusal}")
+            raise AgentError(
+                "LLM returned an empty response. Check model name and API key, then retry."
+            )
+        if isinstance(content, list):
+            parts: list[str] = []
+            for part in content:
+                if isinstance(part, dict) and part.get("type") == "text":
+                    parts.append(str(part.get("text") or ""))
+            content = "".join(parts)
+        text = str(content).strip()
+        if not text:
+            raise AgentError("LLM returned an empty response.")
+        finish_reason = choice.get("finish_reason")
+        if finish_reason == "length":
+            raise AgentError(
+                "LLM response was truncated. Try a simpler question or shorter season filter."
+            )
+        return text
+    except (KeyError, IndexError, TypeError) as exc:
+        raise AgentError(
+            "Unexpected LLM response format. Verify AGENT_LLM_MODEL (e.g. gpt-4o-mini)."
+        ) from exc
+
+
+def _call_openai(
+    *,
+    messages: list[dict[str, str]],
+    temperature: float = 0.1,
+    json_mode: bool = False,
+    max_tokens: int = 1024,
+) -> str:
     cfg = _llm_config()
     url = f"{cfg['base_url']}/chat/completions"
-    payload = {
+    payload: dict[str, Any] = {
         "model": cfg["model"],
         "messages": messages,
         "temperature": temperature,
+        "max_tokens": max_tokens,
     }
+    if json_mode:
+        payload["response_format"] = {"type": "json_object"}
     try:
         resp = requests.post(
             url,
@@ -150,15 +191,20 @@ def _call_openai(*, messages: list[dict[str, str]], temperature: float = 0.1) ->
             json=payload,
             timeout=int(getattr(settings, "AGENT_LLM_TIMEOUT_SECONDS", 60)),
         )
-        resp.raise_for_status()
+        if not resp.ok:
+            detail = resp.text[:300].strip()
+            raise AgentError(
+                f"OpenAI API error ({resp.status_code}): {detail or resp.reason}"
+            )
+        data = resp.json()
+    except AgentError:
+        raise
     except requests.RequestException as exc:
         raise AgentError(f"LLM request failed: {exc}") from exc
+    except ValueError as exc:
+        raise AgentError("OpenAI returned a non-JSON HTTP body.") from exc
 
-    data = resp.json()
-    try:
-        return data["choices"][0]["message"]["content"].strip()
-    except (KeyError, IndexError, TypeError) as exc:
-        raise AgentError("Unexpected LLM response format.") from exc
+    return _extract_completion_text(data)
 
 
 def _parse_json_block(text: str) -> dict[str, Any]:
@@ -166,10 +212,23 @@ def _parse_json_block(text: str) -> dict[str, Any]:
     fence = re.search(r"```(?:json)?\s*([\s\S]*?)```", raw)
     if fence:
         raw = fence.group(1).strip()
+    parsed: Any = None
     try:
         parsed = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise AgentError("LLM did not return valid JSON.") from exc
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                parsed = json.loads(raw[start:end + 1])
+            except json.JSONDecodeError as exc:
+                raise AgentError(
+                    "LLM did not return valid JSON. Try rephrasing or ask a simpler KPI question."
+                ) from exc
+        else:
+            raise AgentError(
+                "LLM did not return valid JSON. Try rephrasing or ask a simpler KPI question."
+            )
     if not isinstance(parsed, dict):
         raise AgentError("LLM JSON must be an object.")
     return parsed
@@ -178,7 +237,8 @@ def _parse_json_block(text: str) -> dict[str, Any]:
 def generate_sql(question: str) -> str:
     system = (
         "You are a SQL analyst for a tax practice analytics warehouse. "
-        "Return JSON only: {\"sql\": \"SELECT ...\"}. "
+        "Respond with a single JSON object only: {\"sql\": \"SELECT ...\"}. "
+        "Use only bi_assignments, bi_seasons, bi_clients, bi_invoices, bi_last_etl. "
         f"{VIEW_CATALOG}"
     )
     content = _call_openai(
@@ -186,6 +246,8 @@ def generate_sql(question: str) -> str:
             {"role": "system", "content": system},
             {"role": "user", "content": question},
         ],
+        json_mode=True,
+        max_tokens=1024,
     )
     payload = _parse_json_block(content)
     sql = payload.get("sql") or ""
@@ -202,10 +264,11 @@ def summarize_results(
     preview_rows = rows[:20]
     system = (
         "Summarize query results for a shareholder. Be concise. "
-        "Return JSON: {\"answer\": \"...\", \"chart\": null or "
+        "Respond with a single JSON object only: "
+        "{\"answer\": \"...\", \"chart\": null or "
         "{\"type\": \"bar|line|pie\", \"label_column\": \"...\", "
         "\"value_column\": \"...\", \"title\": \"...\"}}. "
-        "Use chart only when a simple visual helps; otherwise null."
+        "Use chart only when a simple visual helps; otherwise chart must be null."
     )
     user_payload = {
         "question": question,
@@ -219,6 +282,8 @@ def summarize_results(
             {"role": "system", "content": system},
             {"role": "user", "content": json.dumps(user_payload, default=str)},
         ],
+        json_mode=True,
+        max_tokens=2048,
     )
     payload = _parse_json_block(content)
     answer = str(payload.get("answer") or "").strip()

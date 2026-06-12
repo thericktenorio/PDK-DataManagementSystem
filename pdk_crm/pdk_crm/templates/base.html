@@ -581,6 +581,7 @@
             color: rgba(255, 255, 255, 0.5);
         }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 
 <body class="bg-dark text-light{% if is_login_surface %} login-page{% else %} has-app-bg{% if request.resolver_match and request.resolver_match.view_name == 'core:home' %} home-page{% else %} has-dock{% endif %}{% endif %}">

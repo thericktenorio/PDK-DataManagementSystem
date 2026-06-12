@@ -72,6 +72,11 @@ def analytics_ask(request):
         result = ask_agent(question, user=request.user)
     except AgentError as exc:
         return JsonResponse({"status": "error", "message": str(exc)}, status=400)
+    except Exception as exc:
+        return JsonResponse(
+            {"status": "error", "message": f"Agent failed unexpectedly: {exc}"},
+            status=500,
+        )
 
     return JsonResponse({
         "status": "success",

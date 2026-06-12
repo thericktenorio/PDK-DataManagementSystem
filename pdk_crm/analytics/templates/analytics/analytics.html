@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="app-page analytics-page">
-    <h1 class="app-page-title">Operations analytics</h1>
+    <h1 class="app-page-title">Analytics</h1>
     <p class="app-page-subtitle mb-0">KPIs from the analytics warehouse — not live operational data.</p>
     {% if dashboard.warehouse_enabled and dashboard.seasons %}
     <form method="get" class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-4">
@@ -42,34 +42,50 @@
     {% with s=dashboard.snapshot %}
     <div class="row g-3 mb-4">
         <div class="col-sm-6 col-xl-3">
-            <div class="card h-100">
+            <div class="card h-100 analytics-kpi-card"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-custom-class="analytics-kpi-tooltip"
+                title="Count of all product assignments in the selected tax season (every lifecycle state). Updated at each warehouse sync — not live operational data.">
                 <div class="card-body">
-                    <div class="text-muted small">Product assignments</div>
+                    <div class="text-muted small">Services Pending</div>
                     <div class="display-6">{{ s.total_assignments }}</div>
                 </div>
             </div>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <div class="card h-100">
+            <div class="card h-100 analytics-kpi-card"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-custom-class="analytics-kpi-tooltip"
+                title="Distinct clients with at least one assignment this season (intake through closed — not intake-only or clearing-only).">
                 <div class="card-body">
-                    <div class="text-muted small">Clients serviced</div>
+                    <div class="text-muted small">Clients</div>
                     <div class="display-6">{{ s.clients_serviced }}</div>
                 </div>
             </div>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <div class="card h-100">
+            <div class="card h-100 analytics-kpi-card"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-custom-class="analytics-kpi-tooltip"
+                title="Product assignments in Closed lifecycle state. The number below the total is still in progress (not closed).">
                 <div class="card-body">
-                    <div class="text-muted small">Closed</div>
+                    <div class="text-muted small">Services Closed</div>
                     <div class="display-6">{{ s.closed_count }}</div>
                     <div class="small text-muted">{{ s.in_progress_count }} in progress</div>
                 </div>
             </div>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <div class="card h-100">
+            <div class="card h-100 analytics-kpi-card"
+                data-bs-toggle="tooltip"
+                data-bs-placement="top"
+                data-bs-custom-class="analytics-kpi-tooltip"
+                title="Assignments with a Path A parser snapshot (PDF parsed and clearing fields stored). Not the same as total PDF uploads.">
                 <div class="card-body">
-                    <div class="text-muted small">Parser-assisted (Path A)</div>
+                    <div class="text-muted small">Tax PDFs Parsed</div>
                     <div class="display-6">{{ s.parser_assisted_count }}</div>
                 </div>
             </div>
@@ -136,7 +152,7 @@
     {% if agent_access %}
     <div class="card mt-4" id="analyticsAgentPanel">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Shareholder agent{% if not agent_enabled %} <span class="badge bg-secondary">disabled</span>{% endif %}</span>
+            <span>Shareholder agent</span>
             <span class="small text-muted">Owner / developer · warehouse only</span>
         </div>
         <div class="card-body">
@@ -164,8 +180,14 @@
                 </details>
             </div>
             {% else %}
+            <p class="text-muted mb-2 small">
+                Natural-language questions over warehouse KPIs (read-only SQL, optional charts).
+            </p>
             <p class="text-muted mb-0 small">
-                Set <code>AGENT_ENABLED=true</code> and <code>AGENT_LLM_*</code> on the server to enable.
+                Not enabled in this environment. Add
+                <code>AGENT_ENABLED=true</code> and <code>AGENT_LLM_API_KEY=sk-…</code>
+                to <code>pdk_crm/.env.docker</code>, then restart <code>crm_web</code>
+                (<code>docker compose up --build -d crm_web</code>).
                 See <code>docs/AGENT_SETUP.md</code>.
             </p>
             {% endif %}
@@ -174,6 +196,18 @@
     {% endif %}
 </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-kpi-card {
+        cursor: help;
+    }
+    .analytics-kpi-tooltip .tooltip-inner {
+        max-width: 280px;
+        text-align: left;
+    }
+</style>
 {% endblock %}
 
 {% block extra_js %}

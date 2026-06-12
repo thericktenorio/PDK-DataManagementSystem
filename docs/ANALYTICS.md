@@ -2,6 +2,8 @@
 
 Reporting and KPIs read from a dedicated **`analytics`** PostgreSQL database. Operational workflows continue to use **`tax_operations`** only.
 
+**Field / KPI reference tables:** `docs/ANALYTICS_REFERENCE.md`.
+
 See `ROADMAP.md` (Phase 9), `docs/ANALYTICS_ROADMAP.md` (phased feature plan), `docs/RETURN_ANALYTICS.md` (return-level spec), and `docs/DEPLOYMENT.md` (prod topology).
 
 ---

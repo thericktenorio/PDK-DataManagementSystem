@@ -83,7 +83,11 @@ class AnalyticsDashboardViewTests(TransactionTestCase):
         self.http.force_login(self.user)
         resp = self.http.get(reverse("analytics:analytics"))
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, "Operations analytics")
+        self.assertContains(resp, "Analytics")
+        self.assertContains(resp, "Services Pending")
+        self.assertContains(resp, "Services Closed")
+        self.assertContains(resp, "Tax PDFs Parsed")
+        self.assertContains(resp, "analytics-kpi-card")
         self.assertContains(resp, "Expected (fees at clearing)")
 
     def test_preparer_forbidden(self):
