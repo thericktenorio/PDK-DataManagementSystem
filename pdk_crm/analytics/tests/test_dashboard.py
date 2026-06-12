@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from analytics.models import DimTaxSeason, EtlRun, FactAssignment
 from analytics.permissions import user_can_access_analytics
-from analytics.selectors import build_season_snapshot
+from analytics.selectors import build_season_snapshot, format_etl_last_update_display
 from accounts.models import InternalUser
 from core.models import Organization
 
@@ -148,3 +148,13 @@ class AnalyticsSelectorTests(TransactionTestCase):
         self.assertEqual(snap.closed_count, 1)
         self.assertEqual(snap.cancelled_count, 1)
         self.assertEqual(snap.median_days_to_payment, 6)
+
+    def test_format_etl_last_update_display_uses_firm_timezone(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        utc_dt = datetime(2026, 6, 12, 22, 30, tzinfo=ZoneInfo("UTC"))
+        label = format_etl_last_update_display(utc_dt)
+        self.assertTrue(label.startswith("Last Update: "))
+        self.assertIn("2026", label)
+        self.assertRegex(label, r"(PDT|PST)")

@@ -644,6 +644,9 @@ def cmd_cancel_assignment(
         state = _normalize_state(pa.lifecycle_state)
 
         if state == LifecycleState.CANCELLED:
+            if pa.is_active:
+                pa.is_active = False
+                pa.save(update_fields=["is_active"])
             return pa
 
         if state and state != LifecycleState.IN_CLEARING:

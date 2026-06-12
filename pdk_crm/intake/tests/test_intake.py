@@ -165,6 +165,103 @@ class IntakeViewTests(TestCase):
         intake.refresh_from_db()
         self.assertFalse(intake.is_active)
 
+    def test_remove_client_after_add_to_intake(self):
+        client = Client.objects.create(TIN="666666666", name="Search Add Client")
+        add_response = self.http.post(
+            reverse("intake:add_client_to_intake", args=[client.id])
+        )
+        self.assertEqual(add_response.status_code, 200)
+        self.assertEqual(add_response.json()["status"], "success")
+
+        intake = Intake.objects.get(client=client, tax_season=self.active_season)
+        self.assertTrue(intake.is_active)
+
+        remove_response = self.http.post(
+            reverse("intake:remove_client_from_intake", args=[client.id])
+        )
+        self.assertEqual(remove_response.status_code, 200)
+        self.assertEqual(remove_response.json()["status"], "success")
+
+        intake.refresh_from_db()
+        self.assertFalse(intake.is_active)
+        self.assertFalse(
+            ProductAssignment.objects.filter(intake=intake, is_active=True).exists()
+        )
+
+    def test_remove_client_from_intake_without_active_product_assignments(self):
+        intake = Intake.objects.get(client=self.client_a, tax_season=self.active_season)
+
+        response = self.http.post(
+            reverse("intake:remove_client_from_intake", args=[self.client_a.id])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+        intake.refresh_from_db()
+        self.assertFalse(intake.is_active)
+
+    def test_remove_client_after_re_add_clears_cancelled_lifecycle(self):
+        client = Client.objects.create(TIN="777777777", name="Re-add Client")
+
+        self.http.post(reverse("intake:add_client_to_intake", args=[client.id]))
+        intake = Intake.objects.get(client=client, tax_season=self.active_season)
+        pa = ProductAssignment.objects.get(intake=intake, is_active=True)
+        self.assertIsNone(pa.lifecycle_state)
+
+        self.http.post(reverse("intake:remove_client_from_intake", args=[client.id]))
+        pa.refresh_from_db()
+        self.assertFalse(pa.is_active)
+        self.assertEqual(pa.lifecycle_state, "CANCELLED")
+
+        self.http.post(reverse("intake:add_client_to_intake", args=[client.id]))
+        pa.refresh_from_db()
+        intake.refresh_from_db()
+        self.assertTrue(intake.is_active)
+        self.assertTrue(pa.is_active)
+        self.assertIsNone(pa.lifecycle_state)
+
+        remove_response = self.http.post(
+            reverse("intake:remove_client_from_intake", args=[client.id])
+        )
+        self.assertEqual(remove_response.status_code, 200)
+        self.assertEqual(remove_response.json()["status"], "success")
+
+    def test_remove_client_heals_active_cancelled_product_assignment(self):
+        from core.models import LifecycleState
+
+        client = Client.objects.create(TIN="888888888", name="Stuck PA Client")
+        intake = Intake.objects.create(
+            client=client,
+            tax_season=self.active_season,
+            is_active=True,
+        )
+        tax_year = TaxYear.objects.create(client=client, year=2024)
+        product = Product.objects.create(
+            tax_year=tax_year,
+            product_type=Product.PRODUCT_TYPE_DEFAULT,
+            is_product_active=False,
+        )
+        pa = ProductAssignment.objects.create(
+            client=client,
+            intake=intake,
+            tax_year=tax_year,
+            product=product,
+            is_active=True,
+            lifecycle_state=LifecycleState.CANCELLED,
+            cancellation_reason="Prior removal",
+        )
+
+        response = self.http.post(
+            reverse("intake:remove_client_from_intake", args=[client.id])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["status"], "success")
+
+        pa.refresh_from_db()
+        intake.refresh_from_db()
+        self.assertFalse(pa.is_active)
+        self.assertFalse(intake.is_active)
+
     def test_intake_page_orders_product_assignments(self):
         filing_joint, _ = FilingType.objects.get_or_create(filing_type="Joint")
         filing_single, _ = FilingType.objects.get_or_create(filing_type="Single")

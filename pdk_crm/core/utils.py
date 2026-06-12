@@ -190,7 +190,8 @@ def enforce_pa_not_frozen_for_action(pa, *, action: str):
     from core.models import CompletionState, LifecycleState
 
     state = (pa.lifecycle_state or "").strip()
-    if state and state != LifecycleState.IN_CLEARING:
+    removable_states = {LifecycleState.IN_CLEARING, LifecycleState.CANCELLED}
+    if state and state not in removable_states:
         raise ValidationError({"__all__": f"PA is frozen (lifecycle={state}). Action '{action}' not allowed."})
 
     if pa.completion_state and pa.completion_state != CompletionState.OPEN:

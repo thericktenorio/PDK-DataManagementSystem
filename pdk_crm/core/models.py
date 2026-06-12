@@ -368,11 +368,32 @@ class ProductAssignmentManager(models.Manager):
             defaults = create_defaults,
         )
 
-        # activate PA if using existing one
-        if not created and is_active and not product_assignment.is_active:
-            product_assignment.is_active = True
-            product_assignment.save(update_fields = ['is_active'])
-        
+        # Reactivate or heal a previously cancelled row for intake re-enrollment.
+        if not created and is_active:
+            update_fields = []
+            if not product_assignment.is_active:
+                product_assignment.is_active = True
+                update_fields.append("is_active")
+
+            if product_assignment.lifecycle_state == LifecycleState.CANCELLED:
+                product_assignment.lifecycle_state = None
+                product_assignment.cancelled_at = None
+                product_assignment.cancelled_by = None
+                product_assignment.cancellation_reason = ""
+                product_assignment.completion_state = CompletionState.OPEN
+                update_fields.extend(
+                    [
+                        "lifecycle_state",
+                        "cancelled_at",
+                        "cancelled_by",
+                        "cancellation_reason",
+                        "completion_state",
+                    ]
+                )
+
+            if update_fields:
+                product_assignment.save(update_fields=update_fields)
+
         return product_assignment, created
     
 

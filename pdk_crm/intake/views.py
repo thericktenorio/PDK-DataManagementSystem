@@ -212,18 +212,24 @@ def remove_client_from_intake(request, client_id):
         )
 
     try:
-        intake = get_object_or_404(
-            Intake,
+        intake = Intake.objects.filter(
             client_id=client_id,
             tax_season=current_tax_season,
             is_active=True,
-        )
+        ).first()
+        if intake is None:
+            return JsonResponse(
+                {"status": "error", "message": "Active intake not found for this client."},
+                status=404,
+            )
 
-        product_assignments = ProductAssignment.objects.filter(
-            client_id=client_id,
-            intake=intake,
-            is_active=True,
-        ).select_related("product")
+        product_assignments = list(
+            ProductAssignment.objects.filter(
+                client_id=client_id,
+                intake=intake,
+                is_active=True,
+            ).select_related("product")
+        )
 
         for pa in product_assignments:
             enforce_pa_not_frozen_for_action(pa, action="remove_client_from_intake")
@@ -234,15 +240,16 @@ def remove_client_from_intake(request, client_id):
             body = {}
         bulk_reason = (body.get("cancellation_reason") or "").strip() or "Client removed from intake"
 
-        for pa in product_assignments:
-            cmd_cancel_assignment(
-                pa_id=pa.id,
-                actor=request.user,
-                cancellation_reason=bulk_reason,
-            )
+        with transaction.atomic():
+            for pa in product_assignments:
+                cmd_cancel_assignment(
+                    pa_id=pa.id,
+                    actor=request.user,
+                    cancellation_reason=bulk_reason,
+                )
 
-        intake.is_active = False
-        intake.save(update_fields=["is_active"])
+            intake.is_active = False
+            intake.save(update_fields=["is_active"])
 
         from clearing.services.global_parse import _reconcile_orphan_daily_clearing
 

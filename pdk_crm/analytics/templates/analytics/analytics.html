@@ -6,31 +6,18 @@
 {% block content %}
 <div class="app-page analytics-page">
     <h1 class="app-page-title">Analytics</h1>
-    <p class="app-page-subtitle mb-0">KPIs from the analytics warehouse — not live operational data.</p>
-    {% if dashboard.warehouse_enabled and dashboard.seasons %}
-    <form method="get" class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-4">
-        <label for="season" class="form-label mb-0 small text-muted">Tax season</label>
-        <select name="season" id="season" class="form-select form-select-sm" onchange="this.form.submit()">
-            {% for s in dashboard.seasons %}
-            <option value="{{ s.year }}" {% if s.year == dashboard.selected_season_year %}selected{% endif %}>
-                {{ s.label }}
-            </option>
-            {% endfor %}
-        </select>
-    </form>
-    {% endif %}
-<div class="container-fluid app-page-body pb-4">
 
-    {% if dashboard.last_etl_finished_at %}
-    <div class="alert alert-secondary py-2 small mb-4" role="status">
-        Data as of <strong>{{ dashboard.last_etl_finished_at|date:"M j, Y g:i A T" }}</strong>
-        (last successful warehouse sync).
+    {% if dashboard.last_etl_display %}
+    <div class="analytics-last-update-bar" role="status">
+        <span class="analytics-last-update-bar__text">{{ dashboard.last_etl_display }}</span>
     </div>
     {% elif dashboard.warehouse_enabled %}
-    <div class="alert alert-warning py-2 small mb-4" role="alert">
-        {{ dashboard.error_message|default:"Warehouse sync has not completed successfully yet." }}
+    <div class="analytics-last-update-bar analytics-last-update-bar--pending" role="alert">
+        <span class="analytics-last-update-bar__text">Last Update: not available — warehouse sync has not completed successfully yet.</span>
     </div>
     {% endif %}
+
+<div class="container-fluid app-page-body pb-4">
 
     {% if not dashboard.warehouse_enabled %}
     <div class="alert alert-info">
@@ -165,22 +152,35 @@
     {% endif %}
 
     {% if agent_access %}
-    <div class="card mt-4" id="analyticsAgentPanel">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Shareholder agent</span>
-            <span class="small text-muted">Owner / developer · warehouse only</span>
+    <div class="card mt-4 analytics-agent-panel" id="analyticsAgentPanel">
+        <div class="analytics-agent-panel__glow" aria-hidden="true"></div>
+        <div class="card-header analytics-agent-panel__header">
+            <div class="analytics-agent-panel__heading">
+                <span class="analytics-agent-panel__title">
+                    <span class="analytics-agent-panel__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+                            <path d="M2 17l10 5 10-5"/>
+                            <path d="M2 12l10 5 10-5"/>
+                        </svg>
+                    </span>
+                    Agentic Analytics
+                </span>
+                <span class="analytics-agent-panel__badge analytics-agent-panel__badge--beta">Beta</span>
+            </div>
+            <span class="analytics-agent-panel__badge analytics-agent-panel__badge--ai">AI</span>
         </div>
-        <div class="card-body">
+        <div class="card-body analytics-agent-panel__body">
             {% if agent_enabled %}
             <p class="small text-muted mb-3" id="agentCoverageNote">
                 Ask natural-language questions about operations KPIs. Return-level metrics appear when Track 2 ETL is populated.
                 Path B (manual clearing) rows are ops-only and excluded from parsed-return coverage.
             </p>
-            <form id="agentAskForm" class="mb-3">
-                <label for="agentQuestion" class="form-label small">Question</label>
-                <textarea id="agentQuestion" class="form-control mb-2" rows="2" maxlength="2000"
+            <form id="agentAskForm" class="analytics-agent-panel__form mb-3">
+                <label for="agentQuestion" class="form-label small analytics-agent-panel__label">Question</label>
+                <textarea id="agentQuestion" class="form-control analytics-agent-panel__input mb-2" rows="2" maxlength="2000"
                     placeholder="e.g. What is the average expected fee by payment method this season?"></textarea>
-                <button type="submit" class="btn btn-primary btn-sm" id="agentAskBtn">Ask</button>
+                <button type="submit" class="btn btn-sm analytics-agent-panel__submit" id="agentAskBtn">Ask</button>
             </form>
             <div id="agentError" class="alert alert-danger d-none small" role="alert"></div>
             <div id="agentResult" class="d-none">
@@ -215,12 +215,322 @@
 
 {% block extra_css %}
 <style>
+    .analytics-last-update-bar {
+        width: 100vw;
+        position: relative;
+        left: 50%;
+        right: 50%;
+        margin-left: -50vw;
+        margin-right: -50vw;
+        margin-bottom: 1.5rem;
+        padding: 0.8rem 1.25rem;
+        text-align: center;
+        font-weight: 700;
+        font-size: 0.92rem;
+        letter-spacing: 0.05em;
+        color: #f0f9ff;
+        text-shadow:
+            0 0 14px rgba(125, 211, 252, 0.45),
+            0 1px 3px rgba(0, 0, 0, 0.55);
+        background:
+            linear-gradient(
+                105deg,
+                rgba(15, 23, 42, 0.62) 0%,
+                rgba(56, 120, 220, 0.28) 38%,
+                rgba(88, 48, 140, 0.22) 72%,
+                rgba(160, 80, 255, 0.18) 100%
+            );
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-top: 1px solid rgba(125, 211, 252, 0.38);
+        border-bottom: 1px solid rgba(192, 132, 252, 0.28);
+        box-shadow:
+            0 14px 36px rgba(0, 0, 0, 0.22),
+            0 0 28px rgba(56, 160, 255, 0.14),
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            inset 0 -1px 0 rgba(56, 160, 255, 0.08);
+        overflow: hidden;
+    }
+
+    .analytics-last-update-bar__text {
+        position: relative;
+        z-index: 1;
+    }
+
+    .analytics-last-update-bar::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(125, 211, 252, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(125, 211, 252, 0.05) 1px, transparent 1px);
+        background-size: 28px 28px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 85%);
+        pointer-events: none;
+    }
+
+    .analytics-last-update-bar::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -20%;
+        width: 40%;
+        height: 100%;
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(186, 230, 253, 0.12),
+            transparent
+        );
+        transform: skewX(-18deg);
+        pointer-events: none;
+    }
+
+    .analytics-last-update-bar--pending {
+        color: #fef3c7;
+        text-shadow:
+            0 0 14px rgba(251, 191, 36, 0.4),
+            0 1px 3px rgba(0, 0, 0, 0.55);
+        background:
+            linear-gradient(
+                105deg,
+                rgba(15, 23, 42, 0.65) 0%,
+                rgba(120, 53, 15, 0.38) 42%,
+                rgba(180, 83, 9, 0.26) 100%
+            );
+        border-top-color: rgba(251, 191, 36, 0.42);
+        border-bottom-color: rgba(251, 191, 36, 0.22);
+        box-shadow:
+            0 14px 36px rgba(0, 0, 0, 0.22),
+            0 0 28px rgba(251, 191, 36, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.14),
+            inset 0 -1px 0 rgba(251, 191, 36, 0.08);
+    }
+
+    .analytics-last-update-bar--pending::before {
+        background-image:
+            linear-gradient(rgba(251, 191, 36, 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(251, 191, 36, 0.06) 1px, transparent 1px);
+    }
+
+    .analytics-last-update-bar--pending::after {
+        background: linear-gradient(
+            90deg,
+            transparent,
+            rgba(253, 230, 138, 0.1),
+            transparent
+        );
+    }
+
     .analytics-kpi-card {
         cursor: help;
     }
     .analytics-kpi-tooltip .tooltip-inner {
         max-width: 280px;
         text-align: left;
+    }
+
+    /* Agentic Analytics — futuristic glass panel */
+    .analytics-agent-panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(120, 200, 255, 0.28) !important;
+        background:
+            linear-gradient(
+                145deg,
+                rgba(56, 120, 220, 0.14) 0%,
+                rgba(255, 255, 255, 0.06) 42%,
+                rgba(160, 80, 255, 0.12) 100%
+            ) !important;
+        box-shadow:
+            0 28px 56px rgba(0, 0, 0, 0.32),
+            0 0 40px rgba(56, 160, 255, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.18),
+            inset 0 0 60px rgba(56, 160, 255, 0.04) !important;
+    }
+
+    .analytics-agent-panel__glow {
+        position: absolute;
+        inset: -40%;
+        background: conic-gradient(
+            from 0deg,
+            rgba(56, 200, 255, 0.22),
+            rgba(140, 80, 255, 0.18),
+            rgba(56, 200, 255, 0.08),
+            rgba(255, 120, 200, 0.14),
+            rgba(56, 200, 255, 0.22)
+        );
+        opacity: 0.45;
+        animation: analytics-agent-spin 18s linear infinite;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    @keyframes analytics-agent-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .analytics-agent-panel__header,
+    .analytics-agent-panel__body {
+        position: relative;
+        z-index: 1;
+    }
+
+    .analytics-agent-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        padding: 0.9rem 1.25rem;
+        border-bottom: 1px solid rgba(120, 200, 255, 0.28) !important;
+        background:
+            linear-gradient(
+                105deg,
+                rgba(15, 23, 42, 0.72) 0%,
+                rgba(30, 41, 88, 0.58) 42%,
+                rgba(88, 48, 140, 0.45) 100%
+            ) !important;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .analytics-agent-panel__heading {
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        gap: 0.65rem;
+    }
+
+    .analytics-agent-panel__header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(120, 200, 255, 0.04) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(120, 200, 255, 0.04) 1px, transparent 1px);
+        background-size: 24px 24px;
+        mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .analytics-agent-panel__title {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-weight: 800;
+        font-size: 1.12rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #f0f9ff;
+        text-shadow:
+            0 0 18px rgba(125, 211, 252, 0.55),
+            0 0 4px rgba(56, 189, 248, 0.85),
+            0 1px 3px rgba(0, 0, 0, 0.65);
+    }
+
+    .analytics-agent-panel__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 0.45rem;
+        background: rgba(56, 160, 255, 0.28);
+        border: 1px solid rgba(186, 230, 253, 0.55);
+        box-shadow:
+            0 0 18px rgba(56, 160, 255, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        color: #bae6fd;
+    }
+
+    .analytics-agent-panel__icon svg {
+        width: 1rem;
+        height: 1rem;
+    }
+
+    .analytics-agent-panel__badge {
+        flex-shrink: 0;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+    }
+
+    .analytics-agent-panel__badge--beta {
+        border: 1px solid rgba(251, 191, 36, 0.5);
+        background: rgba(251, 191, 36, 0.14);
+        color: #fde68a;
+        box-shadow: 0 0 14px rgba(251, 191, 36, 0.22);
+    }
+
+    .analytics-agent-panel__badge--ai {
+        position: relative;
+        z-index: 1;
+        margin-left: auto;
+        border: 1px solid rgba(192, 132, 252, 0.55);
+        background: rgba(160, 80, 255, 0.22);
+        color: #f3e8ff;
+        box-shadow: 0 0 16px rgba(160, 80, 255, 0.35);
+    }
+
+    .analytics-agent-panel__body {
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        background: rgba(12, 18, 32, 0.38);
+    }
+
+    .analytics-agent-panel__label {
+        color: rgba(186, 230, 253, 0.88) !important;
+        letter-spacing: 0.03em;
+    }
+
+    .analytics-agent-panel__input {
+        background: rgba(12, 24, 48, 0.45) !important;
+        border: 1px solid rgba(125, 211, 252, 0.28) !important;
+        color: #f8fafc !important;
+        box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .analytics-agent-panel__input::placeholder {
+        color: rgba(186, 230, 253, 0.45) !important;
+    }
+
+    .analytics-agent-panel__input:focus {
+        border-color: rgba(125, 211, 252, 0.55) !important;
+        box-shadow:
+            0 0 0 0.15rem rgba(56, 160, 255, 0.2),
+            inset 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    .analytics-agent-panel__submit {
+        background: linear-gradient(135deg, #38bdf8 0%, #818cf8 55%, #c084fc 100%) !important;
+        border: 1px solid rgba(186, 230, 253, 0.35) !important;
+        color: #0f172a !important;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 0.4rem 1.1rem;
+        box-shadow: 0 4px 18px rgba(56, 160, 255, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .analytics-agent-panel__submit:hover,
+    .analytics-agent-panel__submit:focus {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 22px rgba(129, 140, 248, 0.45);
+        color: #0f172a !important;
+    }
+
+    .analytics-agent-panel__submit:disabled {
+        opacity: 0.65;
+        transform: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .analytics-agent-panel__glow {
+            animation: none;
+        }
     }
 </style>
 {% endblock %}

@@ -6,9 +6,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from decimal import Decimal
 from statistics import median
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db.models import Count, Q, Sum
+from django.utils import timezone
 
 from analytics.models import DimTaxSeason, EtlRun, FactAssignment
 from core.models import LifecycleState
@@ -20,6 +22,17 @@ def warehouse_available() -> bool:
 
 def _facts():
     return FactAssignment.objects.using("analytics")
+
+
+def format_etl_last_update_display(finished_at) -> str:
+    """Format warehouse sync time for display in firm timezone (Pacific)."""
+    if not finished_at:
+        return ""
+    firm_tz = ZoneInfo(getattr(settings, "FIRM_TIME_ZONE", "America/Los_Angeles"))
+    if timezone.is_naive(finished_at):
+        finished_at = timezone.make_aware(finished_at, timezone.utc)
+    local_dt = timezone.localtime(finished_at, firm_tz)
+    return f"Last Update: {local_dt.strftime('%b %d, %Y %I:%M %p %Z')}"
 
 
 def _reportable_qs(qs):
@@ -63,6 +76,7 @@ class SeasonKpiSnapshot:
 class AnalyticsDashboardContext:
     warehouse_enabled: bool
     last_etl_finished_at: object | None = None
+    last_etl_display: str = ""
     last_etl_status: str = ""
     seasons: list[dict] = field(default_factory=list)
     selected_season_year: int | None = None
@@ -207,11 +221,17 @@ def get_dashboard_context(*, season_year: int | None = None) -> AnalyticsDashboa
 
     last_etl = get_last_successful_etl()
     seasons = list_season_options()
-    selected = season_year or _default_season_year(seasons)
+    # Track A dashboard: always scope KPIs to the active tax season.
+    selected = _default_season_year(seasons)
+    if season_year is not None:
+        selected = season_year
 
     ctx = AnalyticsDashboardContext(
         warehouse_enabled=True,
         last_etl_finished_at=last_etl.finished_at if last_etl else None,
+        last_etl_display=format_etl_last_update_display(
+            last_etl.finished_at if last_etl else None
+        ),
         last_etl_status=last_etl.status if last_etl else "",
         seasons=seasons,
         selected_season_year=selected,

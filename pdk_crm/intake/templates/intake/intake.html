@@ -1501,41 +1501,48 @@
         }
 
          // ========== Remove client from intake ==========
-        function removeClientFromIntake(clientId) {
-            if (confirm("Are you sure you want to remove this client from the intake? All associated products will be lost.")) {
-                axios.post(`/intake/remove_client_from_intake/${clientId}/`, {}, {
-                    headers: { "X-CSRFToken": "{{ csrf_token }}"}
-                })
-                .then(response => {
-                    if (response.data.status === "success") {
-                        document.querySelector(`tr[data-client-id = "${clientId}"]`).remove();
-
-                        // Update search results
-                        document.querySelectorAll(`#searchResults a`).forEach(item => {
-                            if(item.textContent.includes(clientId)) {
-                                item.querySelector('.infoBtn').remove();
-                                item.querySelector('.removeClientBtn').remove();
-                                item.insertAdjacentHTML('beforeend', `
-                                <button type = "button" class = "btn btn-dark addBtn" onclick = "addClientToIntake(${clientId})">Add</button>`
-                                );
-                            }
-                        });
-
-                        // Refresh the intake page
-                        window.location.reload();
-                    } else {
-                        alert("Error: " + response.data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error("error removing client from intake:", error);
-                    // Hide search dropdown
-                    document.getElementById("searchResults").classList.remove("show");
-                    document.getElementById("searchInput").value = "";
-                    document.getElementById("searchResults").innerHTML = "";
-                    alert("An error occurred while removing the client.")
-                });
+        function formatIntakeRemoveError(error) {
+            const data = error?.response?.data;
+            if (!data) {
+                return "An error occurred while removing the client.";
             }
+            if (typeof data.message === "string" && data.message.trim()) {
+                return data.message;
+            }
+            if (data.message && typeof data.message === "object") {
+                const parts = Object.entries(data.message).flatMap(([field, msgs]) => {
+                    const list = Array.isArray(msgs) ? msgs : [msgs];
+                    return list.map((msg) => (field === "__all__" ? msg : `${field}: ${msg}`));
+                });
+                if (parts.length) {
+                    return parts.join("\n");
+                }
+            }
+            return "An error occurred while removing the client.";
+        }
+
+        function clearIntakeSearchDropdown() {
+            document.getElementById("searchResults").classList.remove("show");
+            document.getElementById("searchInput").value = "";
+            document.getElementById("searchResults").innerHTML = "";
+        }
+
+        function removeClientFromIntake(clientId) {
+            if (!confirm("Are you sure you want to remove this client from the intake? All associated products will be lost.")) {
+                return;
+            }
+
+            axios.post(`/intake/remove_client_from_intake/${clientId}/`, {}, {
+                headers: { "X-CSRFToken": "{{ csrf_token }}" }
+            })
+            .then(() => {
+                location.reload();
+            })
+            .catch(error => {
+                console.error("error removing client from intake:", error);
+                clearIntakeSearchDropdown();
+                alert(formatIntakeRemoveError(error));
+            });
         }
 
  
