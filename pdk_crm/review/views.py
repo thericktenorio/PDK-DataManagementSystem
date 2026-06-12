@@ -47,7 +47,6 @@ def review(request):
             "pending_ack_rows": _rows_for_table("pending_acks", tax_season=tax_season),
             "pending_reject_rows": _rows_for_table("pending_reject", tax_season=tax_season),
             "filed_rows": _rows_for_table("filed", tax_season=tax_season),
-            "queue_count": review_queue_count(tax_season=tax_season),
         },
     )
 

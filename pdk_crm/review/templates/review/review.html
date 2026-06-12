@@ -6,17 +6,6 @@
 {% block content %}
 <div class="app-page review-page">
     <h1 class="app-page-title">Review</h1>
-    <p class="app-page-subtitle mb-0">
-        Paid assignments ready for Drake review, filing, and acknowledgments.
-        {% if tax_season %}
-            Active season: {{ tax_season.year }}.
-        {% else %}
-            <span class="text-warning">No active tax season.</span>
-        {% endif %}
-    </p>
-    <div class="d-flex justify-content-center mb-4">
-        <span class="badge bg-primary">{{ queue_count }} in queue</span>
-    </div>
 <div class="container-fluid app-page-body pb-4">
     {% csrf_token %}
 
