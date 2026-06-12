@@ -4,9 +4,117 @@
 {% block title %}Billing{% endblock %}
 
 {% block content %}
+<style>
+    .billing-page .billing-auto-send-control {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.35rem 0.5rem 0.35rem 0.75rem;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .billing-page .billing-auto-send-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.92);
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }
+
+    .billing-page .billing-auto-send-switch {
+        position: relative;
+        display: inline-flex;
+        align-items: stretch;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+    }
+
+    .billing-page .billing-auto-send-switch:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+    }
+
+    .billing-page .billing-auto-send-track {
+        position: relative;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        align-items: center;
+        min-width: 5.75rem;
+        height: 1.85rem;
+        padding: 0.15rem;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.28);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        overflow: hidden;
+    }
+
+    .billing-page .billing-auto-send-option {
+        position: relative;
+        z-index: 2;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: lowercase;
+        text-align: center;
+        line-height: 1;
+        transition: color 0.15s ease, opacity 0.15s ease;
+        user-select: none;
+        pointer-events: none;
+    }
+
+    .billing-page .billing-auto-send-knob {
+        position: absolute;
+        top: 0.15rem;
+        left: 0.15rem;
+        width: calc(50% - 0.15rem);
+        height: calc(100% - 0.3rem);
+        border-radius: 999px;
+        transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+        z-index: 1;
+    }
+
+    .billing-page .billing-auto-send-switch.is-off .billing-auto-send-knob {
+        transform: translateX(0);
+        background-color: #dc3545;
+        box-shadow: 0 0 0 1px #bb2d3b;
+    }
+
+    .billing-page .billing-auto-send-switch.is-on .billing-auto-send-knob {
+        transform: translateX(100%);
+        background-color: #198754;
+        box-shadow: 0 0 0 1px #157347;
+    }
+
+    .billing-page .billing-auto-send-switch.is-off .billing-auto-send-off-label {
+        color: #fff;
+    }
+
+    .billing-page .billing-auto-send-switch.is-off .billing-auto-send-on-label {
+        color: rgba(255, 255, 255, 0.42);
+    }
+
+    .billing-page .billing-auto-send-switch.is-on .billing-auto-send-on-label {
+        color: #fff;
+    }
+
+    .billing-page .billing-auto-send-switch.is-on .billing-auto-send-off-label {
+        color: rgba(255, 255, 255, 0.42);
+    }
+
+    .billing-page .billing-auto-send-switch:focus-visible {
+        outline: none;
+    }
+
+    .billing-page .billing-auto-send-switch:focus-visible .billing-auto-send-track {
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.18);
+    }
+</style>
 <div class="app-page billing-page">
     <h1 class="app-page-title">Billing</h1>
-    <p class="app-page-subtitle mb-0">Draft invoices, outbound sends, and QBO payment status.</p>
     <div class="d-flex flex-wrap justify-content-center align-items-center gap-2 mb-4">
         {% if qbo_connected %}
             <span class="badge bg-success">QBO connected</span>
@@ -14,14 +122,30 @@
             <span class="badge bg-secondary">QBO not connected</span>
             <a href="{% url 'billing:qbo_connect' %}" class="btn btn-sm btn-outline-light">Connect QBO</a>
         {% endif %}
+        {% if quiet_period_minutes and can_toggle_auto_send %}
+        <div
+            class="billing-auto-send-control"
+            id="autoSendControl"
+            title="auto-send delay period set to {{ quiet_period_minutes }} min"
+        >
+            <span class="billing-auto-send-label">auto-send invoice</span>
+            <button
+                type="button"
+                id="autoSendToggle"
+                class="billing-auto-send-switch {% if auto_send_enabled %}is-on{% else %}is-off{% endif %}"
+                aria-pressed="{% if auto_send_enabled %}true{% else %}false{% endif %}"
+                aria-label="Toggle auto-send invoice"
+            >
+                <span class="billing-auto-send-track">
+                    <span class="billing-auto-send-knob" aria-hidden="true"></span>
+                    <span class="billing-auto-send-option billing-auto-send-off-label">off</span>
+                    <span class="billing-auto-send-option billing-auto-send-on-label">on</span>
+                </span>
+            </button>
+        </div>
+        {% endif %}
     </div>
 <div class="container-fluid app-page-body pb-4">
-
-    {% if quiet_period_minutes %}
-    <p class="small text-muted">Auto-send quiet period: {{ quiet_period_minutes }} min
-        {% if auto_send_enabled %}(auto-send <strong>enabled</strong>){% else %}(auto-send disabled){% endif %}
-    </p>
-    {% endif %}
 
     <div class="row g-4">
         <div class="col-lg-6">
@@ -160,4 +284,54 @@
     </div>
 </div>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const toggleBtn = document.getElementById("autoSendToggle");
+        const toggleWrap = document.getElementById("autoSendControl");
+        if (!toggleBtn || !toggleWrap || typeof bootstrap === "undefined") return;
+
+        const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]")?.value
+            || document.cookie.split("; ").find(row => row.startsWith("csrftoken="))?.split("=")[1];
+        let tooltip = bootstrap.Tooltip.getInstance(toggleWrap) || new bootstrap.Tooltip(toggleWrap, {
+            placement: "top",
+        });
+
+        function setAutoSendState(enabled) {
+            toggleBtn.classList.toggle("is-on", enabled);
+            toggleBtn.classList.toggle("is-off", !enabled);
+            toggleBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
+        }
+
+        toggleBtn.addEventListener("click", function () {
+            const nextEnabled = toggleBtn.classList.contains("is-off");
+            toggleBtn.disabled = true;
+
+            fetch("{% url 'billing:toggle_auto_send' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": csrfToken,
+                },
+                body: JSON.stringify({ enabled: nextEnabled }),
+            })
+                .then(response => response.json().then(data => ({ ok: response.ok, data })))
+                .then(({ ok, data }) => {
+                    if (!ok || data.status !== "success") {
+                        throw new Error(data.message || "Could not update auto-send.");
+                    }
+                    setAutoSendState(Boolean(data.auto_send_enabled));
+                })
+                .catch(() => {
+                    window.alert("Could not update auto-send setting.");
+                })
+                .finally(() => {
+                    toggleBtn.disabled = false;
+                    if (tooltip) {
+                        tooltip.dispose();
+                    }
+                    tooltip = new bootstrap.Tooltip(toggleWrap, { placement: "top" });
+                });
+        });
+    });
+</script>
 {% endblock %}

@@ -16,6 +16,15 @@ class Command(BaseCommand):
             self.stdout.write("FEATURE_AUTO_SEND_INVOICES is disabled; skipping.")
             return
 
+        from core.models import Organization
+
+        if not Organization.objects.filter(
+            auto_send_invoices_enabled=True,
+            is_active=True,
+        ).exists():
+            self.stdout.write("No organization has auto-send enabled; skipping.")
+            return
+
         candidates = (Invoice.objects.filter(status__in = [Invoice.INVOICE_STATUS_DRAFT, Invoice.INVOICE_STATUS_ISSUED]).order_by("last_activity_at")[:100])
         
         sent = 0

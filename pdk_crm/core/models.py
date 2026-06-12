@@ -33,6 +33,10 @@ def validate_tax_year(value):
 class Organization(models.Model):
     is_active = models.BooleanField(default = True)
     is_archived = models.BooleanField(default = False)
+    auto_send_invoices_enabled = models.BooleanField(
+        default = False,
+        help_text = "When True, draft invoices auto-send after the quiet period elapses.",
+    )
     
     name = models.CharField(max_length = 255, unique = True)
     created_at = models.DateTimeField(auto_now_add = True)

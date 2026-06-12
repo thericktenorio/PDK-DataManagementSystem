@@ -9,7 +9,7 @@ from django.db import IntegrityError
 from django.contrib import messages
 from django.conf import settings
 
-from core.models import Client, TaxYear
+from core.models import Client, Organization, TaxYear
 from .models import (
     QboConnection,
     QboWebhookDelivery,
@@ -102,6 +102,9 @@ def billing(request):
         .order_by("-last_updated")[:15]
     )
 
+    org = getattr(request.user, "organization", None)
+    auto_send_enabled = bool(org and org.auto_send_invoices_enabled)
+
     return render(
         request,
         "billing/billing.html",
@@ -112,9 +115,35 @@ def billing(request):
             "paid_rows": paid_rows,
             "recent_errors": recent_errors,
             "quiet_period_minutes": getattr(settings, "BILLING_QUIET_PERIOD_MINUTES", 5),
-            "auto_send_enabled": getattr(settings, "FEATURE_AUTO_SEND_INVOICES", False),
+            "auto_send_enabled": auto_send_enabled,
+            "can_toggle_auto_send": bool(org),
         },
     )
+
+
+@login_required
+@require_POST
+def toggle_auto_send(request):
+    org_id = get_current_org_id(request)
+    if not org_id:
+        return JsonResponse({"status": "error", "message": "No organization."}, status=400)
+
+    org = get_object_or_404(Organization, pk=org_id)
+
+    try:
+        data = json.loads(request.body or "{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"status": "error", "message": "Invalid JSON."}, status=400)
+
+    if "enabled" in data:
+        enabled = bool(data["enabled"])
+    else:
+        enabled = not org.auto_send_invoices_enabled
+
+    org.auto_send_invoices_enabled = enabled
+    org.save(update_fields=["auto_send_invoices_enabled"])
+
+    return JsonResponse({"status": "success", "auto_send_enabled": enabled})
 
 
 @login_required
