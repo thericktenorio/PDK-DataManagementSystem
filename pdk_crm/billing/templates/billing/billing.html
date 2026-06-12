@@ -112,6 +112,10 @@
     .billing-page .billing-auto-send-switch:focus-visible .billing-auto-send-track {
         box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.18);
     }
+
+    .billing-page .billing-control-readonly {
+        opacity: 0.72;
+    }
 </style>
 <div class="app-page billing-page">
     <h1 class="app-page-title">Billing</h1>
@@ -120,11 +124,15 @@
             <span class="badge bg-success">QBO connected</span>
         {% else %}
             <span class="badge bg-secondary">QBO not connected</span>
+            {% if can_manage_billing_settings %}
             <a href="{% url 'billing:qbo_connect' %}" class="btn btn-sm btn-outline-light">Connect QBO</a>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-light billing-control-readonly" disabled aria-disabled="true">Connect QBO</button>
+            {% endif %}
         {% endif %}
         {% if quiet_period_minutes and can_toggle_auto_send %}
         <div
-            class="billing-auto-send-control"
+            class="billing-auto-send-control{% if not can_manage_billing_settings %} billing-control-readonly{% endif %}"
             id="autoSendControl"
             title="auto-send delay period set to {{ quiet_period_minutes }} min"
         >
@@ -135,6 +143,7 @@
                 class="billing-auto-send-switch {% if auto_send_enabled %}is-on{% else %}is-off{% endif %}"
                 aria-pressed="{% if auto_send_enabled %}true{% else %}false{% endif %}"
                 aria-label="Toggle auto-send invoice"
+                {% if not can_manage_billing_settings %}disabled aria-disabled="true"{% endif %}
             >
                 <span class="billing-auto-send-track">
                     <span class="billing-auto-send-knob" aria-hidden="true"></span>
@@ -300,6 +309,11 @@
             toggleBtn.classList.toggle("is-on", enabled);
             toggleBtn.classList.toggle("is-off", !enabled);
             toggleBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
+        }
+
+        const canManageBillingSettings = {% if can_manage_billing_settings %}true{% else %}false{% endif %};
+        if (!canManageBillingSettings) {
+            return;
         }
 
         toggleBtn.addEventListener("click", function () {

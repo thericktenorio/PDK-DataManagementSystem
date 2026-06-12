@@ -24,6 +24,7 @@ from .services.sender import send_invoice_now_for
 from .policies import is_invoice_eligible_to_send
 from .selectors import clearing_complete_pas_for_invoice
 from .mappers import pa_to_qbo_sales_item
+from .permissions import billing_settings_required, billing_settings_required_json, user_can_manage_billing_settings
 
 from datetime import datetime
 from dateutil import parser as dtparser
@@ -117,11 +118,12 @@ def billing(request):
             "quiet_period_minutes": getattr(settings, "BILLING_QUIET_PERIOD_MINUTES", 5),
             "auto_send_enabled": auto_send_enabled,
             "can_toggle_auto_send": bool(org),
+            "can_manage_billing_settings": user_can_manage_billing_settings(request.user),
         },
     )
 
 
-@login_required
+@billing_settings_required_json
 @require_POST
 def toggle_auto_send(request):
     org_id = get_current_org_id(request)
@@ -175,7 +177,7 @@ def get_current_org_id(request):
     return getattr(getattr(request.user, "organization", None), "id", None)
 
 
-@login_required
+@billing_settings_required
 def qbo_connect(request):
     org_id = get_current_org_id(request)
     if not org_id:
